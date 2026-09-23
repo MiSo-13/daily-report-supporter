@@ -143,11 +143,33 @@ reports/
 }
 ```
 
-설정 파일이 없거나 JSON이 손상되어 읽을 수 없는 경우에는 Light 테마와 기본 인사말로 안전하게 시작합니다.
+앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 인사말로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
-### Wayland 안정성
+### Linux / Wayland 안정성
 
-- 테마 변경은 메뉴가 열린 상태에서 `QApplication` 전체 스타일을 즉시 교체하지 않습니다.
-- 테마 메뉴가 닫힌 뒤 MainWindow UI 트리에만 스타일을 적용합니다.
-- 업무 삭제 확인은 네이티브 `QMessageBox` 대신 일반 Qt `QDialog`를 사용하고, 다이얼로그 종료 후 다음 이벤트 루프에서 실제 삭제/저장을 수행합니다.
-\n## 관련 문서 링크\n\n관련 문서는 UI에서 두 값으로 나누어 입력합니다.\n\n- **관련 문서 문구**: Markdown에서 보일 텍스트. 예: `1694`\n- **관련 문서 주소**: 실제 URL. 예: `http://naver.com`\n\n저장 결과:\n\n```markdown\n- 관련 문서: [1694](http://naver.com)\n```\n\n기존 버전에서 `- 관련 문서: https://...` 형식으로 저장된 문서는 계속 읽을 수 있습니다. 해당 문서를 다시 저장하면 `[https://...](https://...)` 형태의 Markdown 링크로 자동 변환됩니다.\n
+일부 Linux/Crostini 환경에서 PyQt6의 Wayland backend로 `QMenu` 또는 `QDialog` popup surface를 닫을 때 `The Wayland connection broke` 오류가 발생할 수 있습니다.
+
+- Linux에서 `DISPLAY`가 제공되면 앱 시작 시 PyQt를 import하기 전에 `QT_QPA_PLATFORM=xcb`를 자동 설정합니다.
+- 따라서 설정 메뉴, 인사말 설정 다이얼로그, 삭제 확인 다이얼로그는 기존 UI를 그대로 사용하면서 X11(xcb) backend에서 동작합니다.
+- 환경에서 다른 Qt platform을 명시적으로 사용하려면 `DAILY_REPORT_QT_PLATFORM` 환경변수를 설정할 수 있습니다.
+
+예:
+
+```bash
+DAILY_REPORT_QT_PLATFORM=wayland python main.py
+```
+
+## 관련 문서 링크
+
+관련 문서는 UI에서 두 값으로 나누어 입력합니다.
+
+- **관련 문서 문구**: Markdown에서 보일 텍스트. 예: `1694`
+- **관련 문서 주소**: 실제 URL. 예: `http://naver.com`
+
+저장 결과:
+
+```markdown
+- 관련 문서: [1694](http://naver.com)
+```
+
+기존 버전에서 `- 관련 문서: https://...` 형식으로 저장된 문서는 계속 읽을 수 있습니다. 해당 문서를 다시 저장하면 `[https://...](https://...)` 형태의 Markdown 링크로 자동 변환됩니다.
