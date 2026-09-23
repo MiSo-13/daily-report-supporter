@@ -21,7 +21,8 @@ class TaskStatus(str, Enum):
 @dataclass(slots=True)
 class Task:
     title: str
-    link: str = ""
+    link_text: str = ""
+    link_url: str = ""
     details: list[str] = field(default_factory=list)
     status: TaskStatus = TaskStatus.PLANNED
 
@@ -29,10 +30,19 @@ class Task:
     def completed(self) -> bool:
         return self.status is TaskStatus.COMPLETED
 
+    @property
+    def markdown_link(self) -> str:
+        url = self.link_url.strip()
+        if not url:
+            return ""
+        text = self.link_text.strip() or url
+        return f"[{text}]({url})"
+
     def normalized(self) -> "Task":
         return Task(
             title=self.title.strip(),
-            link=self.link.strip(),
+            link_text=self.link_text.strip(),
+            link_url=self.link_url.strip(),
             details=[line.strip() for line in self.details if line.strip()],
             status=self.status,
         )
