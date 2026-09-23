@@ -227,8 +227,6 @@ class TaskEditor(QWidget):
         self.cancel_delete_button.setVisible(False)
         if self.list_widget.currentRow() >= 0:
             self.delete_button.setVisible(True)
-        self.confirm_delete_button.setVisible(False)
-        self.cancel_delete_button.setVisible(False)
 
     def save_changes(self) -> None:
         row = self.list_widget.currentRow()
