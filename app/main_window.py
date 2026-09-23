@@ -8,7 +8,6 @@ from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
-    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -30,7 +29,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.markdown_store import MarkdownStore
-from app.models import DailyDocument, Task
+from app.models import DailyDocument, Task, TaskStatus
 from app.report_service import ReportService
 
 
@@ -48,13 +47,15 @@ class TaskEditor(QWidget):
         self.link_input = QLineEdit()
         self.details_input = QTextEdit()
         self.details_input.setPlaceholderText("주요 내용을 한 줄에 하나씩 입력하세요.")
-        self.completed_input = QCheckBox("완료")
+        self.status_input = QComboBox()
+        for status in TaskStatus:
+            self.status_input.addItem(status.value, status.value)
 
         form = QFormLayout()
         form.addRow("제목", self.title_input)
         form.addRow("관련 문서 링크", self.link_input)
         form.addRow("주요 내용", self.details_input)
-        form.addRow("상태", self.completed_input)
+        form.addRow("상태", self.status_input)
 
         self.add_button = QPushButton("+ 업무 추가")
         self.delete_button = QPushButton("삭제")
@@ -79,7 +80,7 @@ class TaskEditor(QWidget):
             self.title_input,
             self.link_input,
             self.details_input,
-            self.completed_input,
+            self.status_input,
             self.add_button,
             self.delete_button,
             self.apply_button,
@@ -87,20 +88,27 @@ class TaskEditor(QWidget):
             widget.setEnabled(editable)
 
     def set_tasks(self, tasks: list[Task]) -> None:
-        self.tasks = [Task(t.title, t.link, list(t.details), t.completed) for t in tasks]
+        self.tasks = [Task(t.title, t.link, list(t.details), t.status) for t in tasks]
         self.refresh()
 
     def get_tasks(self) -> list[Task]:
         self.apply_current(silent=True)
-        return [Task(t.title, t.link, list(t.details), t.completed) for t in self.tasks]
+        return [Task(t.title, t.link, list(t.details), t.status) for t in self.tasks]
 
     def refresh(self) -> None:
         selected = self.list_widget.currentRow()
         self.list_widget.blockSignals(True)
         self.list_widget.clear()
+        symbols = {
+            TaskStatus.PLANNED: "○",
+            TaskStatus.IN_PROGRESS: "▶",
+            TaskStatus.COMPLETED: "✓",
+        }
         for task in self.tasks:
-            prefix = "✓" if task.completed else "○"
-            item = QListWidgetItem(f"{prefix} {task.title or '(제목 없음)'}")
+            prefix = symbols[task.status]
+            item = QListWidgetItem(
+                f"{prefix} [{task.status.value}] {task.title or '(제목 없음)'}"
+            )
             if task.link:
                 item.setToolTip(task.link)
             self.list_widget.addItem(item)
@@ -115,7 +123,7 @@ class TaskEditor(QWidget):
         if not self.editable:
             return
         self.apply_current(silent=True)
-        self.tasks.append(Task("새 업무"))
+        self.tasks.append(Task("새 업무", status=TaskStatus.PLANNED))
         self.refresh()
         self.list_widget.setCurrentRow(len(self.tasks) - 1)
         self.title_input.setFocus()
@@ -139,6 +147,9 @@ class TaskEditor(QWidget):
                 QMessageBox.warning(self, "입력 확인", "업무 제목을 입력하세요.")
             return
 
+        status = TaskStatus.from_text(
+            str(self.status_input.currentData() or TaskStatus.PLANNED.value)
+        )
         self.tasks[row] = Task(
             title=title,
             link=self.link_input.text().strip(),
@@ -147,7 +158,7 @@ class TaskEditor(QWidget):
                 for line in self.details_input.toPlainText().splitlines()
                 if line.strip()
             ],
-            completed=self.completed_input.isChecked(),
+            status=status,
         )
         self.refresh()
         self.list_widget.setCurrentRow(row)
@@ -160,13 +171,15 @@ class TaskEditor(QWidget):
         self.title_input.setText(task.title)
         self.link_input.setText(task.link)
         self.details_input.setPlainText("\n".join(task.details))
-        self.completed_input.setChecked(task.completed)
+        status_index = self.status_input.findData(task.status.value)
+        self.status_input.setCurrentIndex(max(status_index, 0))
 
     def _clear_form(self) -> None:
         self.title_input.clear()
         self.link_input.clear()
         self.details_input.clear()
-        self.completed_input.setChecked(False)
+        planned_index = self.status_input.findData(TaskStatus.PLANNED.value)
+        self.status_input.setCurrentIndex(max(planned_index, 0))
 
 
 class ReportDialog(QDialog):
