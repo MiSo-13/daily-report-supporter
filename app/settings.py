@@ -7,6 +7,8 @@ from typing import Any
 DEFAULT_GREETING = "안녕하세요.\n금일 업무 진행사항 공유드립니다."
 DEFAULT_FOOTER = ""
 DEFAULT_THEME = "Light"
+DEFAULT_PREVIOUS_SECTION_TITLE = "어제 했던 일"
+DEFAULT_TODAY_SECTION_TITLE = "오늘 해야 할 일"
 SETTINGS_FILE_NAME = "settings.json"
 
 
@@ -39,6 +41,38 @@ class AppSettings:
         self._save()
 
     @property
+    def previous_section_title(self) -> str:
+        value = self._data.get("previous_section_title")
+        return (
+            value
+            if isinstance(value, str) and value.strip()
+            else DEFAULT_PREVIOUS_SECTION_TITLE
+        )
+
+    @previous_section_title.setter
+    def previous_section_title(self, value: str) -> None:
+        self._data["previous_section_title"] = (
+            value.strip() or DEFAULT_PREVIOUS_SECTION_TITLE
+        )
+        self._save()
+
+    @property
+    def today_section_title(self) -> str:
+        value = self._data.get("today_section_title")
+        return (
+            value
+            if isinstance(value, str) and value.strip()
+            else DEFAULT_TODAY_SECTION_TITLE
+        )
+
+    @today_section_title.setter
+    def today_section_title(self, value: str) -> None:
+        self._data["today_section_title"] = (
+            value.strip() or DEFAULT_TODAY_SECTION_TITLE
+        )
+        self._save()
+
+    @property
     def theme(self) -> str:
         value = self._data.get("theme")
         return value if isinstance(value, str) and value.strip() else DEFAULT_THEME
@@ -53,6 +87,8 @@ class AppSettings:
             "theme": DEFAULT_THEME,
             "greeting": DEFAULT_GREETING,
             "footer": DEFAULT_FOOTER,
+            "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
+            "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
         }
 
         if not self.path.exists():
@@ -70,9 +106,17 @@ class AppSettings:
             "theme": payload.get("theme", DEFAULT_THEME),
             "greeting": payload.get("greeting", DEFAULT_GREETING),
             "footer": payload.get("footer", DEFAULT_FOOTER),
+            "previous_section_title": payload.get(
+                "previous_section_title",
+                DEFAULT_PREVIOUS_SECTION_TITLE,
+            ),
+            "today_section_title": payload.get(
+                "today_section_title",
+                DEFAULT_TODAY_SECTION_TITLE,
+            ),
         }
 
-        needs_write = set(payload) != {"theme", "greeting", "footer"}
+        needs_write = set(payload) != set(defaults)
         return data, needs_write
 
     def _save(self) -> None:
