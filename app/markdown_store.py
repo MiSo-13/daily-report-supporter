@@ -5,9 +5,10 @@ from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
-from app.models import DailyDocument, Task
+from app.models import DailyDocument, Task, TaskStatus
 
 CHECKBOX_RE = re.compile(r"^- \[(?P<mark>[ xX])\] (?P<title>.*)$")
+STATUS_PREFIX = "  - 상태:"
 LINK_PREFIX = "  - 관련 문서:"
 DETAIL_HEADER = "  - 주요 내용:"
 DETAIL_PREFIX = "    - "
@@ -29,8 +30,16 @@ class MarkdownStore:
         if source is None:
             document = DailyDocument()
         else:
-            completed = [replace(task) for task in source.today_tasks if task.completed]
-            pending = [replace(task, completed=False) for task in source.today_tasks if not task.completed]
+            completed = [
+                replace(task)
+                for task in source.today_tasks
+                if task.status is TaskStatus.COMPLETED
+            ]
+            pending = [
+                replace(task)
+                for task in source.today_tasks
+                if task.status is not TaskStatus.COMPLETED
+            ]
             document = DailyDocument(previous_done=completed, today_tasks=pending)
 
         self.save(target, document)
@@ -126,14 +135,26 @@ class MarkdownStore:
 
             match = CHECKBOX_RE.match(line)
             if match:
+                legacy_status = (
+                    TaskStatus.COMPLETED
+                    if match.group("mark").lower() == "x"
+                    else TaskStatus.PLANNED
+                )
                 current = Task(
                     title=match.group("title").strip(),
-                    completed=match.group("mark").lower() == "x",
+                    status=legacy_status,
                 )
                 section.append(current)
                 reading_details = False
                 continue
             if current is None:
+                continue
+            if line.startswith(STATUS_PREFIX):
+                current.status = TaskStatus.from_text(
+                    line[len(STATUS_PREFIX):],
+                    default=current.status,
+                )
+                reading_details = False
                 continue
             if line.startswith(LINK_PREFIX):
                 current.link = line[len(LINK_PREFIX):].strip()
@@ -154,8 +175,9 @@ class MarkdownStore:
         lines: list[str] = []
         for task in tasks:
             item = task.normalized()
-            mark = "x" if item.completed else " "
+            mark = "x" if item.status is TaskStatus.COMPLETED else " "
             lines.append(f"- [{mark}] {item.title}")
+            lines.append(f"  - 상태: {item.status.value}")
             if item.link:
                 lines.append(f"  - 관련 문서: {item.link}")
             if item.details:
