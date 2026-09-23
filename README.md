@@ -147,13 +147,17 @@ reports/
 
 ### Linux / Wayland 안정성
 
-일부 Linux/Crostini 환경에서 PyQt6의 Wayland backend로 `QMenu` 또는 `QDialog` popup surface를 닫을 때 `The Wayland connection broke` 오류가 발생할 수 있습니다.
+Linux에서는 앱 시작 전에 PyQt6의 `libqxcb.so` 의존성을 `ldd`로 검사합니다.
 
-- Linux에서 `DISPLAY`가 제공되면 앱 시작 시 PyQt를 import하기 전에 `QT_QPA_PLATFORM=xcb`를 자동 설정합니다.
-- 따라서 설정 메뉴, 인사말 설정 다이얼로그, 삭제 확인 다이얼로그는 기존 UI를 그대로 사용하면서 X11(xcb) backend에서 동작합니다.
-- 환경에서 다른 Qt platform을 명시적으로 사용하려면 `DAILY_REPORT_QT_PLATFORM` 환경변수를 설정할 수 있습니다.
+- xcb native dependency가 모두 있으면 X11(`xcb`) backend를 사용하며 기존 설정 메뉴와 QDialog를 그대로 사용합니다.
+- `libxcb-cursor0` 등 xcb dependency가 하나라도 없으면 xcb를 강제하지 않습니다.
+- 이 경우 Wayland로 실행하면서 자동으로 **안전 UI 모드**가 활성화됩니다.
+- 안전 UI 모드에서는 설정/일일보고를 메인 창 내부 탭으로 열고, 삭제 확인도 화면 내부 버튼으로 처리해 QMenu/QDialog popup surface를 만들지 않습니다.
+- `reports/settings.json`은 앱 시작 시 없으면 즉시 생성됩니다.
 
-예:
+Qt 공식 X11 요구사항에는 `xcb-cursor0`를 포함한 여러 XCB 라이브러리가 xcb platform plugin dependency로 명시되어 있습니다.
+
+고급 사용자는 `DAILY_REPORT_QT_PLATFORM`으로 platform을 직접 지정할 수 있습니다.
 
 ```bash
 DAILY_REPORT_QT_PLATFORM=wayland python main.py
