@@ -30,12 +30,16 @@ from app.themes import THEMES, stylesheet_for, theme_names
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, reports_root: Path | str = "reports") -> None:
+    def __init__(self, reports_root: Path | str | None = None) -> None:
         super().__init__()
         self.setWindowTitle("Daily Report Supporter")
         self.resize(1180, 760)
 
-        self.store = MarkdownStore(reports_root)
+        default_reports_root = Path(__file__).resolve().parent.parent / "reports"
+        resolved_reports_root = (
+            Path(reports_root) if reports_root is not None else default_reports_root
+        )
+        self.store = MarkdownStore(resolved_reports_root)
         self.settings = AppSettings(self.store.root)
         self.current_date = date.today()
         self._theme_actions: dict[str, QAction] = {}
@@ -65,6 +69,7 @@ class MainWindow(QMainWindow):
             self.persist_current,
             default_status=TaskStatus.PLANNED,
         )
+
         self.tabs = QTabWidget()
         self.tabs.addTab(self.previous_editor, "어제 했던 일")
         self.tabs.addTab(self.today_editor, "오늘 해야 할 일")
@@ -95,9 +100,7 @@ class MainWindow(QMainWindow):
 
         self._build_menu()
         self._apply_theme_now(self.settings.theme, persist=False)
-        self.statusBar().showMessage(
-            "업무 추가/삭제는 즉시 저장되고, 수정은 변경사항 저장 시 반영됩니다."
-        )
+        self.statusBar().showMessage(f"설정 파일: {self.settings.path}")
         self.open_today()
 
     def _build_menu(self) -> None:
@@ -126,16 +129,11 @@ class MainWindow(QMainWindow):
         if name not in THEMES:
             name = "Light"
 
-        # 메뉴가 열린 상태에서 MainWindow 전체 stylesheet를 즉시 교체하면
-        # Wayland/Qt 조합에 따라 surface 재생성 시점이 겹칠 수 있다.
-        # 설정은 먼저 저장하고, 메뉴가 완전히 닫힌 aboutToHide 시점에 적용한다.
         self.settings.theme = name
         self._pending_theme = name
         self._sync_theme_actions(name)
 
     def _schedule_pending_theme_apply(self) -> None:
-        # aboutToHide는 실제 hide 직전에 발생한다. Wayland surface가 완전히
-        # 정리된 다음 stylesheet를 바꾸도록 다음 event-loop tick으로 넘긴다.
         QTimer.singleShot(50, self._apply_pending_theme)
 
     def _apply_pending_theme(self) -> None:
@@ -149,8 +147,6 @@ class MainWindow(QMainWindow):
         if name not in THEMES:
             name = "Light"
 
-        # QApplication 전역 stylesheet 대신 MainWindow 트리에만 적용한다.
-        # 새로 여는 child dialog도 이 스타일을 상속한다.
         self.setStyleSheet(stylesheet_for(name))
         if persist:
             self.settings.theme = name
