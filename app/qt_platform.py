@@ -6,7 +6,6 @@ import re
 import subprocess
 import sys
 from collections.abc import Iterable, MutableMapping
-from dataclasses import dataclass
 from pathlib import Path
 
 CROSTINI_MARKER_PATHS = (
@@ -45,10 +44,15 @@ LIBRARY_TO_DEBIAN_PACKAGE = {
 NOT_FOUND_RE = re.compile(r"^\s*(?P<library>\S+)\s+=>\s+not found\s*$")
 
 
-@dataclass(frozen=True, slots=True)
 class CrostiniDependencyError(RuntimeError):
-    reason: str
-    missing_libraries: tuple[str, ...] = ()
+    def __init__(
+        self,
+        reason: str,
+        missing_libraries: tuple[str, ...] = (),
+    ) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.missing_libraries = missing_libraries
 
     @property
     def install_packages(self) -> tuple[str, ...]:
