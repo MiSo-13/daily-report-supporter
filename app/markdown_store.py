@@ -164,6 +164,7 @@ class MarkdownStore:
         section: list[Task] | None = None
         current: Task | None = None
         reading_details = False
+        unknown_heading_index = 0
 
         previous_titles = {
             DEFAULT_PREVIOUS_SECTION_TITLE,
@@ -181,8 +182,18 @@ class MarkdownStore:
                 heading = line[3:].strip()
                 if heading in previous_titles:
                     section = previous_done
+                    unknown_heading_index = max(unknown_heading_index, 1)
                 elif heading in today_titles:
                     section = today_tasks
+                    unknown_heading_index = max(unknown_heading_index, 2)
+                elif unknown_heading_index == 0:
+                    # 이전에 사용하던 커스텀 제목도 첫 번째 섹션으로 읽는다.
+                    section = previous_done
+                    unknown_heading_index = 1
+                elif unknown_heading_index == 1:
+                    # 이전에 사용하던 커스텀 제목도 두 번째 섹션으로 읽는다.
+                    section = today_tasks
+                    unknown_heading_index = 2
                 else:
                     section = None
                 current = None
