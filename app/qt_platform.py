@@ -8,6 +8,8 @@ import sys
 from collections.abc import Iterable, MutableMapping
 from pathlib import Path
 
+from app.settings import INPUT_METHOD_CROSTINI_IBUS
+
 CROSTINI_MARKER_PATHS = (
     Path("/mnt/chromeos"),
     Path("/opt/google/cros-containers"),
@@ -184,6 +186,26 @@ def install_crostini_dependencies(
         return False
 
     return result.returncode == 0
+
+
+
+def configure_input_method(
+    mode: str,
+    env: MutableMapping[str, str] | None = None,
+    platform: str | None = None,
+) -> bool:
+    target_env = env if env is not None else os.environ
+    current_platform = platform if platform is not None else sys.platform
+
+    if not current_platform.startswith("linux"):
+        return False
+    if mode != INPUT_METHOD_CROSTINI_IBUS:
+        return False
+
+    target_env["QT_IM_MODULE"] = "ibus"
+    target_env["XMODIFIERS"] = "@im=ibus"
+    target_env["GTK_IM_MODULE"] = "ibus"
+    return True
 
 
 def configure_qt_platform(
