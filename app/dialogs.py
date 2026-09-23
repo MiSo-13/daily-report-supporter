@@ -42,8 +42,10 @@ class GreetingSettingsDialog(QDialog):
             "예: 이상입니다. 감사합니다."
         )
 
+        today = date.today()
         token_help = QLabel(
-            "날짜: YY.MM.DD → 26.09.23 / YY. MM. DD → 26. 09. 23"
+            f"날짜: YY.MM.DD → {today:%y.%m.%d} / "
+            f"YY. MM. DD → {today:%y. %m. %d}"
         )
         token_help.setWordWrap(True)
 
