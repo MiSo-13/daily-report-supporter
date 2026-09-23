@@ -141,3 +141,34 @@ def test_report_generation_groups_active_and_planned_with_markdown_link() -> Non
     assert "2. [진행중] 리뷰 반영" in report
     assert "[예정 업무]" in report
     assert "1. 테스트 작성" in report
+
+
+def test_report_date_tokens_and_footer() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(title="업무 확인", status=TaskStatus.PLANNED),
+        ]
+    )
+
+    report = ReportService.build(
+        date(2026, 9, 23),
+        "안녕하세요.\nYY. MM. DD 업무 공유드립니다.",
+        document,
+        "YY.MM.DD 기준입니다.\n감사합니다.",
+    )
+
+    assert "26. 09. 23 업무 공유드립니다." in report
+    assert "26.09.23 기준입니다." in report
+    assert report.endswith("감사합니다.")
+
+
+def test_report_template_supports_long_date_tokens() -> None:
+    target = date(2026, 9, 23)
+
+    assert (
+        ReportService.render_template(
+            "YYYY.MM.DD / YYYY년 MM월 DD일",
+            target,
+        )
+        == "2026.09.23 / 2026년 09월 23일"
+    )
