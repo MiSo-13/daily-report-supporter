@@ -44,24 +44,20 @@ macOS에서는 Qt의 기본 `cocoa` platform plugin을 그대로 사용합니다
 
 ### ChromeOS / Crostini
 
-Crostini는 ChromeOS 위의 Linux 컨테이너이므로 일반 Windows/macOS와 그래픽 경로가 다릅니다. 이 앱은 Crostini를 감지하면 Wayland 대신 X11(`xcb`)을 사용합니다.
-
-최초 1회:
-
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-bash scripts/setup_crostini.sh
-```
-
-실행:
-
-```bash
 python main.py
 ```
 
-앱 시작 전에 PyQt6의 `libqxcb.so`를 검사합니다. 필요한 X11 라이브러리가 빠져 있으면 PyQt를 import하기 전에 종료하고, 누락된 라이브러리와 설치 명령을 터미널에 표시합니다. 따라서 Qt plugin 오류로 SIGABRT 되는 대신 필요한 조치를 확인할 수 있습니다.
+필요한 X11 패키지가 없으면 첫 실행 시 `scripts/setup_crostini.sh`를 자동 실행합니다. `sudo` 비밀번호가 필요하면 터미널에서 입력하면 됩니다.
+
+수동 설치가 필요할 때:
+
+```bash
+bash scripts/setup_crostini.sh
+```
 
 ### 일반 Linux
 
@@ -152,9 +148,9 @@ python -m pytest
 
 상단 메뉴의 `설정`에서 변경할 수 있습니다.
 
-- **인사말 설정**: 일일보고 창의 기본 인사말을 저장합니다.
-- **테마**: Light(기본), Dark, Nord, Solarized Light, Solarized Dark, Sepia를 제공합니다.
-- 인사말과 선택한 테마는 `reports/settings.json`에 저장되어 앱을 재실행해도 유지됩니다.
+- **일일보고 문구 설정**: 인사말과 꼬리말
+- **테마**: Light, Dark, Nord, Solarized Light, Solarized Dark, Sepia
+- 설정은 `reports/settings.json`에 저장됩니다.
 
 
 
@@ -175,7 +171,8 @@ reports/
 ```json
 {
   "theme": "Nord",
-  "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다."
+  "greeting": "안녕하세요.\nYY. MM. DD 업무 공유드립니다.",
+  "footer": "감사합니다."
 }
 ```
 
@@ -190,6 +187,30 @@ Crostini에서는 Sommelier를 통해 Linux GUI 앱이 ChromeOS 화면에 표시
 - Crostini에서는 `DISPLAY`와 PyQt6 `libqxcb.so` 의존성을 앱 시작 전에 검사합니다.
 - 누락된 native library가 있으면 PyQt import 전에 종료하고 Debian 패키지 설치 명령을 출력합니다.
 - 전체 권장 X11 런타임은 `bash scripts/setup_crostini.sh`로 설치할 수 있습니다.
+
+## 일일보고 날짜 토큰
+
+인사말과 꼬리말에서 날짜 토큰을 사용할 수 있습니다.
+
+| 입력 | 2026-09-23 기준 결과 |
+| --- | --- |
+| `YY.MM.DD` | `26.09.23` |
+| `YY. MM. DD` | `26. 09. 23` |
+| `YYYY.MM.DD` | `2026.09.23` |
+| `YYYY-MM-DD` | `2026-09-23` |
+| `YYYY년 MM월 DD일` | `2026년 09월 23일` |
+
+예:
+
+```text
+안녕하세요.
+YY. MM. DD 업무 공유드립니다.
+
+...
+
+이상입니다.
+감사합니다.
+```
 
 ## 관련 문서 링크
 
