@@ -20,25 +20,61 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 
 Python 3.11+ 권장.
 
+### Windows
+
 ```bash
 python -m venv .venv
-```
-
-Windows:
-
-```bash
-.venv\Scripts\activate
+.venv\\Scripts\\activate
 pip install -r requirements.txt
 python main.py
 ```
 
-macOS / Linux:
+Windows에서는 Qt의 기본 `windows` platform plugin을 그대로 사용합니다.
+
+### macOS
 
 ```bash
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
 ```
+
+macOS에서는 Qt의 기본 `cocoa` platform plugin을 그대로 사용합니다.
+
+### ChromeOS / Crostini
+
+Crostini는 ChromeOS 위의 Linux 컨테이너이므로 일반 Windows/macOS와 그래픽 경로가 다릅니다. 이 앱은 Crostini를 감지하면 Wayland 대신 X11(`xcb`)을 사용합니다.
+
+최초 1회:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+bash scripts/setup_crostini.sh
+```
+
+실행:
+
+```bash
+python main.py
+```
+
+앱 시작 전에 PyQt6의 `libqxcb.so`를 검사합니다. 필요한 X11 라이브러리가 빠져 있으면 PyQt를 import하기 전에 종료하고, 누락된 라이브러리와 설치 명령을 터미널에 표시합니다. 따라서 Qt plugin 오류로 SIGABRT 되는 대신 필요한 조치를 확인할 수 있습니다.
+
+### 일반 Linux
+
+일반 Linux 데스크톱은 Crostini 전용 강제 설정을 적용하지 않고 사용자의 Qt 기본 platform 선택을 존중합니다.
+
+### 플랫폼 동작 요약
+
+| 환경 | Qt platform 처리 |
+| --- | --- |
+| Windows | Qt 기본 `windows` |
+| macOS | Qt 기본 `cocoa` |
+| ChromeOS/Crostini | 사전 검사 후 `xcb` |
+| 일반 Linux | Qt 기본값 유지 |
 
 ## Markdown 저장 예시
 
@@ -145,23 +181,15 @@ reports/
 
 앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 인사말로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
-### Linux / Wayland 안정성
+### ChromeOS / Crostini 안정성
 
-Linux에서는 앱 시작 전에 PyQt6의 `libqxcb.so` 의존성을 `ldd`로 검사합니다.
+Crostini에서는 Sommelier를 통해 Linux GUI 앱이 ChromeOS 화면에 표시됩니다. 현재 확인된 환경에서는 Qt Wayland 경로가 불안정했기 때문에 Crostini만 X11(`xcb`)을 사용합니다.
 
-- xcb native dependency가 모두 있으면 X11(`xcb`) backend를 사용하며 기존 설정 메뉴와 QDialog를 그대로 사용합니다.
-- `libxcb-cursor0` 등 xcb dependency가 하나라도 없으면 xcb를 강제하지 않습니다.
-- 이 경우 Wayland로 실행하면서 자동으로 **안전 UI 모드**가 활성화됩니다.
-- 안전 UI 모드에서는 설정/일일보고를 메인 창 내부 탭으로 열고, 삭제 확인도 화면 내부 버튼으로 처리해 QMenu/QDialog popup surface를 만들지 않습니다.
-- `reports/settings.json`은 앱 시작 시 없으면 즉시 생성됩니다.
-
-Qt 공식 X11 요구사항에는 `xcb-cursor0`를 포함한 여러 XCB 라이브러리가 xcb platform plugin dependency로 명시되어 있습니다.
-
-고급 사용자는 `DAILY_REPORT_QT_PLATFORM`으로 platform을 직접 지정할 수 있습니다.
-
-```bash
-DAILY_REPORT_QT_PLATFORM=wayland python main.py
-```
+- `SOMMELIER_VERSION`, `CROS_USER_ID_HASH`, `/mnt/chromeos`, `/opt/google/cros-containers` 등을 이용해 Crostini 여부를 판별합니다.
+- Crostini가 아니면 Windows/macOS/일반 Linux의 Qt platform 설정을 변경하지 않습니다.
+- Crostini에서는 `DISPLAY`와 PyQt6 `libqxcb.so` 의존성을 앱 시작 전에 검사합니다.
+- 누락된 native library가 있으면 PyQt import 전에 종료하고 Debian 패키지 설치 명령을 출력합니다.
+- 전체 권장 X11 런타임은 `bash scripts/setup_crostini.sh`로 설치할 수 있습니다.
 
 ## 관련 문서 링크
 
