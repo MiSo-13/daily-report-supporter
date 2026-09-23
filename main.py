@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
 from app.qt_platform import (
     CrostiniDependencyError,
     configure_input_method,
     configure_qt_platform,
     install_crostini_dependencies,
 )
+from app.paths import default_reports_root
 from app.settings import AppSettings
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-REPORTS_ROOT = PROJECT_ROOT / "reports"
+REPORTS_ROOT = default_reports_root()
 
 
 def _configure_input_method_from_settings() -> None:

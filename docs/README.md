@@ -5,6 +5,7 @@
 1. [빠른 시작](./getting-started.md)
 2. [사용 가이드](./user-guide.md)
 3. [설정 가이드](./settings.md)
+4. [빌드/배포](./building.md)
 
 ## 문서별 내용
 
@@ -19,3 +20,7 @@
 ### 설정 가이드
 
 테마, 인사말, 꼬리말, 날짜 토큰, 업무 영역 제목, `settings.json`을 설명합니다.
+
+### 빌드/배포
+
+PyInstaller 빌드, GitHub Actions, Release 실행파일 배포 방법을 설명합니다.

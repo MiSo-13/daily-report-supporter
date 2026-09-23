@@ -8,6 +8,7 @@ import sys
 from collections.abc import Iterable, MutableMapping
 from pathlib import Path
 
+from app.paths import resource_path
 from app.settings import INPUT_METHOD_CROSTINI_IBUS
 
 CROSTINI_MARKER_PATHS = (
@@ -172,7 +173,7 @@ def install_crostini_dependencies(
     script = (
         script_path
         if script_path is not None
-        else Path(__file__).resolve().parent.parent / "scripts" / "setup_crostini.sh"
+        else resource_path("scripts", "setup_crostini.sh")
     )
     if not script.exists():
         return False

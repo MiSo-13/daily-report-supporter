@@ -1,6 +1,16 @@
 # 빠른 시작
 
-## 1. 준비
+## 실행파일로 시작
+
+Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-13/daily-report-supporter/releases/latest)에서 운영체제에 맞는 파일을 받습니다.
+
+- Windows: `DailyReportSupporter.exe`
+- macOS: `DailyReportSupporter-macos-*.zip`
+- ChromeOS/Crostini: `DailyReportSupporter-linux-*`
+
+배포 실행파일의 업무 데이터는 `~/DailyReportSupporter/reports/`에 저장됩니다.
+
+## 1. 소스 실행 준비
 
 Python 3.11 이상을 권장합니다.
 

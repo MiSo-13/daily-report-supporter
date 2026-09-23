@@ -1,0 +1,156 @@
+name: Build desktop releases
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+      - name: Build
+        run: python scripts/build_app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/DailyReportSupporter.exe
+          if-no-files-found: error
+
+  macos-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+      - name: Build
+        run: python scripts/build_app.py
+      - name: Package
+        run: |
+          mkdir -p release
+          ditto -c -k --sequesterRsrc --keepParent dist/DailyReportSupporter.app release/DailyReportSupporter-macos-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: release/DailyReportSupporter-macos-arm64.zip
+          if-no-files-found: error
+
+  macos-x64:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+      - name: Build
+        run: python scripts/build_app.py
+      - name: Package
+        run: |
+          mkdir -p release
+          ditto -c -k --sequesterRsrc --keepParent dist/DailyReportSupporter.app release/DailyReportSupporter-macos-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64
+          path: release/DailyReportSupporter-macos-x64.zip
+          if-no-files-found: error
+
+  linux-x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-cursor0 libxkbcommon-x11-0
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+      - name: Build
+        run: python scripts/build_app.py
+      - name: Package
+        run: |
+          mkdir -p release
+          cp dist/DailyReportSupporter release/DailyReportSupporter-linux-x64
+          chmod +x release/DailyReportSupporter-linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: release/DailyReportSupporter-linux-x64
+          if-no-files-found: error
+
+  linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-cursor0 libxkbcommon-x11-0
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+      - name: Build
+        run: python scripts/build_app.py
+      - name: Package
+        run: |
+          mkdir -p release
+          cp dist/DailyReportSupporter release/DailyReportSupporter-linux-arm64
+          chmod +x release/DailyReportSupporter-linux-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64
+          path: release/DailyReportSupporter-linux-arm64
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - windows-x64
+      - macos-arm64
+      - macos-x64
+      - linux-x64
+      - linux-arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" release/* --clobber

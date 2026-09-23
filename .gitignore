@@ -6,3 +6,7 @@ venv/
 .vscode/
 .DS_Store
 reports/
+
+build/
+dist/
+*.spec

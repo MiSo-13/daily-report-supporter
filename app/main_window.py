@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 from app.dialogs import GreetingSettingsDialog, ReportDialog
 from app.markdown_store import MarkdownStore
 from app.models import DailyDocument, TaskStatus
+from app.paths import default_reports_root
 from app.settings import (
     AppSettings,
     INPUT_METHOD_CROSTINI_IBUS,
@@ -39,9 +40,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Daily Report Supporter")
         self.resize(1180, 760)
 
-        default_reports_root = Path(__file__).resolve().parent.parent / "reports"
         resolved_reports_root = (
-            Path(reports_root) if reports_root is not None else default_reports_root
+            Path(reports_root)
+            if reports_root is not None
+            else default_reports_root()
         )
         self.settings = AppSettings(resolved_reports_root)
         self.store = MarkdownStore(
