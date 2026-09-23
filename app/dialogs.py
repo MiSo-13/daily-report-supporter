@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
@@ -27,6 +28,8 @@ class GreetingSettingsDialog(QDialog):
         parent: QWidget,
         greeting: str,
         footer: str,
+        previous_section_title: str,
+        today_section_title: str,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("일일보고 문구 설정")
@@ -38,9 +41,10 @@ class GreetingSettingsDialog(QDialog):
         )
 
         self.footer_editor = QTextEdit(footer)
-        self.footer_editor.setPlaceholderText(
-            "예: 이상입니다. 감사합니다."
-        )
+        self.footer_editor.setPlaceholderText("예: 이상입니다. 감사합니다.")
+
+        self.previous_section_input = QLineEdit(previous_section_title)
+        self.today_section_input = QLineEdit(today_section_title)
 
         today = date.today()
         token_help = QLabel(
@@ -50,6 +54,8 @@ class GreetingSettingsDialog(QDialog):
         token_help.setWordWrap(True)
 
         form = QFormLayout()
+        form.addRow("이전 업무 제목", self.previous_section_input)
+        form.addRow("오늘 업무 제목", self.today_section_input)
         form.addRow("인사말", self.greeting_editor)
         form.addRow("꼬리말", self.footer_editor)
 
@@ -72,6 +78,14 @@ class GreetingSettingsDialog(QDialog):
     @property
     def footer(self) -> str:
         return self.footer_editor.toPlainText().strip()
+
+    @property
+    def previous_section_title(self) -> str:
+        return self.previous_section_input.text().strip()
+
+    @property
+    def today_section_title(self) -> str:
+        return self.today_section_input.text().strip()
 
 
 class DeleteConfirmDialog(QDialog):
