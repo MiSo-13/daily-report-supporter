@@ -45,10 +45,10 @@ class TaskEditor(QWidget):
         self.title_input.setPlaceholderText("업무 제목")
 
         self.link_text_input = QLineEdit()
-        self.link_text_input.setPlaceholderText("예: 1694, Jira 티켓, 설계 문서")
+        self.link_text_input.setPlaceholderText("예: 1694")
 
         self.link_url_input = QLineEdit()
-        self.link_url_input.setPlaceholderText("예: https://naver.com")
+        self.link_url_input.setPlaceholderText("https://...")
 
         self.details_input = QTextEdit()
         self.details_input.setPlaceholderText("주요 내용을 한 줄에 하나씩 입력하세요.")
@@ -68,8 +68,8 @@ class TaskEditor(QWidget):
 
         form = QFormLayout()
         form.addRow("제목", self.title_input)
-        form.addRow("관련 문서 문구", self.link_text_input)
-        form.addRow("관련 문서 주소", self.link_url_input)
+        form.addRow("링크 이름", self.link_text_input)
+        form.addRow("URL", self.link_url_input)
         form.addRow("주요 내용", self.details_input)
         form.addRow("상태", self.status_input)
         form.addRow("", self.validation_label)
@@ -96,15 +96,8 @@ class TaskEditor(QWidget):
         buttons.addStretch(1)
         buttons.addWidget(self.update_button)
 
-        help_label = QLabel(
-            "새 업무는 입력 후 '+ 업무 추가'를 누르면 즉시 저장됩니다. "
-            "관련 문서는 문구와 실제 주소를 각각 입력하면 Markdown 링크로 저장됩니다."
-        )
-        help_label.setWordWrap(True)
-
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(f"<b>{title}</b>"))
-        layout.addWidget(help_label)
         layout.addWidget(self.list_widget, 1)
         layout.addLayout(form)
         layout.addLayout(buttons)
@@ -184,7 +177,7 @@ class TaskEditor(QWidget):
             return
 
         if task.link_text and not task.link_url:
-            self._show_validation("관련 문서 문구를 입력했다면 실제 주소도 입력하세요.")
+            self._show_validation("URL을 입력하세요.")
             self.link_url_input.setFocus()
             return
 
