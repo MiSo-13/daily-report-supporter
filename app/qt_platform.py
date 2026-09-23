@@ -72,9 +72,15 @@ def configure_qt_platform(
 
     # xcb plugin 또는 그 native dependency가 부족하면 Qt의 기본/Wayland
     # backend를 유지한다. 이 경우 popup QMenu/QDialog를 만들지 않는 안전 UI를 쓴다.
-    target_env.pop("QT_QPA_PLATFORM", None)
+    if target_env.get("WAYLAND_DISPLAY"):
+        target_env["QT_QPA_PLATFORM"] = "wayland"
+        selected = "wayland"
+    else:
+        target_env.pop("QT_QPA_PLATFORM", None)
+        selected = None
+
     target_env[SAFE_UI_ENV] = "1"
-    return None
+    return selected
 
 
 def safe_ui_enabled(env: MutableMapping[str, str] | None = None) -> bool:
