@@ -7,6 +7,8 @@ from app.models import DailyDocument, Task, TaskStatus
 
 class ReportService:
     DATE_TOKENS = {
+        "YYYY. MM. DD": "%Y. %m. %d",
+        "YY. MM. DD": "%y. %m. %d",
         "YYYY.MM.DD": "%Y.%m.%d",
         "YY.MM.DD": "%y.%m.%d",
         "YYYY-MM-DD": "%Y-%m-%d",
