@@ -34,10 +34,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Daily Report Supporter")
         self.resize(1180, 760)
+
         self.store = MarkdownStore(reports_root)
-        self.settings = AppSettings()
+        self.settings = AppSettings(self.store.root)
         self.current_date = date.today()
         self._theme_actions: dict[str, QAction] = {}
+        self._pending_theme: str | None = None
 
         self.year_combo = QComboBox()
         self.month_combo = QComboBox()
@@ -92,7 +94,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         self._build_menu()
-        self.apply_theme(self.settings.theme, persist=False)
+        self._apply_theme_now(self.settings.theme, persist=False)
         self.statusBar().showMessage(
             "업무 추가/삭제는 즉시 저장되고, 수정은 변경사항 저장 시 반영됩니다."
         )
@@ -105,27 +107,52 @@ class MainWindow(QMainWindow):
         greeting_action.triggered.connect(self.open_greeting_settings)
         settings_menu.addAction(greeting_action)
 
-        theme_menu = settings_menu.addMenu("테마")
+        self.theme_menu = settings_menu.addMenu("테마")
+        self.theme_menu.aboutToHide.connect(self._apply_pending_theme)
+
         group = QActionGroup(self)
         group.setExclusive(True)
         for name in theme_names():
             action = QAction(f"{name} - {THEMES[name].description}", self)
             action.setCheckable(True)
             action.triggered.connect(
-                lambda checked=False, theme_name=name: self.apply_theme(theme_name)
+                lambda checked=False, theme_name=name: self.request_theme(theme_name)
             )
             group.addAction(action)
-            theme_menu.addAction(action)
+            self.theme_menu.addAction(action)
             self._theme_actions[name] = action
 
-    def apply_theme(self, name: str, *, persist: bool = True) -> None:
+    def request_theme(self, name: str) -> None:
         if name not in THEMES:
             name = "Light"
-        app = QApplication.instance()
-        if app is not None:
-            app.setStyleSheet(stylesheet_for(name))
+
+        # 메뉴가 열린 상태에서 MainWindow 전체 stylesheet를 즉시 교체하면
+        # Wayland/Qt 조합에 따라 surface 재생성 시점이 겹칠 수 있다.
+        # 설정은 먼저 저장하고, 메뉴가 완전히 닫힌 aboutToHide 시점에 적용한다.
+        self.settings.theme = name
+        self._pending_theme = name
+        self._sync_theme_actions(name)
+
+    def _apply_pending_theme(self) -> None:
+        if self._pending_theme is None:
+            return
+        name = self._pending_theme
+        self._pending_theme = None
+        self._apply_theme_now(name, persist=False)
+
+    def _apply_theme_now(self, name: str, *, persist: bool = True) -> None:
+        if name not in THEMES:
+            name = "Light"
+
+        # QApplication 전역 stylesheet 대신 MainWindow 트리에만 적용한다.
+        # 새로 여는 child dialog도 이 스타일을 상속한다.
+        self.setStyleSheet(stylesheet_for(name))
         if persist:
             self.settings.theme = name
+        self._sync_theme_actions(name)
+        self.statusBar().showMessage(f"테마 적용: {name}", 2500)
+
+    def _sync_theme_actions(self, name: str) -> None:
         for theme_name, action in self._theme_actions.items():
             action.setChecked(theme_name == name)
 
@@ -134,7 +161,10 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.settings.greeting = dialog.greeting
-        self.statusBar().showMessage("기본 인사말을 저장했습니다.", 3000)
+        self.statusBar().showMessage(
+            f"기본 인사말 저장 완료 · {self.settings.path}",
+            3000,
+        )
 
     def open_today(self) -> None:
         self.store.ensure_day(date.today())
