@@ -193,6 +193,7 @@ def configure_input_method(
     mode: str,
     env: MutableMapping[str, str] | None = None,
     platform: str | None = None,
+    crostini: bool | None = None,
 ) -> bool:
     target_env = env if env is not None else os.environ
     current_platform = platform if platform is not None else sys.platform
@@ -200,6 +201,10 @@ def configure_input_method(
     if not current_platform.startswith("linux"):
         return False
     if mode != INPUT_METHOD_CROSTINI_IBUS:
+        return False
+
+    running_crostini = is_crostini(target_env) if crostini is None else crostini
+    if not running_crostini:
         return False
 
     target_env["QT_IM_MODULE"] = "ibus"
