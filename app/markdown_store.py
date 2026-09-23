@@ -180,10 +180,22 @@ class MarkdownStore:
 
             if line.startswith("## "):
                 heading = line[3:].strip()
-                if heading in previous_titles:
+                is_previous = heading in previous_titles
+                is_today = heading in today_titles
+
+                if is_previous and is_today:
+                    if unknown_heading_index == 0:
+                        section = previous_done
+                        unknown_heading_index = 1
+                    elif unknown_heading_index == 1:
+                        section = today_tasks
+                        unknown_heading_index = 2
+                    else:
+                        section = None
+                elif is_previous:
                     section = previous_done
                     unknown_heading_index = max(unknown_heading_index, 1)
-                elif heading in today_titles:
+                elif is_today:
                     section = today_tasks
                     unknown_heading_index = max(unknown_heading_index, 2)
                 elif unknown_heading_index == 0:
