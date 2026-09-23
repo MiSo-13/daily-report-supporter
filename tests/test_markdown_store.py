@@ -235,3 +235,26 @@ def test_store_writes_configured_section_titles(tmp_path) -> None:
     content = store.path_for(target).read_text(encoding="utf-8")
     assert "## 완료한 일" in content
     assert "## 할 일" in content
+
+
+def test_identical_custom_section_titles_are_parsed_by_order() -> None:
+    document = DailyDocument(
+        previous_done=[Task("완료", status=TaskStatus.COMPLETED)],
+        today_tasks=[Task("예정", status=TaskStatus.PLANNED)],
+    )
+
+    content = MarkdownStore.serialize(
+        date(2026, 9, 23),
+        document,
+        previous_section_title="업무",
+        today_section_title="업무",
+    )
+
+    parsed = MarkdownStore.parse(
+        content,
+        previous_section_title="업무",
+        today_section_title="업무",
+    )
+
+    assert [task.title for task in parsed.previous_done] == ["완료"]
+    assert [task.title for task in parsed.today_tasks] == ["예정"]
