@@ -7,6 +7,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - [빠른 시작](./docs/getting-started.md)
 - [사용 가이드](./docs/user-guide.md)
 - [설정 가이드](./docs/settings.md)
+- [빌드/배포](./docs/building.md)
 - [문서 목록](./docs/README.md)
 
 ## 주요 기능
@@ -24,7 +25,23 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - **진행중 / 완료** 업무는 진행 업무에, **예정** 업무는 예정 업무에 분류
 - 생성된 일일보고 클립보드 복사
 
-## 실행
+## 실행파일 다운로드
+
+Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-13/daily-report-supporter/releases/latest)에서 운영체제에 맞는 파일을 받으면 됩니다.
+
+| 환경 | 다운로드 파일 |
+| --- | --- |
+| Windows x64 | `DailyReportSupporter.exe` |
+| macOS Apple Silicon | `DailyReportSupporter-macos-arm64.zip` |
+| macOS Intel | `DailyReportSupporter-macos-x64.zip` |
+| ChromeOS/Crostini x64 | `DailyReportSupporter-linux-x64` |
+| ChromeOS/Crostini ARM64 | `DailyReportSupporter-linux-arm64` |
+
+Windows는 `.exe` 하나만 받아 실행할 수 있습니다.
+
+빌드 방법과 Release 생성 방법은 [빌드/배포 문서](./docs/building.md)를 참고하세요.
+
+## 소스에서 실행
 
 Python 3.11+ 권장.
 
@@ -124,6 +141,8 @@ bash scripts/setup_crostini.sh
 
 ## 파일 구조
 
+소스 실행 시:
+
 ```text
 reports/
 └─ 2026/
@@ -131,6 +150,8 @@ reports/
       ├─ 260922.md
       └─ 260923.md
 ```
+
+배포 실행파일에서는 `~/DailyReportSupporter/reports/`에 저장됩니다.
 
 `reports/`는 기본적으로 `.gitignore`에 포함되어 개인 일일보고 데이터가 저장소에 자동 커밋되지 않도록 했습니다. 필요하면 `.gitignore`에서 제거해 Git으로 업무 기록을 관리할 수 있습니다.
 
