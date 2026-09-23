@@ -1,9 +1,21 @@
-from app.qt_platform import configure_qt_platform
+from __future__ import annotations
 
-configure_qt_platform()
+import sys
 
-from app.main_window import run
+from app.qt_platform import CrostiniDependencyError, configure_qt_platform
+
+
+def main() -> int:
+    try:
+        configure_qt_platform()
+    except CrostiniDependencyError as exc:
+        print(exc.user_message(), file=sys.stderr)
+        return 2
+
+    from app.main_window import run
+
+    return run()
 
 
 if __name__ == "__main__":
-    raise SystemExit(run())
+    raise SystemExit(main())

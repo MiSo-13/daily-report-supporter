@@ -1,66 +1,120 @@
-from app.qt_platform import SAFE_UI_ENV, configure_qt_platform
+import pytest
+
+from app.qt_platform import (
+    CrostiniDependencyError,
+    configure_qt_platform,
+    is_crostini,
+)
 
 
-def test_linux_with_usable_xcb_selects_xcb() -> None:
-    env = {
-        "DISPLAY": ":0",
-        "WAYLAND_DISPLAY": "wayland-0",
-        "QT_QPA_PLATFORM": "wayland",
-    }
+def test_windows_keeps_qt_default() -> None:
+    env = {}
 
-    result = configure_qt_platform(env, "linux", xcb_usable=True)
+    result = configure_qt_platform(
+        env,
+        platform="win32",
+        crostini=False,
+        missing_libraries=(),
+    )
 
-    assert result == "xcb"
-    assert env["QT_QPA_PLATFORM"] == "xcb"
-    assert SAFE_UI_ENV not in env
+    assert result is None
+    assert "QT_QPA_PLATFORM" not in env
 
 
-def test_linux_with_missing_xcb_dependency_uses_safe_ui() -> None:
-    env = {
-        "DISPLAY": ":0",
-        "WAYLAND_DISPLAY": "wayland-0",
-        "QT_QPA_PLATFORM": "wayland",
-    }
+def test_macos_keeps_qt_default() -> None:
+    env = {}
 
-    result = configure_qt_platform(env, "linux", xcb_usable=False)
+    result = configure_qt_platform(
+        env,
+        platform="darwin",
+        crostini=False,
+        missing_libraries=(),
+    )
+
+    assert result is None
+    assert "QT_QPA_PLATFORM" not in env
+
+
+def test_regular_linux_keeps_existing_platform() -> None:
+    env = {"QT_QPA_PLATFORM": "wayland"}
+
+    result = configure_qt_platform(
+        env,
+        platform="linux",
+        crostini=False,
+        missing_libraries=(),
+    )
 
     assert result == "wayland"
     assert env["QT_QPA_PLATFORM"] == "wayland"
-    assert env[SAFE_UI_ENV] == "1"
 
 
-def test_explicit_wayland_uses_safe_ui() -> None:
+def test_crostini_with_x11_dependencies_forces_xcb() -> None:
     env = {
         "DISPLAY": ":0",
-        "DAILY_REPORT_QT_PLATFORM": "wayland",
+        "WAYLAND_DISPLAY": "wayland-0",
     }
 
-    result = configure_qt_platform(env, "linux", xcb_usable=True)
-
-    assert result == "wayland"
-    assert env["QT_QPA_PLATFORM"] == "wayland"
-    assert env[SAFE_UI_ENV] == "1"
-
-
-def test_explicit_xcb_disables_safe_ui() -> None:
-    env = {
-        "DISPLAY": ":0",
-        "DAILY_REPORT_QT_PLATFORM": "xcb",
-        SAFE_UI_ENV: "1",
-    }
-
-    result = configure_qt_platform(env, "linux", xcb_usable=False)
+    result = configure_qt_platform(
+        env,
+        platform="linux",
+        crostini=True,
+        missing_libraries=(),
+    )
 
     assert result == "xcb"
     assert env["QT_QPA_PLATFORM"] == "xcb"
-    assert SAFE_UI_ENV not in env
 
 
-def test_non_linux_is_unchanged() -> None:
-    env = {"QT_QPA_PLATFORM": "cocoa"}
+def test_crostini_stops_before_pyqt_when_xcb_dependency_is_missing() -> None:
+    env = {
+        "DISPLAY": ":0",
+        "WAYLAND_DISPLAY": "wayland-0",
+    }
 
-    result = configure_qt_platform(env, "darwin", xcb_usable=False)
+    with pytest.raises(CrostiniDependencyError) as captured:
+        configure_qt_platform(
+            env,
+            platform="linux",
+            crostini=True,
+            missing_libraries=("libxcb-cursor.so.0",),
+        )
 
-    assert result == "cocoa"
-    assert env["QT_QPA_PLATFORM"] == "cocoa"
-    assert SAFE_UI_ENV not in env
+    error = captured.value
+    assert error.install_packages == ("libxcb-cursor0",)
+    assert "sudo apt update" in error.user_message()
+    assert "libxcb-cursor0" in error.user_message()
+    assert "QT_QPA_PLATFORM" not in env
+
+
+def test_crostini_requires_display() -> None:
+    with pytest.raises(CrostiniDependencyError) as captured:
+        configure_qt_platform(
+            {},
+            platform="linux",
+            crostini=True,
+            missing_libraries=(),
+        )
+
+    assert "DISPLAY" in captured.value.user_message()
+
+
+def test_crostini_detection_uses_sommelier_environment() -> None:
+    assert is_crostini(
+        {"SOMMELIER_VERSION": "1"},
+        marker_results=(False, False),
+    )
+
+
+def test_crostini_detection_uses_chromeos_mount_marker() -> None:
+    assert is_crostini(
+        {},
+        marker_results=(True, False),
+    )
+
+
+def test_plain_linux_is_not_crostini() -> None:
+    assert not is_crostini(
+        {},
+        marker_results=(False, False),
+    )

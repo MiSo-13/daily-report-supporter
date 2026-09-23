@@ -30,12 +30,10 @@ class TaskEditor(QWidget):
         on_persist: Callable[[], None],
         *,
         default_status: TaskStatus,
-        safe_ui: bool = False,
     ) -> None:
         super().__init__()
         self.on_persist = on_persist
         self.default_status = default_status
-        self.safe_ui = safe_ui
         self.tasks: list[Task] = []
         self._loading_form = False
 
@@ -87,13 +85,6 @@ class TaskEditor(QWidget):
         self.delete_button.setObjectName("dangerButton")
         self.delete_button.clicked.connect(self.delete_task)
 
-        self.confirm_delete_button = QPushButton("정말 삭제")
-        self.confirm_delete_button.setObjectName("dangerButton")
-        self.confirm_delete_button.clicked.connect(self.confirm_delete)
-
-        self.cancel_delete_button = QPushButton("삭제 취소")
-        self.cancel_delete_button.clicked.connect(self.cancel_delete)
-
         self.update_button = QPushButton("변경사항 저장")
         self.update_button.setObjectName("primaryButton")
         self.update_button.clicked.connect(self.save_changes)
@@ -102,8 +93,6 @@ class TaskEditor(QWidget):
         buttons.addWidget(self.add_button)
         buttons.addWidget(self.new_mode_button)
         buttons.addWidget(self.delete_button)
-        buttons.addWidget(self.confirm_delete_button)
-        buttons.addWidget(self.cancel_delete_button)
         buttons.addStretch(1)
         buttons.addWidget(self.update_button)
 
@@ -209,34 +198,11 @@ class TaskEditor(QWidget):
         if row < 0 or row >= len(self.tasks):
             return
 
-        if self.safe_ui:
-            self.validation_label.setText(
-                f"'{self.tasks[row].title}' 업무를 삭제하려면 '정말 삭제'를 누르세요."
-            )
-            self.delete_button.setVisible(False)
-            self.confirm_delete_button.setVisible(True)
-            self.cancel_delete_button.setVisible(True)
-            return
-
         dialog = DeleteConfirmDialog(self, self.tasks[row].title)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
         QTimer.singleShot(0, lambda row=row: self._delete_row(row))
-
-    def confirm_delete(self) -> None:
-        row = self.list_widget.currentRow()
-        if row < 0 or row >= len(self.tasks):
-            self.cancel_delete()
-            return
-        self._delete_row(row)
-
-    def cancel_delete(self) -> None:
-        self.validation_label.clear()
-        self.confirm_delete_button.setVisible(False)
-        self.cancel_delete_button.setVisible(False)
-        if self.list_widget.currentRow() >= 0:
-            self.delete_button.setVisible(True)
 
     def _delete_row(self, row: int) -> None:
         if row < 0 or row >= len(self.tasks):
@@ -337,13 +303,9 @@ class TaskEditor(QWidget):
         self.add_button.setVisible(True)
         self.new_mode_button.setVisible(False)
         self.delete_button.setVisible(False)
-        self.confirm_delete_button.setVisible(False)
-        self.cancel_delete_button.setVisible(False)
         self.update_button.setVisible(False)
 
     def _set_edit_mode(self) -> None:
         self.add_button.setVisible(False)
         self.new_mode_button.setVisible(True)
         self.delete_button.setVisible(True)
-        self.confirm_delete_button.setVisible(False)
-        self.cancel_delete_button.setVisible(False)
