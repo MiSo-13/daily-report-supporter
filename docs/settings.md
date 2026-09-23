@@ -50,6 +50,28 @@ YY. MM. DD 업무 공유드립니다.
 | `YYYY-MM-DD` | `2026-09-23` |
 | `YYYY년 MM월 DD일` | `2026년 09월 23일` |
 
+## 입력기 호환 모드
+
+`설정 → 입력기 호환 모드`에서 선택합니다.
+
+### 시스템 기본값
+
+OS와 실행 환경의 입력기 설정을 그대로 사용합니다. 기본값입니다.
+
+### Crostini 한글 호환 (IBus)
+
+ChromeOS/Crostini에서 한글 입력이 되지 않을 때 사용합니다.
+
+다음 실행부터 아래 환경이 적용됩니다.
+
+```text
+QT_IM_MODULE=ibus
+XMODIFIERS=@im=ibus
+GTK_IM_MODULE=ibus
+```
+
+실제 한/영 전환은 ChromeOS 또는 IBus의 단축키를 사용합니다.
+
 ## 테마
 
 `설정 → 테마`에서 변경할 수 있습니다.
@@ -77,7 +99,8 @@ reports/settings.json
   "greeting": "안녕하세요.\nYY. MM. DD 업무 공유드립니다.",
   "footer": "감사합니다.",
   "previous_section_title": "전일 업무",
-  "today_section_title": "금일 업무"
+  "today_section_title": "금일 업무",
+  "input_method_mode": "system"
 }
 ```
 
