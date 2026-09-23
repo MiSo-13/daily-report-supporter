@@ -8,6 +8,7 @@ from pathlib import Path
 from app.models import DailyDocument, Task, TaskStatus
 
 CHECKBOX_RE = re.compile(r"^- \[(?P<mark>[ xX])\] (?P<title>.*)$")
+MARKDOWN_LINK_RE = re.compile(r"^\[(?P<text>.*)\]\((?P<url>.+)\)$")
 STATUS_PREFIX = "  - 상태:"
 LINK_PREFIX = "  - 관련 문서:"
 DETAIL_HEADER = "  - 주요 내용:"
@@ -157,7 +158,16 @@ class MarkdownStore:
                 reading_details = False
                 continue
             if line.startswith(LINK_PREFIX):
-                current.link = line[len(LINK_PREFIX):].strip()
+                link_value = line[len(LINK_PREFIX):].strip()
+                link_match = MARKDOWN_LINK_RE.match(link_value)
+                if link_match:
+                    current.link_text = link_match.group("text").strip()
+                    current.link_url = link_match.group("url").strip()
+                else:
+                    # 구버전: "관련 문서: https://..." 형식.
+                    # 표시 문구도 URL로 채워 다음 저장 시 Markdown link로 마이그레이션한다.
+                    current.link_text = link_value
+                    current.link_url = link_value
                 reading_details = False
                 continue
             if line == DETAIL_HEADER:
@@ -178,8 +188,8 @@ class MarkdownStore:
             mark = "x" if item.status is TaskStatus.COMPLETED else " "
             lines.append(f"- [{mark}] {item.title}")
             lines.append(f"  - 상태: {item.status.value}")
-            if item.link:
-                lines.append(f"  - 관련 문서: {item.link}")
+            if item.link_url:
+                lines.append(f"  - 관련 문서: {item.markdown_link}")
             if item.details:
                 lines.append(DETAIL_HEADER)
                 lines.extend(f"    - {detail}" for detail in item.details)

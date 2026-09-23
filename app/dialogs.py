@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
@@ -48,6 +47,38 @@ class GreetingSettingsDialog(QDialog):
         return self.editor.toPlainText().strip()
 
 
+class DeleteConfirmDialog(QDialog):
+    def __init__(self, parent: QWidget, task_title: str) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("업무 삭제")
+        self.setModal(True)
+        self.setMinimumWidth(380)
+
+        message = QLabel(f"'{task_title}' 업무를 삭제할까요?")
+        message.setWordWrap(True)
+
+        description = QLabel("삭제하면 현재 날짜의 Markdown 파일에 즉시 반영됩니다.")
+        description.setWordWrap(True)
+
+        buttons = QDialogButtonBox()
+        delete_button = buttons.addButton(
+            "삭제",
+            QDialogButtonBox.ButtonRole.AcceptRole,
+        )
+        delete_button.setObjectName("dangerButton")
+        buttons.addButton(
+            "취소",
+            QDialogButtonBox.ButtonRole.RejectRole,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(message)
+        layout.addWidget(description)
+        layout.addWidget(buttons)
+
+
 class ReportDialog(QDialog):
     def __init__(
         self,
@@ -66,6 +97,7 @@ class ReportDialog(QDialog):
         self.greeting = QTextEdit(greeting)
         self.output = QTextEdit()
         self.output.setReadOnly(True)
+        self.copy_status = QLabel("")
 
         generate = QPushButton("일일보고 생성")
         generate.setObjectName("primaryButton")
@@ -80,6 +112,7 @@ class ReportDialog(QDialog):
         actions = QHBoxLayout()
         actions.addWidget(generate)
         actions.addWidget(copy)
+        actions.addWidget(self.copy_status)
         actions.addStretch(1)
 
         close_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
@@ -98,9 +131,10 @@ class ReportDialog(QDialog):
         self.output.setPlainText(
             ReportService.build(target, self.greeting.toPlainText(), self.document)
         )
+        self.copy_status.clear()
 
     def copy_to_clipboard(self) -> None:
         if not self.output.toPlainText().strip():
             self.generate()
         QGuiApplication.clipboard().setText(self.output.toPlainText())
-        QMessageBox.information(self, "복사 완료", "일일보고가 클립보드에 복사되었습니다.")
+        self.copy_status.setText("복사 완료")

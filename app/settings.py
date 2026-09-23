@@ -1,29 +1,70 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QSettings
+import json
+from pathlib import Path
+from typing import Any
 
 DEFAULT_GREETING = "안녕하세요.\n금일 업무 진행사항 공유드립니다."
 DEFAULT_THEME = "Light"
+SETTINGS_FILE_NAME = "settings.json"
 
 
 class AppSettings:
-    def __init__(self) -> None:
-        self._settings = QSettings("MiSo-13", "DailyReportSupporter")
+    def __init__(self, reports_root: Path | str = "reports") -> None:
+        self.path = Path(reports_root) / SETTINGS_FILE_NAME
+        self._data = self._load()
 
     @property
     def greeting(self) -> str:
-        value = self._settings.value("report/greeting", DEFAULT_GREETING, type=str)
-        return value or DEFAULT_GREETING
+        value = self._data.get("greeting")
+        return value if isinstance(value, str) and value.strip() else DEFAULT_GREETING
 
     @greeting.setter
     def greeting(self, value: str) -> None:
-        self._settings.setValue("report/greeting", value.strip() or DEFAULT_GREETING)
+        self._data["greeting"] = value.strip() or DEFAULT_GREETING
+        self._save()
 
     @property
     def theme(self) -> str:
-        value = self._settings.value("appearance/theme", DEFAULT_THEME, type=str)
-        return value or DEFAULT_THEME
+        value = self._data.get("theme")
+        return value if isinstance(value, str) and value.strip() else DEFAULT_THEME
 
     @theme.setter
     def theme(self, value: str) -> None:
-        self._settings.setValue("appearance/theme", value)
+        self._data["theme"] = value.strip() or DEFAULT_THEME
+        self._save()
+
+    def _load(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {
+                "theme": DEFAULT_THEME,
+                "greeting": DEFAULT_GREETING,
+            }
+
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {
+                "theme": DEFAULT_THEME,
+                "greeting": DEFAULT_GREETING,
+            }
+
+        if not isinstance(payload, dict):
+            return {
+                "theme": DEFAULT_THEME,
+                "greeting": DEFAULT_GREETING,
+            }
+
+        return {
+            "theme": payload.get("theme", DEFAULT_THEME),
+            "greeting": payload.get("greeting", DEFAULT_GREETING),
+        }
+
+    def _save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.path.with_suffix(".json.tmp")
+        temp_path.write_text(
+            json.dumps(self._data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temp_path.replace(self.path)

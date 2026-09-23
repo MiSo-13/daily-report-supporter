@@ -36,8 +36,8 @@ class ReportService:
         for index, task in enumerate(tasks, start=1):
             status = f"[{task.status.value}] " if show_status else ""
             lines.append(f"{index}. {status}{task.title}")
-            if task.link:
-                lines.append(f"   - 관련 문서: {task.link}")
+            if task.link_url:
+                lines.append(f"   - 관련 문서: {task.markdown_link}")
             lines.extend(f"   - {detail}" for detail in task.details)
             lines.append("")
         return lines[:-1]
