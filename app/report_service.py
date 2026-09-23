@@ -6,8 +6,35 @@ from app.models import DailyDocument, Task, TaskStatus
 
 
 class ReportService:
-    @staticmethod
-    def build(target: date, greeting: str, document: DailyDocument) -> str:
+    DATE_TOKENS = {
+        "YYYY.MM.DD": "%Y.%m.%d",
+        "YY.MM.DD": "%y.%m.%d",
+        "YYYY-MM-DD": "%Y-%m-%d",
+        "YY-MM-DD": "%y-%m-%d",
+        "YYYY/MM/DD": "%Y/%m/%d",
+        "YY/MM/DD": "%y/%m/%d",
+        "YYYY년 MM월 DD일": "%Y년 %m월 %d일",
+    }
+
+    @classmethod
+    def render_template(cls, text: str, target: date) -> str:
+        rendered = text
+        for token, fmt in sorted(
+            cls.DATE_TOKENS.items(),
+            key=lambda item: len(item[0]),
+            reverse=True,
+        ):
+            rendered = rendered.replace(token, target.strftime(fmt))
+        return rendered
+
+    @classmethod
+    def build(
+        cls,
+        target: date,
+        greeting: str,
+        document: DailyDocument,
+        footer: str = "",
+    ) -> str:
         active = [
             task
             for task in document.today_tasks
@@ -18,14 +45,22 @@ class ReportService:
         ]
 
         lines: list[str] = []
-        if greeting.strip():
-            lines.append(greeting.strip())
+        rendered_greeting = cls.render_template(greeting.strip(), target)
+        rendered_footer = cls.render_template(footer.strip(), target)
+
+        if rendered_greeting:
+            lines.append(rendered_greeting)
             lines.append("")
+
         lines.append(f"{target:%Y년 %m월 %d일} 일일보고입니다.")
         lines.extend(["", "[진행 업무]", ""])
-        lines.extend(ReportService._render_tasks(active, show_status=True))
+        lines.extend(cls._render_tasks(active, show_status=True))
         lines.extend(["", "[예정 업무]", ""])
-        lines.extend(ReportService._render_tasks(planned, show_status=False))
+        lines.extend(cls._render_tasks(planned, show_status=False))
+
+        if rendered_footer:
+            lines.extend(["", rendered_footer])
+
         return "\n".join(lines).rstrip()
 
     @staticmethod
