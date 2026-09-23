@@ -2,6 +2,13 @@
 
 Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업무/TODO 관리 앱입니다.
 
+## 문서
+
+- [빠른 시작](./docs/getting-started.md)
+- [사용 가이드](./docs/user-guide.md)
+- [설정 가이드](./docs/settings.md)
+- [문서 목록](./docs/README.md)
+
 ## 주요 기능
 
 - 실행 시 오늘 날짜 문서가 없으면 `reports/YYYY/MM/YYMMDD.md` 자동 생성
@@ -244,3 +251,7 @@ YY. MM. DD 업무 공유드립니다.
 ```
 
 기존 버전에서 `- 관련 문서: https://...` 형식으로 저장된 문서는 계속 읽을 수 있습니다. 해당 문서를 다시 저장하면 `[https://...](https://...)` 형태의 Markdown 링크로 자동 변환됩니다.
+
+## App
+
+앱 하단 상태바에 `make my MiSo`가 표시됩니다.
