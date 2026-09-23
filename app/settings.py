@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_GREETING = "안녕하세요.\n금일 업무 진행사항 공유드립니다."
+DEFAULT_FOOTER = ""
 DEFAULT_THEME = "Light"
 SETTINGS_FILE_NAME = "settings.json"
 
@@ -14,8 +15,6 @@ class AppSettings:
         self.path = Path(reports_root) / SETTINGS_FILE_NAME
         self._data, needs_write = self._load()
 
-        # 앱을 처음 실행한 경우에도 reports/settings.json이 즉시 보이도록
-        # 기본값을 바로 파일로 생성한다. 손상된 설정 파일도 기본값으로 복구한다.
         if needs_write:
             self._save()
 
@@ -27,6 +26,16 @@ class AppSettings:
     @greeting.setter
     def greeting(self, value: str) -> None:
         self._data["greeting"] = value.strip() or DEFAULT_GREETING
+        self._save()
+
+    @property
+    def footer(self) -> str:
+        value = self._data.get("footer")
+        return value if isinstance(value, str) else DEFAULT_FOOTER
+
+    @footer.setter
+    def footer(self, value: str) -> None:
+        self._data["footer"] = value.strip()
         self._save()
 
     @property
@@ -43,6 +52,7 @@ class AppSettings:
         defaults: dict[str, Any] = {
             "theme": DEFAULT_THEME,
             "greeting": DEFAULT_GREETING,
+            "footer": DEFAULT_FOOTER,
         }
 
         if not self.path.exists():
@@ -59,10 +69,10 @@ class AppSettings:
         data = {
             "theme": payload.get("theme", DEFAULT_THEME),
             "greeting": payload.get("greeting", DEFAULT_GREETING),
+            "footer": payload.get("footer", DEFAULT_FOOTER),
         }
 
-        # 키가 빠진 구버전 파일도 정규화해서 다시 저장한다.
-        needs_write = set(payload) != {"theme", "greeting"}
+        needs_write = set(payload) != {"theme", "greeting", "footer"}
         return data, needs_write
 
     def _save(self) -> None:
