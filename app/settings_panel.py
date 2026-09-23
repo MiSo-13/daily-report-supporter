@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QGridLayout,
     QGroupBox,
@@ -70,10 +71,7 @@ class SettingsPanel(QWidget):
 
         path_group = QGroupBox("설정 파일")
         path_label = QLabel(str(self.settings.path))
-        path_label.setTextInteractionFlags(
-            path_label.textInteractionFlags()
-            | path_label.textInteractionFlags().TextSelectableByMouse
-        )
+        path_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         path_layout = QVBoxLayout(path_group)
         path_layout.addWidget(QLabel("테마와 인사말은 아래 JSON 파일에 저장됩니다."))
         path_layout.addWidget(path_label)
