@@ -172,3 +172,66 @@ def test_report_template_supports_long_date_tokens() -> None:
         )
         == "2026.09.23 / 2026년 09월 23일"
     )
+
+
+def test_custom_section_titles_are_serialized_and_parsed() -> None:
+    document = DailyDocument(
+        previous_done=[Task("완료 업무", status=TaskStatus.COMPLETED)],
+        today_tasks=[Task("예정 업무", status=TaskStatus.PLANNED)],
+    )
+
+    content = MarkdownStore.serialize(
+        date(2026, 9, 23),
+        document,
+        previous_section_title="전일 완료",
+        today_section_title="금일 업무",
+    )
+
+    assert "## 전일 완료" in content
+    assert "## 금일 업무" in content
+
+    parsed = MarkdownStore.parse(
+        content,
+        previous_section_title="전일 완료",
+        today_section_title="금일 업무",
+    )
+    assert parsed == document
+
+
+def test_previous_custom_section_titles_remain_readable() -> None:
+    content = """# 2026-09-23 일일 업무
+
+## 어제 완료 내역
+
+- [x] 완료 업무
+  - 상태: 완료
+
+## 오늘 진행 항목
+
+- [ ] 진행 업무
+  - 상태: 진행중
+"""
+
+    parsed = MarkdownStore.parse(
+        content,
+        previous_section_title="전일 완료",
+        today_section_title="금일 업무",
+    )
+
+    assert [task.title for task in parsed.previous_done] == ["완료 업무"]
+    assert [task.title for task in parsed.today_tasks] == ["진행 업무"]
+    assert parsed.today_tasks[0].status is TaskStatus.IN_PROGRESS
+
+
+def test_store_writes_configured_section_titles(tmp_path) -> None:
+    store = MarkdownStore(
+        tmp_path,
+        previous_section_title="완료한 일",
+        today_section_title="할 일",
+    )
+    target = date(2026, 9, 23)
+    store.save(target, DailyDocument())
+
+    content = store.path_for(target).read_text(encoding="utf-8")
+    assert "## 완료한 일" in content
+    assert "## 할 일" in content
