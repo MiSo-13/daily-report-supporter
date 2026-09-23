@@ -6,6 +6,10 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from app.models import DailyDocument, Task, TaskStatus
+from app.settings import (
+    DEFAULT_PREVIOUS_SECTION_TITLE,
+    DEFAULT_TODAY_SECTION_TITLE,
+)
 
 CHECKBOX_RE = re.compile(r"^- \[(?P<mark>[ xX])\] (?P<title>.*)$")
 MARKDOWN_LINK_RE = re.compile(r"^\[(?P<text>.*)\]\((?P<url>.+)\)$")
@@ -16,8 +20,27 @@ DETAIL_PREFIX = "    - "
 
 
 class MarkdownStore:
-    def __init__(self, root: Path | str = "reports") -> None:
+    def __init__(
+        self,
+        root: Path | str = "reports",
+        *,
+        previous_section_title: str = DEFAULT_PREVIOUS_SECTION_TITLE,
+        today_section_title: str = DEFAULT_TODAY_SECTION_TITLE,
+    ) -> None:
         self.root = Path(root)
+        self.set_section_titles(previous_section_title, today_section_title)
+
+    def set_section_titles(
+        self,
+        previous_section_title: str,
+        today_section_title: str,
+    ) -> None:
+        self.previous_section_title = (
+            previous_section_title.strip() or DEFAULT_PREVIOUS_SECTION_TITLE
+        )
+        self.today_section_title = (
+            today_section_title.strip() or DEFAULT_TODAY_SECTION_TITLE
+        )
 
     def path_for(self, target: date) -> Path:
         return self.root / f"{target:%Y}" / f"{target:%m}" / f"{target:%y%m%d}.md"
@@ -50,12 +73,24 @@ class MarkdownStore:
         path = self.path_for(target)
         if not path.exists():
             return DailyDocument()
-        return self.parse(path.read_text(encoding="utf-8"))
+        return self.parse(
+            path.read_text(encoding="utf-8"),
+            previous_section_title=self.previous_section_title,
+            today_section_title=self.today_section_title,
+        )
 
     def save(self, target: date, document: DailyDocument) -> Path:
         path = self.path_for(target)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.serialize(target, document), encoding="utf-8")
+        path.write_text(
+            self.serialize(
+                target,
+                document,
+                previous_section_title=self.previous_section_title,
+                today_section_title=self.today_section_title,
+            ),
+            encoding="utf-8",
+        )
         return path
 
     def list_dates(self, year: int | None = None, month: int | None = None) -> list[date]:
@@ -99,38 +134,61 @@ class MarkdownStore:
         return sorted(months, reverse=True)
 
     @staticmethod
-    def serialize(target: date, document: DailyDocument) -> str:
-        lines = [f"# {target:%Y-%m-%d} 일일 업무", "", "## 어제 했던 일", ""]
+    def serialize(
+        target: date,
+        document: DailyDocument,
+        *,
+        previous_section_title: str = DEFAULT_PREVIOUS_SECTION_TITLE,
+        today_section_title: str = DEFAULT_TODAY_SECTION_TITLE,
+    ) -> str:
+        previous_title = (
+            previous_section_title.strip() or DEFAULT_PREVIOUS_SECTION_TITLE
+        )
+        today_title = today_section_title.strip() or DEFAULT_TODAY_SECTION_TITLE
+
+        lines = [f"# {target:%Y-%m-%d} 일일 업무", "", f"## {previous_title}", ""]
         lines.extend(MarkdownStore._tasks_to_lines(document.previous_done))
-        lines.extend(["", "## 오늘 해야 할 일", ""])
+        lines.extend(["", f"## {today_title}", ""])
         lines.extend(MarkdownStore._tasks_to_lines(document.today_tasks))
         return "\n".join(lines).rstrip() + "\n"
 
     @staticmethod
-    def parse(content: str) -> DailyDocument:
+    def parse(
+        content: str,
+        *,
+        previous_section_title: str = DEFAULT_PREVIOUS_SECTION_TITLE,
+        today_section_title: str = DEFAULT_TODAY_SECTION_TITLE,
+    ) -> DailyDocument:
         previous_done: list[Task] = []
         today_tasks: list[Task] = []
         section: list[Task] | None = None
         current: Task | None = None
         reading_details = False
 
+        previous_titles = {
+            DEFAULT_PREVIOUS_SECTION_TITLE,
+            previous_section_title.strip() or DEFAULT_PREVIOUS_SECTION_TITLE,
+        }
+        today_titles = {
+            DEFAULT_TODAY_SECTION_TITLE,
+            today_section_title.strip() or DEFAULT_TODAY_SECTION_TITLE,
+        }
+
         for raw in content.splitlines():
             line = raw.rstrip()
-            if line == "## 어제 했던 일":
-                section = previous_done
-                current = None
-                reading_details = False
-                continue
-            if line == "## 오늘 해야 할 일":
-                section = today_tasks
-                current = None
-                reading_details = False
-                continue
+
             if line.startswith("## "):
-                section = None
+                heading = line[3:].strip()
+                if heading in previous_titles:
+                    section = previous_done
+                elif heading in today_titles:
+                    section = today_tasks
+                else:
+                    section = None
                 current = None
                 reading_details = False
                 continue
+
             if section is None:
                 continue
 
@@ -164,8 +222,6 @@ class MarkdownStore:
                     current.link_text = link_match.group("text").strip()
                     current.link_url = link_match.group("url").strip()
                 else:
-                    # 구버전: "관련 문서: https://..." 형식.
-                    # 표시 문구도 URL로 채워 다음 저장 시 Markdown link로 마이그레이션한다.
                     current.link_text = link_value
                     current.link_url = link_value
                 reading_details = False
