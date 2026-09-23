@@ -32,7 +32,7 @@ class GreetingSettingsDialog(QDialog):
         today_section_title: str,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("일일보고 문구 설정")
+        self.setWindowTitle("일일보고 설정")
         self.resize(560, 520)
 
         self.greeting_editor = QTextEdit(greeting)
