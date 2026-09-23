@@ -2,22 +2,24 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QMessageBox,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from app.dialogs import DeleteConfirmDialog
 from app.models import Task, TaskStatus
 
 
@@ -49,6 +51,9 @@ class TaskEditor(QWidget):
         for status in TaskStatus:
             self.status_input.addItem(status.value, status.value)
 
+        self.validation_label = QLabel("")
+        self.validation_label.setWordWrap(True)
+
         self.title_input.textChanged.connect(self._form_changed)
         self.link_input.textChanged.connect(self._form_changed)
         self.details_input.textChanged.connect(self._form_changed)
@@ -59,6 +64,7 @@ class TaskEditor(QWidget):
         form.addRow("관련 문서 링크", self.link_input)
         form.addRow("주요 내용", self.details_input)
         form.addRow("상태", self.status_input)
+        form.addRow("", self.validation_label)
 
         self.add_button = QPushButton("+ 업무 추가")
         self.add_button.setObjectName("primaryButton")
@@ -146,7 +152,7 @@ class TaskEditor(QWidget):
     def add_task(self) -> None:
         task = self._task_from_form()
         if task is None:
-            QMessageBox.warning(self, "입력 확인", "업무 제목을 입력하세요.")
+            self._show_validation("업무 제목을 입력하세요.")
             self.title_input.setFocus()
             return
 
@@ -159,16 +165,18 @@ class TaskEditor(QWidget):
         row = self.list_widget.currentRow()
         if row < 0 or row >= len(self.tasks):
             return
-        if (
-            QMessageBox.question(
-                self,
-                "업무 삭제",
-                f"'{self.tasks[row].title}' 업무를 삭제할까요?",
-            )
-            != QMessageBox.StandardButton.Yes
-        ):
+
+        dialog = DeleteConfirmDialog(self, self.tasks[row].title)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
+        # Modal dialog가 닫히는 이벤트를 먼저 처리한 뒤 목록/파일을 변경한다.
+        # Wayland에서 dialog 종료와 widget tree 변경이 같은 stack에서 일어나는 것을 피한다.
+        QTimer.singleShot(0, lambda row=row: self._delete_row(row))
+
+    def _delete_row(self, row: int) -> None:
+        if row < 0 or row >= len(self.tasks):
+            return
         del self.tasks[row]
         self.on_persist()
         self.refresh()
@@ -180,7 +188,7 @@ class TaskEditor(QWidget):
 
         task = self._task_from_form()
         if task is None:
-            QMessageBox.warning(self, "입력 확인", "업무 제목을 입력하세요.")
+            self._show_validation("업무 제목을 입력하세요.")
             self.title_input.setFocus()
             return
 
@@ -202,6 +210,7 @@ class TaskEditor(QWidget):
         self.details_input.setPlainText("\n".join(task.details))
         index = self.status_input.findData(task.status.value)
         self.status_input.setCurrentIndex(max(index, 0))
+        self.validation_label.clear()
         self._loading_form = False
         self._set_edit_mode()
         self.update_button.setVisible(False)
@@ -210,6 +219,7 @@ class TaskEditor(QWidget):
         if self._loading_form:
             return
 
+        self.validation_label.clear()
         row = self.list_widget.currentRow()
         if row < 0 or row >= len(self.tasks):
             self._set_add_mode()
@@ -238,11 +248,15 @@ class TaskEditor(QWidget):
             ),
         )
 
+    def _show_validation(self, message: str) -> None:
+        self.validation_label.setText(message)
+
     def _clear_form(self) -> None:
         self._loading_form = True
         self.title_input.clear()
         self.link_input.clear()
         self.details_input.clear()
+        self.validation_label.clear()
         index = self.status_input.findData(self.default_status.value)
         self.status_input.setCurrentIndex(max(index, 0))
         self._loading_form = False
