@@ -110,6 +110,10 @@ class MainWindow(QMainWindow):
 
         self._build_menu()
         self._apply_theme_now(self.settings.theme, persist=False)
+
+        self.brand_label = QLabel("make my MiSo")
+        self.statusBar().addPermanentWidget(self.brand_label)
+
         self.statusBar().showMessage(f"설정 파일: {self.settings.path}")
         self.open_today()
 
