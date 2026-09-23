@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from app.qt_platform import (
     CrostiniDependencyError,
+    configure_input_method,
     configure_qt_platform,
     install_crostini_dependencies,
 )
+from app.settings import AppSettings
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+REPORTS_ROOT = PROJECT_ROOT / "reports"
+
+
+def _configure_input_method_from_settings() -> None:
+    settings = AppSettings(REPORTS_ROOT)
+    configure_input_method(settings.input_method_mode)
 
 
 def _configure_platform_with_auto_setup() -> bool:
@@ -40,6 +51,8 @@ def _configure_platform_with_auto_setup() -> bool:
 
 
 def main() -> int:
+    _configure_input_method_from_settings()
+
     if not _configure_platform_with_auto_setup():
         return 2
 
