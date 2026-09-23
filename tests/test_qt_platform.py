@@ -3,6 +3,7 @@ import pytest
 from app.qt_platform import (
     CrostiniDependencyError,
     configure_qt_platform,
+    install_crostini_dependencies,
     is_crostini,
 )
 
@@ -118,3 +119,19 @@ def test_plain_linux_is_not_crostini() -> None:
         {},
         marker_results=(False, False),
     )
+
+
+def test_crostini_setup_script_success(tmp_path) -> None:
+    script = tmp_path / "setup.sh"
+    script.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    assert install_crostini_dependencies(script)
+
+
+def test_crostini_setup_script_failure(tmp_path) -> None:
+    script = tmp_path / "setup.sh"
+    script.write_text("#!/usr/bin/env bash\nexit 3\n", encoding="utf-8")
+    assert not install_crostini_dependencies(script)
+
+
+def test_crostini_setup_script_missing(tmp_path) -> None:
+    assert not install_crostini_dependencies(tmp_path / "missing.sh")

@@ -141,3 +141,120 @@ def test_report_generation_groups_active_and_planned_with_markdown_link() -> Non
     assert "2. [진행중] 리뷰 반영" in report
     assert "[예정 업무]" in report
     assert "1. 테스트 작성" in report
+
+
+def test_report_date_tokens_and_footer() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(title="업무 확인", status=TaskStatus.PLANNED),
+        ]
+    )
+
+    report = ReportService.build(
+        date(2026, 9, 23),
+        "안녕하세요.\nYY. MM. DD 업무 공유드립니다.",
+        document,
+        "YY.MM.DD 기준입니다.\n감사합니다.",
+    )
+
+    assert "26. 09. 23 업무 공유드립니다." in report
+    assert "26.09.23 기준입니다." in report
+    assert report.endswith("감사합니다.")
+
+
+def test_report_template_supports_long_date_tokens() -> None:
+    target = date(2026, 9, 23)
+
+    assert (
+        ReportService.render_template(
+            "YYYY.MM.DD / YYYY년 MM월 DD일",
+            target,
+        )
+        == "2026.09.23 / 2026년 09월 23일"
+    )
+
+
+def test_custom_section_titles_are_serialized_and_parsed() -> None:
+    document = DailyDocument(
+        previous_done=[Task("완료 업무", status=TaskStatus.COMPLETED)],
+        today_tasks=[Task("예정 업무", status=TaskStatus.PLANNED)],
+    )
+
+    content = MarkdownStore.serialize(
+        date(2026, 9, 23),
+        document,
+        previous_section_title="전일 완료",
+        today_section_title="금일 업무",
+    )
+
+    assert "## 전일 완료" in content
+    assert "## 금일 업무" in content
+
+    parsed = MarkdownStore.parse(
+        content,
+        previous_section_title="전일 완료",
+        today_section_title="금일 업무",
+    )
+    assert parsed == document
+
+
+def test_previous_custom_section_titles_remain_readable() -> None:
+    content = """# 2026-09-23 일일 업무
+
+## 어제 완료 내역
+
+- [x] 완료 업무
+  - 상태: 완료
+
+## 오늘 진행 항목
+
+- [ ] 진행 업무
+  - 상태: 진행중
+"""
+
+    parsed = MarkdownStore.parse(
+        content,
+        previous_section_title="전일 완료",
+        today_section_title="금일 업무",
+    )
+
+    assert [task.title for task in parsed.previous_done] == ["완료 업무"]
+    assert [task.title for task in parsed.today_tasks] == ["진행 업무"]
+    assert parsed.today_tasks[0].status is TaskStatus.IN_PROGRESS
+
+
+def test_store_writes_configured_section_titles(tmp_path) -> None:
+    store = MarkdownStore(
+        tmp_path,
+        previous_section_title="완료한 일",
+        today_section_title="할 일",
+    )
+    target = date(2026, 9, 23)
+    store.save(target, DailyDocument())
+
+    content = store.path_for(target).read_text(encoding="utf-8")
+    assert "## 완료한 일" in content
+    assert "## 할 일" in content
+
+
+def test_identical_custom_section_titles_are_parsed_by_order() -> None:
+    document = DailyDocument(
+        previous_done=[Task("완료", status=TaskStatus.COMPLETED)],
+        today_tasks=[Task("예정", status=TaskStatus.PLANNED)],
+    )
+
+    content = MarkdownStore.serialize(
+        date(2026, 9, 23),
+        document,
+        previous_section_title="업무",
+        today_section_title="업무",
+    )
+
+    parsed = MarkdownStore.parse(
+        content,
+        previous_section_title="업무",
+        today_section_title="업무",
+    )
+
+    assert [task.title for task in parsed.previous_done] == ["완료"]
+    assert [task.title for task in parsed.today_tasks] == ["예정"]

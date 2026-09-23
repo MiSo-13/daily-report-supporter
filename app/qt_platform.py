@@ -164,6 +164,28 @@ def missing_xcb_libraries(plugin: Path | None = None) -> tuple[str, ...]:
     return tuple(sorted(set(missing)))
 
 
+def install_crostini_dependencies(
+    script_path: Path | None = None,
+) -> bool:
+    script = (
+        script_path
+        if script_path is not None
+        else Path(__file__).resolve().parent.parent / "scripts" / "setup_crostini.sh"
+    )
+    if not script.exists():
+        return False
+
+    try:
+        result = subprocess.run(
+            ["bash", str(script)],
+            check=False,
+        )
+    except OSError:
+        return False
+
+    return result.returncode == 0
+
+
 def configure_qt_platform(
     env: MutableMapping[str, str] | None = None,
     platform: str | None = None,

@@ -6,8 +6,9 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 
 - 실행 시 오늘 날짜 문서가 없으면 `reports/YYYY/MM/YYMMDD.md` 자동 생성
 - 업무 상태를 **예정 / 진행중 / 완료** 3단계로 관리
-- 가장 최근 문서의 **완료** 업무는 새 문서의 **어제 했던 일**로 복사
-- **예정 / 진행중** 업무는 상태를 유지한 채 새 문서의 **오늘 해야 할 일**로 자동 이월
+- 가장 최근 문서의 **완료** 업무는 이전 업무 영역으로 복사
+- **예정 / 진행중** 업무는 상태를 유지한 채 오늘 업무 영역으로 자동 이월
+- 이전 업무/오늘 업무 영역 제목 커스텀
 - 연도/월별 날짜 목록 조회 및 과거 문서 수정
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
 - Markdown 체크박스 + `상태` 메타데이터 기반 저장
@@ -44,24 +45,20 @@ macOS에서는 Qt의 기본 `cocoa` platform plugin을 그대로 사용합니다
 
 ### ChromeOS / Crostini
 
-Crostini는 ChromeOS 위의 Linux 컨테이너이므로 일반 Windows/macOS와 그래픽 경로가 다릅니다. 이 앱은 Crostini를 감지하면 Wayland 대신 X11(`xcb`)을 사용합니다.
-
-최초 1회:
-
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-bash scripts/setup_crostini.sh
-```
-
-실행:
-
-```bash
 python main.py
 ```
 
-앱 시작 전에 PyQt6의 `libqxcb.so`를 검사합니다. 필요한 X11 라이브러리가 빠져 있으면 PyQt를 import하기 전에 종료하고, 누락된 라이브러리와 설치 명령을 터미널에 표시합니다. 따라서 Qt plugin 오류로 SIGABRT 되는 대신 필요한 조치를 확인할 수 있습니다.
+필요한 X11 패키지가 없으면 첫 실행 시 `scripts/setup_crostini.sh`를 자동 실행합니다. `sudo` 비밀번호가 필요하면 터미널에서 입력하면 됩니다.
+
+수동 설치가 필요할 때:
+
+```bash
+bash scripts/setup_crostini.sh
+```
 
 ### 일반 Linux
 
@@ -152,15 +149,15 @@ python -m pytest
 
 상단 메뉴의 `설정`에서 변경할 수 있습니다.
 
-- **인사말 설정**: 일일보고 창의 기본 인사말을 저장합니다.
-- **테마**: Light(기본), Dark, Nord, Solarized Light, Solarized Dark, Sepia를 제공합니다.
-- 인사말과 선택한 테마는 `reports/settings.json`에 저장되어 앱을 재실행해도 유지됩니다.
+- **일일보고 설정**: 이전 업무 제목, 오늘 업무 제목, 인사말, 꼬리말
+- **테마**: Light, Dark, Nord, Solarized Light, Solarized Dark, Sepia
+- 설정은 `reports/settings.json`에 저장됩니다.
 
 
 
 ## 설정 파일
 
-테마와 기본 인사말은 OS별 Qt 설정 저장소를 사용하지 않고 아래 파일에 저장됩니다.
+테마, 인사말, 꼬리말은 아래 파일에 저장됩니다.
 
 ```text
 reports/
@@ -175,28 +172,70 @@ reports/
 ```json
 {
   "theme": "Nord",
-  "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다."
+  "greeting": "안녕하세요.\nYY. MM. DD 업무 공유드립니다.",
+  "footer": "감사합니다.",
+  "previous_section_title": "전일 업무",
+  "today_section_title": "금일 업무"
 }
 ```
 
 앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 인사말로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
-### ChromeOS / Crostini 안정성
+### ChromeOS / Crostini
 
-Crostini에서는 Sommelier를 통해 Linux GUI 앱이 ChromeOS 화면에 표시됩니다. 현재 확인된 환경에서는 Qt Wayland 경로가 불안정했기 때문에 Crostini만 X11(`xcb`)을 사용합니다.
+- Crostini에서는 X11(`xcb`)을 사용합니다.
+- 필요한 X11 패키지가 없으면 첫 실행 시 자동 설치를 시도합니다.
+- 자동 설치가 실패하면 `bash scripts/setup_crostini.sh`를 실행하면 됩니다.
+- Windows/macOS에는 이 설정을 적용하지 않습니다.
 
-- `SOMMELIER_VERSION`, `CROS_USER_ID_HASH`, `/mnt/chromeos`, `/opt/google/cros-containers` 등을 이용해 Crostini 여부를 판별합니다.
-- Crostini가 아니면 Windows/macOS/일반 Linux의 Qt platform 설정을 변경하지 않습니다.
-- Crostini에서는 `DISPLAY`와 PyQt6 `libqxcb.so` 의존성을 앱 시작 전에 검사합니다.
-- 누락된 native library가 있으면 PyQt import 전에 종료하고 Debian 패키지 설치 명령을 출력합니다.
-- 전체 권장 X11 런타임은 `bash scripts/setup_crostini.sh`로 설치할 수 있습니다.
+## 업무 영역 제목
+
+`설정 → 일일보고 설정`에서 변경할 수 있습니다.
+
+기본값:
+
+- 이전 업무 제목: `어제 했던 일`
+- 오늘 업무 제목: `오늘 해야 할 일`
+
+예:
+
+```text
+전일 업무
+금일 업무
+```
+
+변경한 제목은 앱 탭과 Markdown의 `##` 제목에 같이 적용됩니다. 예전 기본 제목이나 이전에 사용했던 커스텀 제목으로 저장된 문서도 계속 읽을 수 있습니다.
+
+## 일일보고 날짜 토큰
+
+인사말과 꼬리말에서 날짜 토큰을 사용할 수 있습니다.
+
+| 입력 | 2026-09-23 기준 결과 |
+| --- | --- |
+| `YY.MM.DD` | `26.09.23` |
+| `YY. MM. DD` | `26. 09. 23` |
+| `YYYY.MM.DD` | `2026.09.23` |
+| `YYYY-MM-DD` | `2026-09-23` |
+| `YYYY년 MM월 DD일` | `2026년 09월 23일` |
+
+예:
+
+```text
+안녕하세요.
+YY. MM. DD 업무 공유드립니다.
+
+...
+
+이상입니다.
+감사합니다.
+```
 
 ## 관련 문서 링크
 
 관련 문서는 UI에서 두 값으로 나누어 입력합니다.
 
-- **관련 문서 문구**: Markdown에서 보일 텍스트. 예: `1694`
-- **관련 문서 주소**: 실제 URL. 예: `http://naver.com`
+- **링크 이름**: `1694`
+- **URL**: `http://naver.com`
 
 저장 결과:
 
