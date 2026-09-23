@@ -4,9 +4,11 @@ from app.settings import (
     AppSettings,
     DEFAULT_FOOTER,
     DEFAULT_GREETING,
+    DEFAULT_INPUT_METHOD_MODE,
     DEFAULT_PREVIOUS_SECTION_TITLE,
     DEFAULT_THEME,
     DEFAULT_TODAY_SECTION_TITLE,
+    INPUT_METHOD_CROSTINI_IBUS,
 )
 
 
@@ -17,6 +19,7 @@ def test_settings_are_saved_under_reports(tmp_path) -> None:
     settings.footer = "감사합니다."
     settings.previous_section_title = "전일 업무"
     settings.today_section_title = "금일 업무"
+    settings.input_method_mode = INPUT_METHOD_CROSTINI_IBUS
 
     config_path = tmp_path / "settings.json"
     assert config_path.exists()
@@ -28,6 +31,7 @@ def test_settings_are_saved_under_reports(tmp_path) -> None:
         "footer": "감사합니다.",
         "previous_section_title": "전일 업무",
         "today_section_title": "금일 업무",
+        "input_method_mode": INPUT_METHOD_CROSTINI_IBUS,
     }
 
     reloaded = AppSettings(tmp_path)
@@ -36,6 +40,7 @@ def test_settings_are_saved_under_reports(tmp_path) -> None:
     assert reloaded.footer == "감사합니다."
     assert reloaded.previous_section_title == "전일 업무"
     assert reloaded.today_section_title == "금일 업무"
+    assert reloaded.input_method_mode == INPUT_METHOD_CROSTINI_IBUS
 
 
 def test_missing_settings_are_created_with_defaults(tmp_path) -> None:
@@ -48,6 +53,7 @@ def test_missing_settings_are_created_with_defaults(tmp_path) -> None:
     assert settings.footer == DEFAULT_FOOTER
     assert settings.previous_section_title == DEFAULT_PREVIOUS_SECTION_TITLE
     assert settings.today_section_title == DEFAULT_TODAY_SECTION_TITLE
+    assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
 
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     assert payload == {
@@ -56,6 +62,7 @@ def test_missing_settings_are_created_with_defaults(tmp_path) -> None:
         "footer": DEFAULT_FOOTER,
         "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
         "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
+        "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
     }
 
 
@@ -79,11 +86,13 @@ def test_old_settings_are_migrated_with_new_fields(tmp_path) -> None:
     assert settings.footer == ""
     assert settings.previous_section_title == DEFAULT_PREVIOUS_SECTION_TITLE
     assert settings.today_section_title == DEFAULT_TODAY_SECTION_TITLE
+    assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
 
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     assert payload["footer"] == ""
     assert payload["previous_section_title"] == DEFAULT_PREVIOUS_SECTION_TITLE
     assert payload["today_section_title"] == DEFAULT_TODAY_SECTION_TITLE
+    assert payload["input_method_mode"] == DEFAULT_INPUT_METHOD_MODE
 
 
 def test_blank_section_titles_use_defaults(tmp_path) -> None:
@@ -104,6 +113,7 @@ def test_corrupt_settings_fall_back_to_defaults(tmp_path) -> None:
     assert settings.footer == DEFAULT_FOOTER
     assert settings.previous_section_title == DEFAULT_PREVIOUS_SECTION_TITLE
     assert settings.today_section_title == DEFAULT_TODAY_SECTION_TITLE
+    assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
 
     payload = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
     assert payload == {
@@ -112,4 +122,12 @@ def test_corrupt_settings_fall_back_to_defaults(tmp_path) -> None:
         "footer": DEFAULT_FOOTER,
         "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
         "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
+        "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
     }
+
+
+def test_invalid_input_method_mode_uses_system_default(tmp_path) -> None:
+    settings = AppSettings(tmp_path)
+    settings.input_method_mode = "unknown"
+
+    assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
