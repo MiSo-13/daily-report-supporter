@@ -43,9 +43,7 @@ class GreetingSettingsDialog(QDialog):
         )
 
         token_help = QLabel(
-            "날짜 토큰 예: YY.MM.DD → 26.09.23, "
-            "YYYY.MM.DD → 2026.09.23, YYYY년 MM월 DD일 → 2026년 09월 23일\n"
-            "일일보고에서 선택한 날짜를 기준으로 자동 치환됩니다."
+            "날짜: YY.MM.DD → 26.09.23 / YY. MM. DD → 26. 09. 23"
         )
         token_help.setWordWrap(True)
 
@@ -61,9 +59,6 @@ class GreetingSettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(
-            QLabel("일일보고의 기본 인사말과 꼬리말을 설정합니다.")
-        )
         layout.addWidget(token_help)
         layout.addLayout(form)
         layout.addWidget(buttons)
@@ -87,9 +82,6 @@ class DeleteConfirmDialog(QDialog):
         message = QLabel(f"'{task_title}' 업무를 삭제할까요?")
         message.setWordWrap(True)
 
-        description = QLabel("삭제하면 현재 날짜의 Markdown 파일에 즉시 반영됩니다.")
-        description.setWordWrap(True)
-
         buttons = QDialogButtonBox()
         delete_button = buttons.addButton(
             "삭제",
@@ -105,7 +97,6 @@ class DeleteConfirmDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addWidget(message)
-        layout.addWidget(description)
         layout.addWidget(buttons)
 
 
@@ -127,10 +118,7 @@ class ReportDialog(QDialog):
         self.date_edit.setCalendarPopup(True)
 
         self.greeting = QTextEdit(greeting)
-        self.greeting.setPlaceholderText(
-            "YY.MM.DD 같은 날짜 토큰을 사용할 수 있습니다."
-        )
-
+        self.greeting.setPlaceholderText("예: YY. MM. DD 업무 공유드립니다.")
         self.footer = QTextEdit(footer)
         self.footer.setPlaceholderText("꼬리말을 입력하세요.")
 
@@ -150,8 +138,7 @@ class ReportDialog(QDialog):
         form.addRow("꼬리말", self.footer)
 
         help_label = QLabel(
-            "날짜 토큰: YY.MM.DD, YYYY.MM.DD, YY-MM-DD, "
-            "YYYY-MM-DD, YY/MM/DD, YYYY/MM/DD, YYYY년 MM월 DD일"
+            "날짜: YY.MM.DD / YY. MM. DD / YYYY.MM.DD"
         )
         help_label.setWordWrap(True)
 
