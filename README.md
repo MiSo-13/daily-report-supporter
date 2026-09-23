@@ -156,7 +156,7 @@ python -m pytest
 
 ## 설정 파일
 
-테마와 기본 인사말은 OS별 Qt 설정 저장소를 사용하지 않고 아래 파일에 저장됩니다.
+테마, 인사말, 꼬리말은 아래 파일에 저장됩니다.
 
 ```text
 reports/
@@ -178,15 +178,12 @@ reports/
 
 앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 인사말로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
-### ChromeOS / Crostini 안정성
+### ChromeOS / Crostini
 
-Crostini에서는 Sommelier를 통해 Linux GUI 앱이 ChromeOS 화면에 표시됩니다. 현재 확인된 환경에서는 Qt Wayland 경로가 불안정했기 때문에 Crostini만 X11(`xcb`)을 사용합니다.
-
-- `SOMMELIER_VERSION`, `CROS_USER_ID_HASH`, `/mnt/chromeos`, `/opt/google/cros-containers` 등을 이용해 Crostini 여부를 판별합니다.
-- Crostini가 아니면 Windows/macOS/일반 Linux의 Qt platform 설정을 변경하지 않습니다.
-- Crostini에서는 `DISPLAY`와 PyQt6 `libqxcb.so` 의존성을 앱 시작 전에 검사합니다.
-- 누락된 native library가 있으면 PyQt import 전에 종료하고 Debian 패키지 설치 명령을 출력합니다.
-- 전체 권장 X11 런타임은 `bash scripts/setup_crostini.sh`로 설치할 수 있습니다.
+- Crostini에서는 X11(`xcb`)을 사용합니다.
+- 필요한 X11 패키지가 없으면 첫 실행 시 자동 설치를 시도합니다.
+- 자동 설치가 실패하면 `bash scripts/setup_crostini.sh`를 실행하면 됩니다.
+- Windows/macOS에는 이 설정을 적용하지 않습니다.
 
 ## 일일보고 날짜 토큰
 
@@ -216,8 +213,8 @@ YY. MM. DD 업무 공유드립니다.
 
 관련 문서는 UI에서 두 값으로 나누어 입력합니다.
 
-- **관련 문서 문구**: Markdown에서 보일 텍스트. 예: `1694`
-- **관련 문서 주소**: 실제 URL. 예: `http://naver.com`
+- **링크 이름**: `1694`
+- **URL**: `http://naver.com`
 
 저장 결과:
 
