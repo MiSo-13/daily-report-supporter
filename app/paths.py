@@ -21,7 +21,13 @@ def resource_path(*parts: str) -> Path:
     return resource_root().joinpath(*parts)
 
 
-def default_reports_root() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path.home() / APP_DIR_NAME / "reports"
+def default_reports_root(
+    *,
+    frozen: bool | None = None,
+    home: Path | None = None,
+) -> Path:
+    is_frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    if is_frozen:
+        home_dir = Path.home() if home is None else home
+        return home_dir / APP_DIR_NAME / "reports"
     return source_root() / "reports"
