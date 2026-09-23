@@ -118,5 +118,35 @@ python -m pytest
 
 - **인사말 설정**: 일일보고 창의 기본 인사말을 저장합니다.
 - **테마**: Light(기본), Dark, Nord, Solarized Light, Solarized Dark, Sepia를 제공합니다.
-- 인사말과 선택한 테마는 Qt의 `QSettings`에 저장되어 앱을 재실행해도 유지됩니다.
+- 인사말과 선택한 테마는 `reports/settings.json`에 저장되어 앱을 재실행해도 유지됩니다.
 
+
+
+## 설정 파일
+
+테마와 기본 인사말은 OS별 Qt 설정 저장소를 사용하지 않고 아래 파일에 저장됩니다.
+
+```text
+reports/
+├─ settings.json
+└─ YYYY/
+   └─ MM/
+      └─ YYMMDD.md
+```
+
+예시:
+
+```json
+{
+  "theme": "Nord",
+  "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다."
+}
+```
+
+설정 파일이 없거나 JSON이 손상되어 읽을 수 없는 경우에는 Light 테마와 기본 인사말로 안전하게 시작합니다.
+
+### Wayland 안정성
+
+- 테마 변경은 메뉴가 열린 상태에서 `QApplication` 전체 스타일을 즉시 교체하지 않습니다.
+- 테마 메뉴가 닫힌 뒤 MainWindow UI 트리에만 스타일을 적용합니다.
+- 업무 삭제 확인은 네이티브 `QMessageBox` 대신 일반 Qt `QDialog`를 사용하고, 다이얼로그 종료 후 다음 이벤트 루프에서 실제 삭제/저장을 수행합니다.
