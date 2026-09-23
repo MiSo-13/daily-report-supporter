@@ -5,18 +5,16 @@ import sys
 from app import paths
 
 
-def test_source_build_uses_repository_reports(monkeypatch) -> None:
-    monkeypatch.delattr(sys, "frozen", raising=False)
-
-    assert paths.default_reports_root() == paths.source_root() / "reports"
-
-
-def test_frozen_build_uses_home_directory(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(paths.Path, "home", classmethod(lambda cls: tmp_path))
-
+def test_source_build_uses_repository_reports() -> None:
     assert (
-        paths.default_reports_root()
+        paths.default_reports_root(frozen=False)
+        == paths.source_root() / "reports"
+    )
+
+
+def test_frozen_build_uses_home_directory(tmp_path) -> None:
+    assert (
+        paths.default_reports_root(frozen=True, home=tmp_path)
         == tmp_path / "DailyReportSupporter" / "reports"
     )
 
