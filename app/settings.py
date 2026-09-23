@@ -9,6 +9,9 @@ DEFAULT_FOOTER = ""
 DEFAULT_THEME = "Light"
 DEFAULT_PREVIOUS_SECTION_TITLE = "어제 했던 일"
 DEFAULT_TODAY_SECTION_TITLE = "오늘 해야 할 일"
+INPUT_METHOD_SYSTEM = "system"
+INPUT_METHOD_CROSTINI_IBUS = "crostini_ibus"
+DEFAULT_INPUT_METHOD_MODE = INPUT_METHOD_SYSTEM
 SETTINGS_FILE_NAME = "settings.json"
 
 
@@ -73,6 +76,22 @@ class AppSettings:
         self._save()
 
     @property
+    def input_method_mode(self) -> str:
+        value = self._data.get("input_method_mode")
+        if value in {INPUT_METHOD_SYSTEM, INPUT_METHOD_CROSTINI_IBUS}:
+            return str(value)
+        return DEFAULT_INPUT_METHOD_MODE
+
+    @input_method_mode.setter
+    def input_method_mode(self, value: str) -> None:
+        self._data["input_method_mode"] = (
+            value
+            if value in {INPUT_METHOD_SYSTEM, INPUT_METHOD_CROSTINI_IBUS}
+            else DEFAULT_INPUT_METHOD_MODE
+        )
+        self._save()
+
+    @property
     def theme(self) -> str:
         value = self._data.get("theme")
         return value if isinstance(value, str) and value.strip() else DEFAULT_THEME
@@ -89,6 +108,7 @@ class AppSettings:
             "footer": DEFAULT_FOOTER,
             "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
             "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
+            "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
         }
 
         if not self.path.exists():
@@ -113,6 +133,10 @@ class AppSettings:
             "today_section_title": payload.get(
                 "today_section_title",
                 DEFAULT_TODAY_SECTION_TITLE,
+            ),
+            "input_method_mode": payload.get(
+                "input_method_mode",
+                DEFAULT_INPUT_METHOD_MODE,
             ),
         }
 

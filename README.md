@@ -157,6 +157,7 @@ python -m pytest
 상단 메뉴의 `설정`에서 변경할 수 있습니다.
 
 - **일일보고 설정**: 이전 업무 제목, 오늘 업무 제목, 인사말, 꼬리말
+- **입력기 호환 모드**: 시스템 기본값 / Crostini 한글 호환 (IBus)
 - **테마**: Light, Dark, Nord, Solarized Light, Solarized Dark, Sepia
 - 설정은 `reports/settings.json`에 저장됩니다.
 
@@ -182,7 +183,8 @@ reports/
   "greeting": "안녕하세요.\nYY. MM. DD 업무 공유드립니다.",
   "footer": "감사합니다.",
   "previous_section_title": "전일 업무",
-  "today_section_title": "금일 업무"
+  "today_section_title": "금일 업무",
+  "input_method_mode": "system"
 }
 ```
 
@@ -194,6 +196,15 @@ reports/
 - 필요한 X11 패키지가 없으면 첫 실행 시 자동 설치를 시도합니다.
 - 자동 설치가 실패하면 `bash scripts/setup_crostini.sh`를 실행하면 됩니다.
 - Windows/macOS에는 이 설정을 적용하지 않습니다.
+
+## 입력기 호환 모드
+
+`설정 → 입력기 호환 모드`에서 변경할 수 있습니다.
+
+- `시스템 기본값`: OS/실행 환경의 입력기 설정 사용
+- `Crostini 한글 호환 (IBus)`: Crostini에서 IBus 환경변수 적용
+
+IBus 모드는 다음 실행부터 적용됩니다.
 
 ## 업무 영역 제목
 

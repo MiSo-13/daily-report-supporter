@@ -24,7 +24,11 @@ from PyQt6.QtWidgets import (
 from app.dialogs import GreetingSettingsDialog, ReportDialog
 from app.markdown_store import MarkdownStore
 from app.models import DailyDocument, TaskStatus
-from app.settings import AppSettings
+from app.settings import (
+    AppSettings,
+    INPUT_METHOD_CROSTINI_IBUS,
+    INPUT_METHOD_SYSTEM,
+)
 from app.task_editor import TaskEditor
 from app.themes import THEMES, stylesheet_for, theme_names
 
@@ -47,6 +51,7 @@ class MainWindow(QMainWindow):
         )
         self.current_date = date.today()
         self._theme_actions: dict[str, QAction] = {}
+        self._input_method_actions: dict[str, QAction] = {}
         self._pending_theme: str | None = None
 
         self.year_combo = QComboBox()
@@ -124,6 +129,28 @@ class MainWindow(QMainWindow):
         greeting_action.triggered.connect(self.open_greeting_settings)
         settings_menu.addAction(greeting_action)
 
+        input_menu = settings_menu.addMenu("입력기 호환 모드")
+        input_group = QActionGroup(self)
+        input_group.setExclusive(True)
+
+        input_options = (
+            (INPUT_METHOD_SYSTEM, "시스템 기본값"),
+            (INPUT_METHOD_CROSTINI_IBUS, "Crostini 한글 호환 (IBus)"),
+        )
+        for mode, label in input_options:
+            action = QAction(label, self)
+            action.setCheckable(True)
+            action.triggered.connect(
+                lambda checked=False, selected_mode=mode: self.request_input_method_mode(
+                    selected_mode
+                )
+            )
+            input_group.addAction(action)
+            input_menu.addAction(action)
+            self._input_method_actions[mode] = action
+
+        self._sync_input_method_actions()
+
         self.theme_menu = settings_menu.addMenu("테마")
         self.theme_menu.aboutToHide.connect(self._schedule_pending_theme_apply)
 
@@ -138,6 +165,16 @@ class MainWindow(QMainWindow):
             group.addAction(action)
             self.theme_menu.addAction(action)
             self._theme_actions[name] = action
+
+    def request_input_method_mode(self, mode: str) -> None:
+        self.settings.input_method_mode = mode
+        self._sync_input_method_actions()
+        self.statusBar().showMessage("입력기 설정 저장 · 재시작 후 적용", 3500)
+
+    def _sync_input_method_actions(self) -> None:
+        current = self.settings.input_method_mode
+        for mode, action in self._input_method_actions.items():
+            action.setChecked(mode == current)
 
     def request_theme(self, name: str) -> None:
         if name not in THEMES:

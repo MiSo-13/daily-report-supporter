@@ -1,7 +1,9 @@
 import pytest
 
+from app.settings import INPUT_METHOD_CROSTINI_IBUS, INPUT_METHOD_SYSTEM
 from app.qt_platform import (
     CrostiniDependencyError,
+    configure_input_method,
     configure_qt_platform,
     install_crostini_dependencies,
     is_crostini,
@@ -135,3 +137,67 @@ def test_crostini_setup_script_failure(tmp_path) -> None:
 
 def test_crostini_setup_script_missing(tmp_path) -> None:
     assert not install_crostini_dependencies(tmp_path / "missing.sh")
+
+
+def test_system_input_method_keeps_environment_unchanged() -> None:
+    env = {
+        "QT_IM_MODULE": "fcitx",
+        "XMODIFIERS": "@im=fcitx",
+    }
+
+    applied = configure_input_method(
+        INPUT_METHOD_SYSTEM,
+        env,
+        platform="linux",
+        crostini=True,
+    )
+
+    assert not applied
+    assert env == {
+        "QT_IM_MODULE": "fcitx",
+        "XMODIFIERS": "@im=fcitx",
+    }
+
+
+def test_crostini_ibus_mode_sets_input_environment() -> None:
+    env = {}
+
+    applied = configure_input_method(
+        INPUT_METHOD_CROSTINI_IBUS,
+        env,
+        platform="linux",
+        crostini=True,
+    )
+
+    assert applied
+    assert env["QT_IM_MODULE"] == "ibus"
+    assert env["XMODIFIERS"] == "@im=ibus"
+    assert env["GTK_IM_MODULE"] == "ibus"
+
+
+def test_crostini_ibus_mode_does_not_change_windows() -> None:
+    env = {}
+
+    applied = configure_input_method(
+        INPUT_METHOD_CROSTINI_IBUS,
+        env,
+        platform="win32",
+        crostini=False,
+    )
+
+    assert not applied
+    assert env == {}
+
+
+def test_crostini_ibus_mode_does_not_change_regular_linux() -> None:
+    env = {}
+
+    applied = configure_input_method(
+        INPUT_METHOD_CROSTINI_IBUS,
+        env,
+        platform="linux",
+        crostini=False,
+    )
+
+    assert not applied
+    assert env == {}

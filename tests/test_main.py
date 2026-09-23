@@ -1,5 +1,6 @@
 import main
 from app.qt_platform import CrostiniDependencyError
+from app.settings import AppSettings, INPUT_METHOD_CROSTINI_IBUS
 
 
 def test_auto_setup_retries_after_install(monkeypatch) -> None:
@@ -56,3 +57,21 @@ def test_auto_setup_does_not_install_for_display_error(monkeypatch) -> None:
 
     assert not main._configure_platform_with_auto_setup()
     assert not install_called["value"]
+
+
+def test_input_method_setting_is_applied_from_reports(tmp_path, monkeypatch) -> None:
+    settings = AppSettings(tmp_path)
+    settings.input_method_mode = INPUT_METHOD_CROSTINI_IBUS
+
+    received = {"mode": None}
+
+    monkeypatch.setattr(main, "REPORTS_ROOT", tmp_path)
+    monkeypatch.setattr(
+        main,
+        "configure_input_method",
+        lambda mode: received.update(mode=mode),
+    )
+
+    main._configure_input_method_from_settings()
+
+    assert received["mode"] == INPUT_METHOD_CROSTINI_IBUS

@@ -41,6 +41,8 @@ python main.py
 bash scripts/setup_crostini.sh
 ```
 
+한글 입력이 되지 않으면 앱에서 `설정 → 입력기 호환 모드 → Crostini 한글 호환 (IBus)`를 선택한 뒤 앱을 다시 실행합니다.
+
 ## 2. 첫 실행
 
 앱을 실행하면 프로젝트의 `reports/` 폴더를 사용합니다.
