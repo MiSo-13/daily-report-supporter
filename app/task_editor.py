@@ -96,13 +96,18 @@ class TaskEditor(QWidget):
         buttons.addStretch(1)
         buttons.addWidget(self.update_button)
 
+        self.heading_label = QLabel(f"<b>{title}</b>")
+
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"<b>{title}</b>"))
+        layout.addWidget(self.heading_label)
         layout.addWidget(self.list_widget, 1)
         layout.addLayout(form)
         layout.addLayout(buttons)
 
         self._set_add_mode()
+
+    def set_title(self, title: str) -> None:
+        self.heading_label.setText(f"<b>{title}</b>")
 
     def set_tasks(self, tasks: list[Task]) -> None:
         self.tasks = [
