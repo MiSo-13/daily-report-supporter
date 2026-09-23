@@ -30,12 +30,14 @@ from app.themes import THEMES, stylesheet_for, theme_names
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, reports_root: Path | str = "reports") -> None:
+    def __init__(self, reports_root: Path | str | None = None) -> None:
         super().__init__()
         self.setWindowTitle("Daily Report Supporter")
         self.resize(1180, 760)
 
-        self.store = MarkdownStore(reports_root)
+        default_reports_root = Path(__file__).resolve().parent.parent / "reports"
+        resolved_reports_root = Path(reports_root) if reports_root is not None else default_reports_root
+        self.store = MarkdownStore(resolved_reports_root)
         self.settings = AppSettings(self.store.root)
         self.current_date = date.today()
         self._theme_actions: dict[str, QAction] = {}
