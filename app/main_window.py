@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from app.qt_platform import configure_qt_platform
+from app.qt_platform import configure_qt_platform, safe_ui_enabled
 
 configure_qt_platform()
 
@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 from app.dialogs import GreetingSettingsDialog, ReportDialog
 from app.markdown_store import MarkdownStore
 from app.models import DailyDocument, TaskStatus
+from app.safe_panels import ReportPanel, SettingsPanel
 from app.settings import AppSettings
 from app.task_editor import TaskEditor
 from app.themes import THEMES, stylesheet_for, theme_names
@@ -45,6 +46,7 @@ class MainWindow(QMainWindow):
         )
         self.store = MarkdownStore(resolved_reports_root)
         self.settings = AppSettings(self.store.root)
+        self.safe_ui = safe_ui_enabled()
         self.current_date = date.today()
         self._theme_actions: dict[str, QAction] = {}
         self._pending_theme: str | None = None
@@ -67,27 +69,41 @@ class MainWindow(QMainWindow):
             "어제 했던 일",
             self.persist_current,
             default_status=TaskStatus.COMPLETED,
+            safe_ui=self.safe_ui,
         )
         self.today_editor = TaskEditor(
             "오늘 해야 할 일",
             self.persist_current,
             default_status=TaskStatus.PLANNED,
+            safe_ui=self.safe_ui,
         )
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.previous_editor, "어제 했던 일")
         self.tabs.addTab(self.today_editor, "오늘 해야 할 일")
 
+        self.settings_panel: SettingsPanel | None = None
+        self.report_panel: ReportPanel | None = None
+        if self.safe_ui:
+            self.settings_panel = SettingsPanel(self.settings, self.apply_theme)
+            self.report_panel = ReportPanel()
+            self.tabs.addTab(self.settings_panel, "설정")
+            self.tabs.addTab(self.report_panel, "일일보고")
+
         self.current_label = QLabel()
+        self.settings_button = QPushButton("설정")
         self.today_button = QPushButton("오늘로 이동")
         self.report_button = QPushButton("일일보고 작성")
         self.report_button.setObjectName("primaryButton")
+        self.settings_button.clicked.connect(self.open_settings)
         self.today_button.clicked.connect(self.open_today)
         self.report_button.clicked.connect(self.open_report)
+        self.settings_button.setVisible(self.safe_ui)
 
         toolbar = QHBoxLayout()
         toolbar.addWidget(self.current_label)
         toolbar.addStretch(1)
+        toolbar.addWidget(self.settings_button)
         toolbar.addWidget(self.today_button)
         toolbar.addWidget(self.report_button)
 
@@ -102,9 +118,14 @@ class MainWindow(QMainWindow):
         splitter.setSizes([260, 920])
         self.setCentralWidget(splitter)
 
-        self._build_menu()
+        if not self.safe_ui:
+            self._build_menu()
+
         self._apply_theme_now(self.settings.theme, persist=False)
-        self.statusBar().showMessage(f"설정 파일: {self.settings.path}")
+        mode = "Wayland 안전 모드" if self.safe_ui else "일반 모드"
+        self.statusBar().showMessage(
+            f"{mode} · 설정 파일: {self.settings.path}"
+        )
         self.open_today()
 
     def _build_menu(self) -> None:
@@ -129,6 +150,10 @@ class MainWindow(QMainWindow):
             self.theme_menu.addAction(action)
             self._theme_actions[name] = action
 
+    def open_settings(self) -> None:
+        if self.settings_panel is not None:
+            self.tabs.setCurrentWidget(self.settings_panel)
+
     def request_theme(self, name: str) -> None:
         if name not in THEMES:
             name = "Light"
@@ -147,6 +172,9 @@ class MainWindow(QMainWindow):
         self._pending_theme = None
         self._apply_theme_now(name, persist=False)
 
+    def apply_theme(self, name: str) -> None:
+        self._apply_theme_now(name, persist=False)
+
     def _apply_theme_now(self, name: str, *, persist: bool = True) -> None:
         if name not in THEMES:
             name = "Light"
@@ -155,6 +183,8 @@ class MainWindow(QMainWindow):
         if persist:
             self.settings.theme = name
         self._sync_theme_actions(name)
+        if self.settings_panel is not None:
+            self.settings_panel.sync_theme(name)
         self.statusBar().showMessage(f"테마 적용: {name}", 2500)
 
     def _sync_theme_actions(self, name: str) -> None:
@@ -162,6 +192,10 @@ class MainWindow(QMainWindow):
             action.setChecked(theme_name == name)
 
     def open_greeting_settings(self) -> None:
+        if self.safe_ui:
+            self.open_settings()
+            return
+
         dialog = GreetingSettingsDialog(self, self.settings.greeting)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -197,11 +231,24 @@ class MainWindow(QMainWindow):
         path = self.store.save(self.current_date, document)
         self.statusBar().showMessage(f"자동 저장 완료 · {path}", 2500)
 
-    def open_report(self) -> None:
-        document = DailyDocument(
+    def _current_document(self) -> DailyDocument:
+        return DailyDocument(
             previous_done=self.previous_editor.get_tasks(),
             today_tasks=self.today_editor.get_tasks(),
         )
+
+    def open_report(self) -> None:
+        document = self._current_document()
+
+        if self.safe_ui and self.report_panel is not None:
+            self.report_panel.load(
+                self.current_date,
+                document,
+                self.settings.greeting,
+            )
+            self.tabs.setCurrentWidget(self.report_panel)
+            return
+
         ReportDialog(
             self,
             self.current_date,
