@@ -158,10 +158,15 @@ class MainWindow(QMainWindow):
             action.setChecked(theme_name == name)
 
     def open_greeting_settings(self) -> None:
-        dialog = GreetingSettingsDialog(self, self.settings.greeting)
+        dialog = GreetingSettingsDialog(
+            self,
+            self.settings.greeting,
+            self.settings.footer,
+        )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.settings.greeting = dialog.greeting
+        self.settings.footer = dialog.footer
         self.statusBar().showMessage(
             f"기본 인사말 저장 완료 · {self.settings.path}",
             3000,
@@ -205,6 +210,7 @@ class MainWindow(QMainWindow):
             self.current_date,
             self._current_document(),
             self.settings.greeting,
+            self.settings.footer,
         ).exec()
 
     def _refresh_filters(self, select_date: date | None = None) -> None:
