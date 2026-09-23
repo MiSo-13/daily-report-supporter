@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtWidgets import (
     QApplication,
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         settings_menu.addAction(greeting_action)
 
         self.theme_menu = settings_menu.addMenu("테마")
-        self.theme_menu.aboutToHide.connect(self._apply_pending_theme)
+        self.theme_menu.aboutToHide.connect(self._schedule_pending_theme_apply)
 
         group = QActionGroup(self)
         group.setExclusive(True)
@@ -132,6 +132,11 @@ class MainWindow(QMainWindow):
         self.settings.theme = name
         self._pending_theme = name
         self._sync_theme_actions(name)
+
+    def _schedule_pending_theme_apply(self) -> None:
+        # aboutToHide는 실제 hide 직전에 발생한다. Wayland surface가 완전히
+        # 정리된 다음 stylesheet를 바꾸도록 다음 event-loop tick으로 넘긴다.
+        QTimer.singleShot(50, self._apply_pending_theme)
 
     def _apply_pending_theme(self) -> None:
         if self._pending_theme is None:
