@@ -24,8 +24,8 @@ def test_linux_with_missing_xcb_dependency_uses_safe_ui() -> None:
 
     result = configure_qt_platform(env, "linux", xcb_usable=False)
 
-    assert result is None
-    assert "QT_QPA_PLATFORM" not in env
+    assert result == "wayland"
+    assert env["QT_QPA_PLATFORM"] == "wayland"
     assert env[SAFE_UI_ENV] == "1"
 
 
