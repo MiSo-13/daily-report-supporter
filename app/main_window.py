@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
         self.settings.greeting = dialog.greeting
         self.settings.footer = dialog.footer
         self.statusBar().showMessage(
-            f"기본 인사말 저장 완료 · {self.settings.path}",
+            f"문구 저장 완료 · {self.settings.path}",
             3000,
         )
 
