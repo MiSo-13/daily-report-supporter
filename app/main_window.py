@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from app.qt_platform import configure_qt_platform
+
+configure_qt_platform()
+
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtWidgets import (
