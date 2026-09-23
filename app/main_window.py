@@ -39,8 +39,12 @@ class MainWindow(QMainWindow):
         resolved_reports_root = (
             Path(reports_root) if reports_root is not None else default_reports_root
         )
-        self.store = MarkdownStore(resolved_reports_root)
-        self.settings = AppSettings(self.store.root)
+        self.settings = AppSettings(resolved_reports_root)
+        self.store = MarkdownStore(
+            resolved_reports_root,
+            previous_section_title=self.settings.previous_section_title,
+            today_section_title=self.settings.today_section_title,
+        )
         self.current_date = date.today()
         self._theme_actions: dict[str, QAction] = {}
         self._pending_theme: str | None = None
@@ -60,19 +64,25 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(self.date_list, 1)
 
         self.previous_editor = TaskEditor(
-            "어제 했던 일",
+            self.settings.previous_section_title,
             self.persist_current,
             default_status=TaskStatus.COMPLETED,
         )
         self.today_editor = TaskEditor(
-            "오늘 해야 할 일",
+            self.settings.today_section_title,
             self.persist_current,
             default_status=TaskStatus.PLANNED,
         )
 
         self.tabs = QTabWidget()
-        self.tabs.addTab(self.previous_editor, "어제 했던 일")
-        self.tabs.addTab(self.today_editor, "오늘 해야 할 일")
+        self.tabs.addTab(
+            self.previous_editor,
+            self.settings.previous_section_title,
+        )
+        self.tabs.addTab(
+            self.today_editor,
+            self.settings.today_section_title,
+        )
 
         self.current_label = QLabel()
         self.today_button = QPushButton("오늘로 이동")
@@ -106,7 +116,7 @@ class MainWindow(QMainWindow):
     def _build_menu(self) -> None:
         settings_menu = self.menuBar().addMenu("설정")
 
-        greeting_action = QAction("인사말 설정...", self)
+        greeting_action = QAction("일일보고 설정...", self)
         greeting_action.triggered.connect(self.open_greeting_settings)
         settings_menu.addAction(greeting_action)
 
@@ -162,15 +172,31 @@ class MainWindow(QMainWindow):
             self,
             self.settings.greeting,
             self.settings.footer,
+            self.settings.previous_section_title,
+            self.settings.today_section_title,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.settings.greeting = dialog.greeting
         self.settings.footer = dialog.footer
+        self.settings.previous_section_title = dialog.previous_section_title
+        self.settings.today_section_title = dialog.today_section_title
+        self._sync_section_titles()
+        self.persist_current()
         self.statusBar().showMessage(
             f"문구 저장 완료 · {self.settings.path}",
             3000,
         )
+
+    def _sync_section_titles(self) -> None:
+        previous_title = self.settings.previous_section_title
+        today_title = self.settings.today_section_title
+
+        self.store.set_section_titles(previous_title, today_title)
+        self.previous_editor.set_title(previous_title)
+        self.today_editor.set_title(today_title)
+        self.tabs.setTabText(0, previous_title)
+        self.tabs.setTabText(1, today_title)
 
     def open_today(self) -> None:
         self.store.ensure_day(date.today())
