@@ -43,7 +43,9 @@ class ReportService:
             if task.status in (TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED)
         ]
         planned = [
-            task for task in document.today_tasks if task.status is TaskStatus.PLANNED
+            task
+            for task in document.today_tasks
+            if task.status in (TaskStatus.IN_PROGRESS, TaskStatus.PLANNED)
         ]
 
         lines: list[str] = []
