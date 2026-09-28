@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QSplitter,
@@ -56,16 +57,40 @@ class MainWindow(QMainWindow):
         self._input_method_actions: dict[str, QAction] = {}
         self._pending_theme: str | None = None
 
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("단어로 전체 문서 검색")
+        self.search_input.setClearButtonEnabled(True)
+
+        self.search_count_label = QLabel("")
+        self.search_count_label.setVisible(False)
+
+        self.search_results = QListWidget()
+        self.search_results.setWordWrap(True)
+        self.search_results.setVisible(False)
+
+        self.search_timer = QTimer(self)
+        self.search_timer.setSingleShot(True)
+        self.search_timer.setInterval(200)
+
         self.year_combo = QComboBox()
         self.month_combo = QComboBox()
         self.date_list = QListWidget()
+        self.search_input.textChanged.connect(self._search_text_changed)
+        self.search_timer.timeout.connect(self._run_search)
+        self.search_results.itemClicked.connect(self._search_result_selected)
         self.year_combo.currentIndexChanged.connect(self._year_changed)
         self.month_combo.currentIndexChanged.connect(self._reload_date_list)
         self.date_list.itemSelectionChanged.connect(self._date_selected)
 
         nav = QWidget()
         nav_layout = QVBoxLayout(nav)
-        nav_layout.addWidget(QLabel("<b>일일 문서</b>"))
+        nav_layout.addWidget(QLabel("<b>전체 검색</b>"))
+        nav_layout.addWidget(self.search_input)
+        nav_layout.addWidget(self.search_count_label)
+        nav_layout.addWidget(self.search_results, 1)
+
+        self.date_nav_label = QLabel("<b>일일 문서</b>")
+        nav_layout.addWidget(self.date_nav_label)
         nav_layout.addWidget(self.year_combo)
         nav_layout.addWidget(self.month_combo)
         nav_layout.addWidget(self.date_list, 1)
@@ -224,6 +249,7 @@ class MainWindow(QMainWindow):
         self.today_editor.set_title(today_title)
 
     def open_today(self) -> None:
+        self.search_input.clear()
         self.store.ensure_day(date.today())
         self._refresh_filters(select_date=date.today())
         self.load_date(date.today())
@@ -247,6 +273,8 @@ class MainWindow(QMainWindow):
             today_tasks=self.today_editor.get_tasks(),
         )
         path = self.store.save(self.current_date, document)
+        if self.search_input.text().strip():
+            self._run_search()
         self.statusBar().showMessage(f"자동 저장 완료 · {path}", 2500)
 
     def _current_document(self) -> DailyDocument:
@@ -263,6 +291,83 @@ class MainWindow(QMainWindow):
             self.settings.greeting,
             self.settings.footer,
         ).exec()
+
+
+    def _search_text_changed(self, text: str) -> None:
+        active = bool(text.strip())
+        self._set_search_mode(active)
+
+        if not active:
+            self.search_timer.stop()
+            self.search_results.clear()
+            self.search_count_label.clear()
+            return
+
+        self.search_timer.start()
+
+    def _set_search_mode(self, active: bool) -> None:
+        self.search_count_label.setVisible(active)
+        self.search_results.setVisible(active)
+
+        self.date_nav_label.setVisible(not active)
+        self.year_combo.setVisible(not active)
+        self.month_combo.setVisible(not active)
+        self.date_list.setVisible(not active)
+
+    def _run_search(self) -> None:
+        query = self.search_input.text().strip()
+        if not query:
+            return
+
+        results = self.store.search(query)
+
+        self.search_results.blockSignals(True)
+        self.search_results.clear()
+        self.search_count_label.setText(f"{len(results)}건")
+
+        if not results:
+            self.search_results.addItem("검색 결과 없음")
+        else:
+            for result in results:
+                status = (
+                    f"[{result.status.value}] "
+                    if result.status is not None
+                    else ""
+                )
+                legacy = " · 이전 데이터" if result.legacy else ""
+                item = QListWidgetItem(
+                    f"{result.target:%Y-%m-%d} · "
+                    f"{status}{result.title}{legacy}\n"
+                    f"{result.snippet}"
+                )
+                item.setData(
+                    Qt.ItemDataRole.UserRole,
+                    {
+                        "date": result.target.isoformat(),
+                        "task_index": result.task_index,
+                        "legacy": result.legacy,
+                    },
+                )
+                item.setToolTip(str(self.store.path_for(result.target)))
+                self.search_results.addItem(item)
+
+        self.search_results.blockSignals(False)
+
+    def _search_result_selected(self, item: QListWidgetItem) -> None:
+        payload = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(payload, dict):
+            return
+
+        raw_date = payload.get("date")
+        if not isinstance(raw_date, str):
+            return
+
+        self.load_date(date.fromisoformat(raw_date))
+
+        task_index = payload.get("task_index")
+        legacy = bool(payload.get("legacy"))
+        if isinstance(task_index, int) and not legacy:
+            self.today_editor.select_task(task_index)
 
     def _refresh_filters(self, select_date: date | None = None) -> None:
         years = self.store.available_years()
