@@ -124,4 +124,4 @@ reports/settings.json
 
 파일이 없으면 앱 시작 시 자동으로 생성됩니다.
 
-`previous_section_title`은 기존 문서 호환용으로 유지되는 내부 설정이며 현재 UI에서는 사용자가 변경하지 않습니다.
+`previous_section_title`과 `today_section_title`은 기존 일일 Markdown 호환용 내부 설정으로 유지되며 현재 일일보고 설정 화면에서는 변경하지 않습니다.
