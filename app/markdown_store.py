@@ -54,17 +54,12 @@ class MarkdownStore:
         if source is None:
             document = DailyDocument()
         else:
-            completed = [
-                replace(task)
-                for task in source.today_tasks
-                if task.status is TaskStatus.COMPLETED
-            ]
             pending = [
                 replace(task)
                 for task in source.today_tasks
                 if task.status is not TaskStatus.COMPLETED
             ]
-            document = DailyDocument(previous_done=completed, today_tasks=pending)
+            document = DailyDocument(today_tasks=pending)
 
         self.save(target, document)
         return document
