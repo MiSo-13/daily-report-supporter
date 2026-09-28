@@ -258,3 +258,34 @@ def test_identical_custom_section_titles_are_parsed_by_order() -> None:
 
     assert [task.title for task in parsed.previous_done] == ["완료"]
     assert [task.title for task in parsed.today_tasks] == ["예정"]
+
+
+def test_report_does_not_add_fixed_date_title() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(title="업무 확인", status=TaskStatus.IN_PROGRESS),
+        ]
+    )
+
+    report = ReportService.build(
+        date(2026, 9, 23),
+        "안녕하세요.\n26. 09. 23 업무 공유드립니다.",
+        document,
+    )
+
+    assert "2026년 09월 23일 일일보고입니다." not in report
+    assert report.startswith("안녕하세요.\n26. 09. 23 업무 공유드립니다.\n\n[진행 업무]")
+
+
+def test_report_header_can_be_defined_in_greeting() -> None:
+    document = DailyDocument()
+
+    report = ReportService.build(
+        date(2026, 9, 23),
+        "안녕하세요.\nYYYY년 MM월 DD일 일일보고입니다.",
+        document,
+    )
+
+    assert report.startswith(
+        "안녕하세요.\n2026년 09월 23일 일일보고입니다.\n\n[진행 업무]"
+    )
