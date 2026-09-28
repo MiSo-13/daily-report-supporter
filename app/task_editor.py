@@ -272,15 +272,13 @@ class TaskEditor(QWidget):
         if not title and not allow_empty_title:
             return None
 
+        details_text = self.details_input.toPlainText()
+
         return Task(
             title=title,
             link_text=self.link_text_input.text().strip(),
             link_url=self.link_url_input.text().strip(),
-            details=(
-                self.details_input.toPlainText().split("\n")
-                if self.details_input.toPlainText()
-                else []
-            ),
+            details=details_text.split("\n") if details_text else [],
             status=TaskStatus.from_text(
                 str(self.status_input.currentData() or self.default_status.value),
                 default=self.default_status,
