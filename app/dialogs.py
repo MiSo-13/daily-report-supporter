@@ -28,7 +28,8 @@ class GreetingSettingsDialog(QDialog):
         parent: QWidget,
         greeting: str,
         footer: str,
-        today_section_title: str,
+        progress_report_title: str,
+        planned_report_title: str,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("일일보고 설정")
@@ -42,8 +43,11 @@ class GreetingSettingsDialog(QDialog):
         self.footer_editor = QTextEdit(footer)
         self.footer_editor.setPlaceholderText("예: 이상입니다. 감사합니다.")
 
-        self.today_section_input = QLineEdit(today_section_title)
-        self.today_section_input.setPlaceholderText("예: 오늘 업무")
+        self.progress_title_input = QLineEdit(progress_report_title)
+        self.progress_title_input.setPlaceholderText("예: 진행 업무")
+
+        self.planned_title_input = QLineEdit(planned_report_title)
+        self.planned_title_input.setPlaceholderText("예: 예정 업무")
 
         today = date.today()
         token_help = QLabel(
@@ -53,7 +57,8 @@ class GreetingSettingsDialog(QDialog):
         token_help.setWordWrap(True)
 
         form = QFormLayout()
-        form.addRow("오늘 업무 제목", self.today_section_input)
+        form.addRow("진행 업무 제목", self.progress_title_input)
+        form.addRow("예정 업무 제목", self.planned_title_input)
         form.addRow("상단 문구", self.greeting_editor)
         form.addRow("꼬리말", self.footer_editor)
 
@@ -78,15 +83,19 @@ class GreetingSettingsDialog(QDialog):
 
     @property
     def greeting(self) -> str:
-        return self.greeting_editor.toPlainText().strip()
+        return self.greeting_editor.toPlainText()
 
     @property
     def footer(self) -> str:
-        return self.footer_editor.toPlainText().strip()
+        return self.footer_editor.toPlainText()
 
     @property
-    def today_section_title(self) -> str:
-        return self.today_section_input.text().strip()
+    def progress_report_title(self) -> str:
+        return self.progress_title_input.text().strip()
+
+    @property
+    def planned_report_title(self) -> str:
+        return self.planned_title_input.text().strip()
 
 
 class DeleteConfirmDialog(QDialog):
@@ -125,11 +134,15 @@ class ReportDialog(QDialog):
         document: DailyDocument,
         greeting: str,
         footer: str,
+        progress_report_title: str,
+        planned_report_title: str,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("일일보고 작성")
         self.resize(720, 700)
         self.document = document
+        self.progress_report_title = progress_report_title
+        self.planned_report_title = planned_report_title
 
         self.date_edit = QDateEdit(QDate(target.year, target.month, target.day))
         self.date_edit.setCalendarPopup(True)
@@ -187,6 +200,8 @@ class ReportDialog(QDialog):
                 self.greeting.toPlainText(),
                 self.document,
                 self.footer.toPlainText(),
+                self.progress_report_title,
+                self.planned_report_title,
             )
         )
         self.copy_status.clear()

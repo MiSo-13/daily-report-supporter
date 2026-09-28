@@ -44,7 +44,7 @@ class Task:
             title=self.title.strip(),
             link_text=self.link_text.strip(),
             link_url=self.link_url.strip(),
-            details=[line.strip() for line in self.details if line.strip()],
+            details=list(self.details),
             status=self.status,
         )
 
