@@ -167,7 +167,7 @@ python -m pytest
 - 삭제도 확인 후 즉시 Markdown 파일에 반영됩니다.
 - 기존의 전역 `저장` 버튼은 제거했습니다.
 
-## 인사말 및 테마 설정
+## 설정
 
 상단 메뉴의 `설정`에서 변경할 수 있습니다.
 
@@ -180,7 +180,7 @@ python -m pytest
 
 ## 설정 파일
 
-테마, 인사말, 꼬리말은 아래 파일에 저장됩니다.
+테마, 상단 문구, 꼬리말은 아래 파일에 저장됩니다.
 
 ```text
 reports/
@@ -197,7 +197,7 @@ reports/
   "theme": "Nord",
   "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다.\n\nYYYY년 MM월 DD일 일일보고입니다.",
   "footer": "감사합니다.",
-  "previous_section_title": "전일 업무",
+  "previous_section_title": "어제 했던 일",
   "today_section_title": "금일 업무",
   "input_method_mode": "system"
 }
@@ -244,7 +244,7 @@ IBus 모드는 다음 실행부터 적용됩니다.
 YYYY년 MM월 DD일 일일보고입니다.
 ```
 
-이 인사말 다음에 바로 `[진행 업무]`가 출력됩니다.
+이 상단 문구 다음에 바로 `[진행 업무]`가 출력됩니다.
 
 ## 일일보고 날짜 토큰
 
