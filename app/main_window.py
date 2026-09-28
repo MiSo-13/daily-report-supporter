@@ -16,14 +16,13 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QSplitter,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from app.dialogs import GreetingSettingsDialog, ReportDialog
 from app.markdown_store import MarkdownStore
-from app.models import DailyDocument, TaskStatus
+from app.models import DailyDocument, Task, TaskStatus
 from app.paths import default_reports_root
 from app.settings import (
     AppSettings,
@@ -52,6 +51,7 @@ class MainWindow(QMainWindow):
             today_section_title=self.settings.today_section_title,
         )
         self.current_date = date.today()
+        self._legacy_previous_done: list[Task] = []
         self._theme_actions: dict[str, QAction] = {}
         self._input_method_actions: dict[str, QAction] = {}
         self._pending_theme: str | None = None
@@ -70,25 +70,10 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(self.month_combo)
         nav_layout.addWidget(self.date_list, 1)
 
-        self.previous_editor = TaskEditor(
-            self.settings.previous_section_title,
-            self.persist_current,
-            default_status=TaskStatus.COMPLETED,
-        )
         self.today_editor = TaskEditor(
             self.settings.today_section_title,
             self.persist_current,
             default_status=TaskStatus.PLANNED,
-        )
-
-        self.tabs = QTabWidget()
-        self.tabs.addTab(
-            self.previous_editor,
-            self.settings.previous_section_title,
-        )
-        self.tabs.addTab(
-            self.today_editor,
-            self.settings.today_section_title,
         )
 
         self.current_label = QLabel()
@@ -107,7 +92,7 @@ class MainWindow(QMainWindow):
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.addLayout(toolbar)
-        content_layout.addWidget(self.tabs, 1)
+        content_layout.addWidget(self.today_editor, 1)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(nav)
@@ -215,14 +200,12 @@ class MainWindow(QMainWindow):
             self,
             self.settings.greeting,
             self.settings.footer,
-            self.settings.previous_section_title,
             self.settings.today_section_title,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.settings.greeting = dialog.greeting
         self.settings.footer = dialog.footer
-        self.settings.previous_section_title = dialog.previous_section_title
         self.settings.today_section_title = dialog.today_section_title
         self._sync_section_titles()
         self.persist_current()
@@ -232,14 +215,13 @@ class MainWindow(QMainWindow):
         )
 
     def _sync_section_titles(self) -> None:
-        previous_title = self.settings.previous_section_title
         today_title = self.settings.today_section_title
 
-        self.store.set_section_titles(previous_title, today_title)
-        self.previous_editor.set_title(previous_title)
+        self.store.set_section_titles(
+            self.settings.previous_section_title,
+            today_title,
+        )
         self.today_editor.set_title(today_title)
-        self.tabs.setTabText(0, previous_title)
-        self.tabs.setTabText(1, today_title)
 
     def open_today(self) -> None:
         self.store.ensure_day(date.today())
@@ -256,12 +238,12 @@ class MainWindow(QMainWindow):
         self.current_label.setText(
             f"<b>{target:%Y-%m-%d}</b>  ·  {self.store.path_for(target)}"
         )
-        self.previous_editor.set_tasks(document.previous_done)
+        self._legacy_previous_done = document.previous_done
         self.today_editor.set_tasks(document.today_tasks)
 
     def persist_current(self) -> None:
         document = DailyDocument(
-            previous_done=self.previous_editor.get_tasks(),
+            previous_done=list(self._legacy_previous_done),
             today_tasks=self.today_editor.get_tasks(),
         )
         path = self.store.save(self.current_date, document)
@@ -269,7 +251,7 @@ class MainWindow(QMainWindow):
 
     def _current_document(self) -> DailyDocument:
         return DailyDocument(
-            previous_done=self.previous_editor.get_tasks(),
+            previous_done=list(self._legacy_previous_done),
             today_tasks=self.today_editor.get_tasks(),
         )
 
