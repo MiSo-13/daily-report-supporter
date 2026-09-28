@@ -225,15 +225,15 @@ class MainWindow(QMainWindow):
             self,
             self.settings.greeting,
             self.settings.footer,
-            self.settings.today_section_title,
+            self.settings.progress_report_title,
+            self.settings.planned_report_title,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self.settings.greeting = dialog.greeting
         self.settings.footer = dialog.footer
-        self.settings.today_section_title = dialog.today_section_title
-        self._sync_section_titles()
-        self.persist_current()
+        self.settings.progress_report_title = dialog.progress_report_title
+        self.settings.planned_report_title = dialog.planned_report_title
         self.statusBar().showMessage(
             f"문구 저장 완료 · {self.settings.path}",
             3000,
@@ -290,6 +290,8 @@ class MainWindow(QMainWindow):
             self._current_document(),
             self.settings.greeting,
             self.settings.footer,
+            self.settings.progress_report_title,
+            self.settings.planned_report_title,
         ).exec()
 
 
