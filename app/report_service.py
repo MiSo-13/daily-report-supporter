@@ -24,7 +24,7 @@ class ReportService:
 
     @classmethod
     def render_template(cls, text: str, target: date) -> str:
-        rendered = text
+        rendered = cls.normalize_line_breaks(text)
         for token, fmt in sorted(
             cls.DATE_TOKENS.items(),
             key=lambda item: len(item[0]),
@@ -32,6 +32,15 @@ class ReportService:
         ):
             rendered = rendered.replace(token, target.strftime(fmt))
         return rendered
+
+    @staticmethod
+    def normalize_line_breaks(text: str) -> str:
+        return (
+            text.replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("\u2028", "\n")
+            .replace("\u2029", "\n")
+        )
 
     @classmethod
     def build(

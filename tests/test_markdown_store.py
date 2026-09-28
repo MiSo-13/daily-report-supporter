@@ -593,3 +593,36 @@ def test_legacy_detail_bullet_is_kept_as_markdown() -> None:
     parsed = MarkdownStore.parse(legacy)
 
     assert parsed.today_tasks[0].details == ["- 기존 내용"]
+
+
+
+def test_report_preserves_blank_line_inside_greeting_example() -> None:
+    document = DailyDocument()
+
+    report = ReportService.build(
+        date(2026, 9, 28),
+        "안녕하십니까\n\nYY. MM. DD 일일보고 보고 드립니다. ",
+        document,
+    )
+
+    assert report.startswith(
+        "안녕하십니까\n\n"
+        "26. 09. 28 일일보고 보고 드립니다. \n"
+        "진행 업무"
+    )
+
+
+def test_report_normalizes_qt_paragraph_separator_without_losing_blank_line() -> None:
+    document = DailyDocument()
+
+    report = ReportService.build(
+        date(2026, 9, 28),
+        "안녕하십니까\u2029\u2029YY. MM. DD 일일보고 보고 드립니다.",
+        document,
+    )
+
+    assert report.startswith(
+        "안녕하십니까\n\n"
+        "26. 09. 28 일일보고 보고 드립니다.\n"
+        "진행 업무"
+    )
