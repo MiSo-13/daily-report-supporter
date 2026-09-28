@@ -9,6 +9,7 @@ from app.models import DailyDocument, Task, TaskStatus
 from app.settings import (
     DEFAULT_PREVIOUS_SECTION_TITLE,
     DEFAULT_TODAY_SECTION_TITLE,
+    LEGACY_DEFAULT_TODAY_SECTION_TITLE,
 )
 
 CHECKBOX_RE = re.compile(r"^- \[(?P<mark>[ xX])\] (?P<title>.*)$")
@@ -167,6 +168,7 @@ class MarkdownStore:
         }
         today_titles = {
             DEFAULT_TODAY_SECTION_TITLE,
+            LEGACY_DEFAULT_TODAY_SECTION_TITLE,
             today_section_title.strip() or DEFAULT_TODAY_SECTION_TITLE,
         }
 
