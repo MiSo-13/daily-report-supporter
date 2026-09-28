@@ -15,6 +15,8 @@ DEFAULT_THEME = "Light"
 DEFAULT_PREVIOUS_SECTION_TITLE = "어제 했던 일"
 LEGACY_DEFAULT_TODAY_SECTION_TITLE = "오늘 해야 할 일"
 DEFAULT_TODAY_SECTION_TITLE = "오늘 업무"
+DEFAULT_PROGRESS_REPORT_TITLE = "진행 업무"
+DEFAULT_PLANNED_REPORT_TITLE = "예정 업무"
 INPUT_METHOD_SYSTEM = "system"
 INPUT_METHOD_CROSTINI_IBUS = "crostini_ibus"
 DEFAULT_INPUT_METHOD_MODE = INPUT_METHOD_SYSTEM
@@ -32,11 +34,11 @@ class AppSettings:
     @property
     def greeting(self) -> str:
         value = self._data.get("greeting")
-        return value if isinstance(value, str) and value.strip() else DEFAULT_GREETING
+        return value if isinstance(value, str) else DEFAULT_GREETING
 
     @greeting.setter
     def greeting(self, value: str) -> None:
-        self._data["greeting"] = value.strip() or DEFAULT_GREETING
+        self._data["greeting"] = value
         self._save()
 
     @property
@@ -46,7 +48,39 @@ class AppSettings:
 
     @footer.setter
     def footer(self, value: str) -> None:
-        self._data["footer"] = value.strip()
+        self._data["footer"] = value
+        self._save()
+
+    @property
+    def progress_report_title(self) -> str:
+        value = self._data.get("progress_report_title")
+        return (
+            value
+            if isinstance(value, str) and value.strip()
+            else DEFAULT_PROGRESS_REPORT_TITLE
+        )
+
+    @progress_report_title.setter
+    def progress_report_title(self, value: str) -> None:
+        self._data["progress_report_title"] = (
+            value.strip() or DEFAULT_PROGRESS_REPORT_TITLE
+        )
+        self._save()
+
+    @property
+    def planned_report_title(self) -> str:
+        value = self._data.get("planned_report_title")
+        return (
+            value
+            if isinstance(value, str) and value.strip()
+            else DEFAULT_PLANNED_REPORT_TITLE
+        )
+
+    @planned_report_title.setter
+    def planned_report_title(self, value: str) -> None:
+        self._data["planned_report_title"] = (
+            value.strip() or DEFAULT_PLANNED_REPORT_TITLE
+        )
         self._save()
 
     @property
@@ -114,6 +148,8 @@ class AppSettings:
             "footer": DEFAULT_FOOTER,
             "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
             "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
+            "progress_report_title": DEFAULT_PROGRESS_REPORT_TITLE,
+            "planned_report_title": DEFAULT_PLANNED_REPORT_TITLE,
             "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
         }
 
@@ -128,6 +164,17 @@ class AppSettings:
         if not isinstance(payload, dict):
             return defaults, True
 
+        migrated_progress_title = DEFAULT_PROGRESS_REPORT_TITLE
+        legacy_today_title = payload.get("today_section_title")
+        if (
+            "progress_report_title" not in payload
+            and isinstance(legacy_today_title, str)
+            and legacy_today_title.strip()
+            and legacy_today_title
+            not in {DEFAULT_TODAY_SECTION_TITLE, LEGACY_DEFAULT_TODAY_SECTION_TITLE}
+        ):
+            migrated_progress_title = legacy_today_title.strip()
+
         data = {
             "theme": payload.get("theme", DEFAULT_THEME),
             "greeting": payload.get("greeting", DEFAULT_GREETING),
@@ -139,6 +186,14 @@ class AppSettings:
             "today_section_title": payload.get(
                 "today_section_title",
                 DEFAULT_TODAY_SECTION_TITLE,
+            ),
+            "progress_report_title": payload.get(
+                "progress_report_title",
+                migrated_progress_title,
+            ),
+            "planned_report_title": payload.get(
+                "planned_report_title",
+                DEFAULT_PLANNED_REPORT_TITLE,
             ),
             "input_method_mode": payload.get(
                 "input_method_mode",
