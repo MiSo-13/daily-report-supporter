@@ -177,3 +177,25 @@ def test_custom_greeting_is_not_overwritten(tmp_path) -> None:
     settings = AppSettings(tmp_path)
 
     assert settings.greeting == custom
+
+
+def test_legacy_today_section_title_is_migrated(tmp_path) -> None:
+    config_path = tmp_path / "settings.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "theme": DEFAULT_THEME,
+                "greeting": DEFAULT_GREETING,
+                "footer": DEFAULT_FOOTER,
+                "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
+                "today_section_title": "오늘 해야 할 일",
+                "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    settings = AppSettings(tmp_path)
+
+    assert settings.today_section_title == "오늘 업무"
