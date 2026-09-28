@@ -224,7 +224,7 @@ reports/
 }
 ```
 
-앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 인사말로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
+앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 상단 문구로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
 ### ChromeOS / Crostini
 
