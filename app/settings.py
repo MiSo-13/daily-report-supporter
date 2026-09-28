@@ -4,11 +4,17 @@ import json
 from pathlib import Path
 from typing import Any
 
-DEFAULT_GREETING = "안녕하세요.\n금일 업무 진행사항 공유드립니다."
+LEGACY_DEFAULT_GREETING = "안녕하세요.\n금일 업무 진행사항 공유드립니다."
+DEFAULT_GREETING = (
+    "안녕하세요.\n"
+    "금일 업무 진행사항 공유드립니다.\n\n"
+    "YYYY년 MM월 DD일 일일보고입니다."
+)
 DEFAULT_FOOTER = ""
 DEFAULT_THEME = "Light"
 DEFAULT_PREVIOUS_SECTION_TITLE = "어제 했던 일"
-DEFAULT_TODAY_SECTION_TITLE = "오늘 해야 할 일"
+LEGACY_DEFAULT_TODAY_SECTION_TITLE = "오늘 해야 할 일"
+DEFAULT_TODAY_SECTION_TITLE = "오늘 업무"
 INPUT_METHOD_SYSTEM = "system"
 INPUT_METHOD_CROSTINI_IBUS = "crostini_ibus"
 DEFAULT_INPUT_METHOD_MODE = INPUT_METHOD_SYSTEM
@@ -141,6 +147,15 @@ class AppSettings:
         }
 
         needs_write = set(payload) != set(defaults)
+
+        if data["greeting"] == LEGACY_DEFAULT_GREETING:
+            data["greeting"] = DEFAULT_GREETING
+            needs_write = True
+
+        if data["today_section_title"] == LEGACY_DEFAULT_TODAY_SECTION_TITLE:
+            data["today_section_title"] = DEFAULT_TODAY_SECTION_TITLE
+            needs_write = True
+
         return data, needs_write
 
     def _save(self) -> None:

@@ -131,3 +131,71 @@ def test_invalid_input_method_mode_uses_system_default(tmp_path) -> None:
     settings.input_method_mode = "unknown"
 
     assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
+
+
+def test_legacy_default_greeting_is_migrated(tmp_path) -> None:
+    config_path = tmp_path / "settings.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "theme": DEFAULT_THEME,
+                "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다.",
+                "footer": DEFAULT_FOOTER,
+                "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
+                "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
+                "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    settings = AppSettings(tmp_path)
+
+    assert settings.greeting == DEFAULT_GREETING
+    assert "YYYY년 MM월 DD일 일일보고입니다." in settings.greeting
+
+
+def test_custom_greeting_is_not_overwritten(tmp_path) -> None:
+    config_path = tmp_path / "settings.json"
+    custom = "직접 작성한 인사말"
+    config_path.write_text(
+        json.dumps(
+            {
+                "theme": DEFAULT_THEME,
+                "greeting": custom,
+                "footer": DEFAULT_FOOTER,
+                "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
+                "today_section_title": DEFAULT_TODAY_SECTION_TITLE,
+                "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    settings = AppSettings(tmp_path)
+
+    assert settings.greeting == custom
+
+
+def test_legacy_today_section_title_is_migrated(tmp_path) -> None:
+    config_path = tmp_path / "settings.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "theme": DEFAULT_THEME,
+                "greeting": DEFAULT_GREETING,
+                "footer": DEFAULT_FOOTER,
+                "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
+                "today_section_title": "오늘 해야 할 일",
+                "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    settings = AppSettings(tmp_path)
+
+    assert settings.today_section_title == "오늘 업무"
