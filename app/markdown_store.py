@@ -17,7 +17,7 @@ MARKDOWN_LINK_RE = re.compile(r"^\[(?P<text>.*)\]\((?P<url>.+)\)$")
 STATUS_PREFIX = "  - 상태:"
 LINK_PREFIX = "  - 관련 문서:"
 DETAIL_HEADER = "  - 주요 내용:"
-DETAIL_PREFIX = "    - "
+DETAIL_INDENT = "    "
 
 
 class MarkdownStore:
@@ -271,7 +271,7 @@ class MarkdownStore:
         }
 
         for raw in content.splitlines():
-            line = raw.rstrip()
+            line = raw
 
             if line.startswith("## "):
                 heading = line[3:].strip()
@@ -351,8 +351,12 @@ class MarkdownStore:
             if line == DETAIL_HEADER:
                 reading_details = True
                 continue
-            if reading_details and line.startswith(DETAIL_PREFIX):
-                current.details.append(line[len(DETAIL_PREFIX):].strip())
+            if reading_details and line.startswith(DETAIL_INDENT):
+                current.details.append(line[len(DETAIL_INDENT):])
+                continue
+
+            if reading_details and not line.strip():
+                current.details.append("")
 
         return DailyDocument(previous_done=previous_done, today_tasks=today_tasks)
 
@@ -370,7 +374,7 @@ class MarkdownStore:
                 lines.append(f"  - 관련 문서: {item.markdown_link}")
             if item.details:
                 lines.append(DETAIL_HEADER)
-                lines.extend(f"    - {detail}" for detail in item.details)
+                lines.extend(f"{DETAIL_INDENT}{detail}" for detail in item.details)
             lines.append("")
         return lines[:-1]
 
