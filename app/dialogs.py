@@ -54,7 +54,7 @@ class GreetingSettingsDialog(QDialog):
 
         form = QFormLayout()
         form.addRow("오늘 업무 제목", self.today_section_input)
-        form.addRow("인사말", self.greeting_editor)
+        form.addRow("상단 문구", self.greeting_editor)
         form.addRow("꼬리말", self.footer_editor)
 
         buttons = QDialogButtonBox(
@@ -65,7 +65,14 @@ class GreetingSettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
+        report_rule_help = QLabel(
+            "분류: 진행중 → 진행 업무 + 예정 업무 / "
+            "완료 → 진행 업무 / 예정 → 예정 업무"
+        )
+        report_rule_help.setWordWrap(True)
+
         layout.addWidget(token_help)
+        layout.addWidget(report_rule_help)
         layout.addLayout(form)
         layout.addWidget(buttons)
 
@@ -144,10 +151,12 @@ class ReportDialog(QDialog):
 
         form = QFormLayout()
         form.addRow("날짜", self.date_edit)
-        form.addRow("인사말", self.greeting)
+        form.addRow("상단 문구", self.greeting)
         form.addRow("꼬리말", self.footer)
 
         help_label = QLabel(
+            "진행중 → 진행 업무 + 예정 업무 / "
+            "완료 → 진행 업무 / 예정 → 예정 업무\n"
             "날짜: YY.MM.DD / YY. MM. DD / YYYY.MM.DD"
         )
         help_label.setWordWrap(True)
