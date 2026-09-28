@@ -133,12 +133,12 @@ def test_report_generation_groups_active_and_planned_with_markdown_link() -> Non
         ]
     )
     report = ReportService.build(date(2026, 9, 23), "안녕하세요.", document)
-    assert "[진행 업무]" in report
-    assert "1. [완료] API 구현" in report
-    assert "   - 관련 문서: [1694](http://naver.com)" in report
+    assert "\n진행 업무\n" in report
+    assert "1. [완료] API 구현 ([1694](http://naver.com))" in report
+    assert "\n엔드포인트 추가\n" in report
     assert "2. [진행중] 리뷰 반영" in report
-    assert "[예정 업무]" in report
-    planned_section = report.split("[예정 업무]", 1)[1]
+    assert "\n예정 업무\n" in report
+    planned_section = report.split("예정 업무", 1)[1]
     assert "1. 리뷰 반영" in planned_section
     assert "2. 테스트 작성" in planned_section
     assert "API 구현" not in planned_section
@@ -275,7 +275,7 @@ def test_report_does_not_add_fixed_date_title() -> None:
     )
 
     assert "2026년 09월 23일 일일보고입니다." not in report
-    assert report.startswith("안녕하세요.\n26. 09. 23 업무 공유드립니다.\n\n[진행 업무]")
+    assert report.startswith("안녕하세요.\n26. 09. 23 업무 공유드립니다.\n진행 업무")
 
 
 def test_report_header_can_be_defined_in_greeting() -> None:
@@ -288,7 +288,7 @@ def test_report_header_can_be_defined_in_greeting() -> None:
     )
 
     assert report.startswith(
-        "안녕하세요.\n2026년 09월 23일 일일보고입니다.\n\n[진행 업무]"
+        "안녕하세요.\n2026년 09월 23일 일일보고입니다.\n진행 업무"
     )
 
 
@@ -319,7 +319,7 @@ def test_in_progress_work_appears_in_both_report_sections() -> None:
     )
 
     report = ReportService.build(date(2026, 9, 23), "", document)
-    progress_section, planned_section = report.split("[예정 업무]", 1)
+    progress_section, planned_section = report.split("예정 업무", 1)
 
     assert "[진행중] 계속 진행" in progress_section
     assert "1. 계속 진행" in planned_section
@@ -459,3 +459,137 @@ def test_global_search_blank_query_returns_empty(tmp_path) -> None:
 
     assert store.search("") == []
     assert store.search("   ") == []
+
+
+
+def test_report_section_titles_are_customizable_without_brackets() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(title="작업", status=TaskStatus.IN_PROGRESS),
+        ]
+    )
+
+    report = ReportService.build(
+        date(2026, 9, 23),
+        "",
+        document,
+        "",
+        "오늘 진행",
+        "다음 작업",
+    )
+
+    assert report.startswith("오늘 진행\n")
+    assert "\n다음 작업\n" in report
+    assert "[오늘 진행]" not in report
+    assert "[다음 작업]" not in report
+
+
+def test_report_preserves_greeting_and_footer_line_breaks() -> None:
+    document = DailyDocument()
+
+    report = ReportService.build(
+        date(2026, 9, 23),
+        "첫 줄\n\n둘째 줄\n\n",
+        document,
+        "\n\n끝\n\n",
+    )
+
+    assert report.startswith("첫 줄\n\n둘째 줄\n\n진행 업무")
+    assert report.endswith("\n\n끝\n\n")
+
+
+def test_report_renders_link_next_to_task_title() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(
+                title="보고서 개선 문서 확인",
+                link_text="Confluence",
+                link_url="https://example.com/confluence",
+                status=TaskStatus.COMPLETED,
+            )
+        ]
+    )
+
+    report = ReportService.build(date(2026, 9, 23), "", document)
+
+    assert (
+        "1. [완료] 보고서 개선 문서 확인 "
+        "([Confluence](https://example.com/confluence))"
+        in report
+    )
+    assert "관련 문서:" not in report
+
+
+def test_report_renders_task_detail_markdown_as_entered() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(
+                title="Markdown 확인",
+                details=[
+                    "### 세부 내용",
+                    "",
+                    "- 첫 번째",
+                    "  - 하위 항목",
+                    "",
+                    "**강조**",
+                ],
+                status=TaskStatus.COMPLETED,
+            )
+        ]
+    )
+
+    report = ReportService.build(date(2026, 9, 23), "", document)
+
+    assert (
+        "1. [완료] Markdown 확인\n"
+        "### 세부 내용\n"
+        "\n"
+        "- 첫 번째\n"
+        "  - 하위 항목\n"
+        "\n"
+        "**강조**"
+        in report
+    )
+    assert "   - ### 세부 내용" not in report
+
+
+def test_markdown_detail_round_trip_preserves_formatting() -> None:
+    target = date(2026, 9, 23)
+    details = [
+        "### 제목",
+        "",
+        "- 항목",
+        "  - 하위 항목",
+        "두 칸 뒤 공백  ",
+        "",
+    ]
+    original = DailyDocument(
+        today_tasks=[
+            Task(
+                title="Markdown",
+                details=details,
+                status=TaskStatus.IN_PROGRESS,
+            )
+        ]
+    )
+
+    serialized = MarkdownStore.serialize(target, original)
+    parsed = MarkdownStore.parse(serialized)
+
+    assert parsed.today_tasks[0].details == details
+
+
+def test_legacy_detail_bullet_is_kept_as_markdown() -> None:
+    legacy = """# 2026-09-23 일일 업무
+
+## 오늘 업무
+
+- [ ] 기존 업무
+  - 상태: 진행중
+  - 주요 내용:
+    - 기존 내용
+"""
+
+    parsed = MarkdownStore.parse(legacy)
+
+    assert parsed.today_tasks[0].details == ["- 기존 내용"]
