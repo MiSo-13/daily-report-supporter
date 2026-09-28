@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QTextEdit,
+    QPlainTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -35,12 +35,14 @@ class GreetingSettingsDialog(QDialog):
         self.setWindowTitle("일일보고 설정")
         self.resize(560, 520)
 
-        self.greeting_editor = QTextEdit(greeting)
+        self.greeting_editor = QPlainTextEdit()
+        self.greeting_editor.setPlainText(greeting)
         self.greeting_editor.setPlaceholderText(
             "예: 안녕하세요.\nYY.MM.DD 일일보고 공유드립니다."
         )
 
-        self.footer_editor = QTextEdit(footer)
+        self.footer_editor = QPlainTextEdit()
+        self.footer_editor.setPlainText(footer)
         self.footer_editor.setPlaceholderText("예: 이상입니다. 감사합니다.")
 
         self.progress_title_input = QLineEdit(progress_report_title)
@@ -147,12 +149,15 @@ class ReportDialog(QDialog):
         self.date_edit = QDateEdit(QDate(target.year, target.month, target.day))
         self.date_edit.setCalendarPopup(True)
 
-        self.greeting = QTextEdit(greeting)
+        self.greeting = QPlainTextEdit()
+        self.greeting.setPlainText(greeting)
         self.greeting.setPlaceholderText("예: YY. MM. DD 업무 공유드립니다.")
-        self.footer = QTextEdit(footer)
+
+        self.footer = QPlainTextEdit()
+        self.footer.setPlainText(footer)
         self.footer.setPlaceholderText("꼬리말을 입력하세요.")
 
-        self.output = QTextEdit()
+        self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
         self.copy_status = QLabel("")
 
