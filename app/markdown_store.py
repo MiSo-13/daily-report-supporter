@@ -238,7 +238,7 @@ class MarkdownStore:
 
         lines.extend([f"## {today_title}", ""])
         lines.extend(MarkdownStore._tasks_to_lines(document.today_tasks))
-        return "\n".join(lines).rstrip() + "\n"
+        return "\n".join(lines) + "\n"
 
     @staticmethod
     def parse(
