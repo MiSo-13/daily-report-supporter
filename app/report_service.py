@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import date
 
 from app.models import DailyDocument, Task, TaskStatus
+from app.settings import (
+    DEFAULT_PLANNED_REPORT_TITLE,
+    DEFAULT_PROGRESS_REPORT_TITLE,
+)
 
 
 class ReportService:
@@ -36,6 +40,8 @@ class ReportService:
         greeting: str,
         document: DailyDocument,
         footer: str = "",
+        progress_title: str = DEFAULT_PROGRESS_REPORT_TITLE,
+        planned_title: str = DEFAULT_PLANNED_REPORT_TITLE,
     ) -> str:
         active = [
             task
@@ -48,23 +54,32 @@ class ReportService:
             if task.status in (TaskStatus.IN_PROGRESS, TaskStatus.PLANNED)
         ]
 
-        lines: list[str] = []
-        rendered_greeting = cls.render_template(greeting.strip(), target)
-        rendered_footer = cls.render_template(footer.strip(), target)
+        rendered_greeting = cls.render_template(greeting, target)
+        rendered_footer = cls.render_template(footer, target)
+        progress_heading = progress_title.strip() or DEFAULT_PROGRESS_REPORT_TITLE
+        planned_heading = planned_title.strip() or DEFAULT_PLANNED_REPORT_TITLE
 
-        if rendered_greeting:
-            lines.append(rendered_greeting)
-            lines.append("")
-
-        lines.extend(["[진행 업무]", ""])
+        lines: list[str] = [progress_heading, ""]
         lines.extend(cls._render_tasks(active, show_status=True))
-        lines.extend(["", "[예정 업무]", ""])
+        lines.extend(["", planned_heading, ""])
         lines.extend(cls._render_tasks(planned, show_status=False))
 
+        report = "\n".join(lines)
+        if rendered_greeting:
+            report = cls._join_preserving_line_breaks(rendered_greeting, report)
         if rendered_footer:
-            lines.extend(["", rendered_footer])
+            report = cls._join_preserving_line_breaks(report, rendered_footer)
+        return report
 
-        return "\n".join(lines).rstrip()
+    @staticmethod
+    def _join_preserving_line_breaks(left: str, right: str) -> str:
+        if not left:
+            return right
+        if not right:
+            return left
+        if left.endswith("\n") or right.startswith("\n"):
+            return left + right
+        return left + "\n" + right
 
     @staticmethod
     def _render_tasks(tasks: list[Task], show_status: bool) -> list[str]:
@@ -73,9 +88,10 @@ class ReportService:
         lines: list[str] = []
         for index, task in enumerate(tasks, start=1):
             status = f"[{task.status.value}] " if show_status else ""
-            lines.append(f"{index}. {status}{task.title}")
+            title = f"{index}. {status}{task.title}"
             if task.link_url:
-                lines.append(f"   - 관련 문서: {task.markdown_link}")
-            lines.extend(f"   - {detail}" for detail in task.details)
+                title += f" ({task.markdown_link})"
+            lines.append(title)
+            lines.extend(task.details)
             lines.append("")
         return lines[:-1]
