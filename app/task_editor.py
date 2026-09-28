@@ -51,7 +51,7 @@ class TaskEditor(QWidget):
         self.link_url_input.setPlaceholderText("https://...")
 
         self.details_input = QTextEdit()
-        self.details_input.setPlaceholderText("주요 내용을 한 줄에 하나씩 입력하세요.")
+        self.details_input.setPlaceholderText("Markdown으로 입력하세요.")
 
         self.status_input = QComboBox()
         for status in TaskStatus:
@@ -276,11 +276,11 @@ class TaskEditor(QWidget):
             title=title,
             link_text=self.link_text_input.text().strip(),
             link_url=self.link_url_input.text().strip(),
-            details=[
-                line.strip()
-                for line in self.details_input.toPlainText().splitlines()
-                if line.strip()
-            ],
+            details=(
+                self.details_input.toPlainText().split("\n")
+                if self.details_input.toPlainText()
+                else []
+            ),
             status=TaskStatus.from_text(
                 str(self.status_input.currentData() or self.default_status.value),
                 default=self.default_status,
