@@ -142,9 +142,14 @@ class MarkdownStore:
         )
         today_title = today_section_title.strip() or DEFAULT_TODAY_SECTION_TITLE
 
-        lines = [f"# {target:%Y-%m-%d} 일일 업무", "", f"## {previous_title}", ""]
-        lines.extend(MarkdownStore._tasks_to_lines(document.previous_done))
-        lines.extend(["", f"## {today_title}", ""])
+        lines = [f"# {target:%Y-%m-%d} 일일 업무", ""]
+
+        if document.previous_done:
+            lines.extend([f"## {previous_title}", ""])
+            lines.extend(MarkdownStore._tasks_to_lines(document.previous_done))
+            lines.append("")
+
+        lines.extend([f"## {today_title}", ""])
         lines.extend(MarkdownStore._tasks_to_lines(document.today_tasks))
         return "\n".join(lines).rstrip() + "\n"
 
@@ -160,6 +165,12 @@ class MarkdownStore:
         section: list[Task] | None = None
         current: Task | None = None
         reading_details = False
+        headings = [
+            raw[3:].strip()
+            for raw in content.splitlines()
+            if raw.startswith("## ")
+        ]
+        single_heading = len(headings) == 1
         unknown_heading_index = 0
 
         previous_titles = {
@@ -195,8 +206,12 @@ class MarkdownStore:
                 elif is_today:
                     section = today_tasks
                     unknown_heading_index = max(unknown_heading_index, 2)
+                elif single_heading:
+                    # 새 형식은 오늘 업무 섹션 하나만 저장할 수 있다.
+                    section = today_tasks
+                    unknown_heading_index = 2
                 elif unknown_heading_index == 0:
-                    # 이전에 사용하던 커스텀 제목도 첫 번째 섹션으로 읽는다.
+                    # 기존 2개 섹션 문서의 커스텀 제목은 순서로 읽는다.
                     section = previous_done
                     unknown_heading_index = 1
                 elif unknown_heading_index == 1:
