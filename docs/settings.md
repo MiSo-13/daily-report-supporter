@@ -113,10 +113,12 @@ reports/settings.json
   "theme": "Nord",
   "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다.\n\nYYYY년 MM월 DD일 일일보고입니다.",
   "footer": "감사합니다.",
-  "previous_section_title": "전일 업무",
+  "previous_section_title": "어제 했던 일",
   "today_section_title": "금일 업무",
   "input_method_mode": "system"
 }
 ```
 
 파일이 없으면 앱 시작 시 자동으로 생성됩니다.
+
+`previous_section_title`은 기존 문서 호환용으로 유지되는 내부 설정이며 현재 UI에서는 사용자가 변경하지 않습니다.
