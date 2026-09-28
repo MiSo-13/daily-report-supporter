@@ -92,14 +92,12 @@ def test_rollover_preserves_incomplete_statuses_and_links(tmp_path) -> None:
     )
 
     next_doc = store.ensure_day(date(2026, 9, 24))
-    assert [task.title for task in next_doc.previous_done] == ["완료 업무"]
+    assert next_doc.previous_done == []
     assert [task.title for task in next_doc.today_tasks] == ["진행 업무", "예정 업무"]
     assert [task.status for task in next_doc.today_tasks] == [
         TaskStatus.IN_PROGRESS,
         TaskStatus.PLANNED,
     ]
-    assert next_doc.previous_done[0].link_text == "완료 문서"
-    assert next_doc.previous_done[0].link_url == "https://example.com/done"
     assert next_doc.today_tasks[0].link_text == "진행 문서"
     assert next_doc.today_tasks[0].link_url == "https://example.com/progress"
 
@@ -140,7 +138,10 @@ def test_report_generation_groups_active_and_planned_with_markdown_link() -> Non
     assert "   - 관련 문서: [1694](http://naver.com)" in report
     assert "2. [진행중] 리뷰 반영" in report
     assert "[예정 업무]" in report
-    assert "1. 테스트 작성" in report
+    planned_section = report.split("[예정 업무]", 1)[1]
+    assert "1. 리뷰 반영" in planned_section
+    assert "2. 테스트 작성" in planned_section
+    assert "API 구현" not in planned_section
 
 
 def test_report_date_tokens_and_footer() -> None:
@@ -289,3 +290,36 @@ def test_report_header_can_be_defined_in_greeting() -> None:
     assert report.startswith(
         "안녕하세요.\n2026년 09월 23일 일일보고입니다.\n\n[진행 업무]"
     )
+
+
+def test_completed_work_is_not_copied_to_next_day(tmp_path) -> None:
+    store = MarkdownStore(tmp_path)
+    first = date(2026, 9, 23)
+    store.save(
+        first,
+        DailyDocument(
+            today_tasks=[
+                Task(title="오늘 완료", status=TaskStatus.COMPLETED),
+                Task(title="계속 진행", status=TaskStatus.IN_PROGRESS),
+            ]
+        ),
+    )
+
+    next_doc = store.ensure_day(date(2026, 9, 24))
+
+    assert next_doc.previous_done == []
+    assert [task.title for task in next_doc.today_tasks] == ["계속 진행"]
+
+
+def test_in_progress_work_appears_in_both_report_sections() -> None:
+    document = DailyDocument(
+        today_tasks=[
+            Task(title="계속 진행", status=TaskStatus.IN_PROGRESS),
+        ]
+    )
+
+    report = ReportService.build(date(2026, 9, 23), "", document)
+    progress_section, planned_section = report.split("[예정 업무]", 1)
+
+    assert "[진행중] 계속 진행" in progress_section
+    assert "1. 계속 진행" in planned_section
