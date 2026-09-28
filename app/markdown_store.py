@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
-from app.models import DailyDocument, Task, TaskStatus
+from app.models import DailyDocument, SearchResult, Task, TaskStatus
 from app.settings import (
     DEFAULT_PREVIOUS_SECTION_TITLE,
     DEFAULT_TODAY_SECTION_TITLE,
@@ -106,6 +106,93 @@ class MarkdownStore:
                 continue
             found.append(parsed)
         return sorted(set(found), reverse=True)
+
+
+    def search(self, query: str) -> list[SearchResult]:
+        keyword = query.strip().casefold()
+        if not keyword:
+            return []
+
+        results: list[SearchResult] = []
+        for target in self.list_dates():
+            path = self.path_for(target)
+            try:
+                content = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+
+            document = self.parse(
+                content,
+                previous_section_title=self.previous_section_title,
+                today_section_title=self.today_section_title,
+            )
+
+            matched_task = False
+
+            for index, task in enumerate(document.today_tasks):
+                snippet = self._matching_task_snippet(task, keyword)
+                if snippet is None:
+                    continue
+                matched_task = True
+                results.append(
+                    SearchResult(
+                        target=target,
+                        title=task.title or "(제목 없음)",
+                        snippet=snippet,
+                        status=task.status,
+                        task_index=index,
+                    )
+                )
+
+            for task in document.previous_done:
+                snippet = self._matching_task_snippet(task, keyword)
+                if snippet is None:
+                    continue
+                matched_task = True
+                results.append(
+                    SearchResult(
+                        target=target,
+                        title=task.title or "(제목 없음)",
+                        snippet=snippet,
+                        status=task.status,
+                        legacy=True,
+                    )
+                )
+
+            if not matched_task and keyword in content.casefold():
+                snippet = self._matching_document_line(content, keyword)
+                results.append(
+                    SearchResult(
+                        target=target,
+                        title="문서 내용",
+                        snippet=snippet,
+                    )
+                )
+
+        return results
+
+    @staticmethod
+    def _matching_task_snippet(task: Task, keyword: str) -> str | None:
+        fields: list[tuple[str, str]] = [
+            ("제목", task.title),
+            ("링크 이름", task.link_text),
+            ("URL", task.link_url),
+            ("상태", task.status.value),
+        ]
+        fields.extend(("주요 내용", detail) for detail in task.details)
+
+        for label, value in fields:
+            if value and keyword in value.casefold():
+                return f"{label}: {value}"
+        return None
+
+    @staticmethod
+    def _matching_document_line(content: str, keyword: str) -> str:
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped and keyword in stripped.casefold():
+                return stripped
+        return "문서 내용에서 일치"
 
     def available_years(self) -> list[int]:
         if not self.root.exists():
