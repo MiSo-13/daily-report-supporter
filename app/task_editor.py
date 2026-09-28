@@ -123,6 +123,10 @@ class TaskEditor(QWidget):
         self.refresh()
         self.enter_add_mode()
 
+    def select_task(self, index: int) -> None:
+        if 0 <= index < len(self.tasks):
+            self.list_widget.setCurrentRow(index)
+
     def get_tasks(self) -> list[Task]:
         return [
             Task(
