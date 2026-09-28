@@ -54,8 +54,7 @@ class ReportService:
             lines.append(rendered_greeting)
             lines.append("")
 
-        lines.append(f"{target:%Y년 %m월 %d일} 일일보고입니다.")
-        lines.extend(["", "[진행 업무]", ""])
+        lines.extend(["[진행 업무]", ""])
         lines.extend(cls._render_tasks(active, show_status=True))
         lines.extend(["", "[예정 업무]", ""])
         lines.extend(cls._render_tasks(planned, show_status=False))
