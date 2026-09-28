@@ -359,3 +359,103 @@ def test_legacy_previous_section_is_preserved_when_it_has_data() -> None:
     assert "## 어제 했던 일" in content
     parsed = MarkdownStore.parse(content)
     assert [task.title for task in parsed.previous_done] == ["기존 이전 업무"]
+
+
+def test_global_search_finds_task_fields(tmp_path) -> None:
+    store = MarkdownStore(tmp_path)
+    target = date(2026, 9, 23)
+    store.save(
+        target,
+        DailyDocument(
+            today_tasks=[
+                Task(
+                    title="권한 API 개발",
+                    link_text="JIRA-1694",
+                    link_url="https://example.com/auth",
+                    details=["관리자 권한 조회 구현"],
+                    status=TaskStatus.IN_PROGRESS,
+                )
+            ]
+        ),
+    )
+
+    assert store.search("권한")[0].title == "권한 API 개발"
+    assert store.search("jira-1694")[0].snippet == "링크 이름: JIRA-1694"
+    assert store.search("EXAMPLE.COM")[0].snippet == "URL: https://example.com/auth"
+    assert store.search("관리자")[0].snippet == "주요 내용: 관리자 권한 조회 구현"
+    assert store.search("진행중")[0].snippet == "상태: 진행중"
+
+
+def test_global_search_returns_newest_results_first(tmp_path) -> None:
+    store = MarkdownStore(tmp_path)
+    for target in (date(2026, 9, 22), date(2026, 9, 24)):
+        store.save(
+            target,
+            DailyDocument(
+                today_tasks=[
+                    Task(title="검색 대상", status=TaskStatus.PLANNED),
+                ]
+            ),
+        )
+
+    results = store.search("검색 대상")
+
+    assert [result.target for result in results] == [
+        date(2026, 9, 24),
+        date(2026, 9, 22),
+    ]
+
+
+def test_global_search_includes_legacy_previous_data(tmp_path) -> None:
+    store = MarkdownStore(tmp_path)
+    target = date(2026, 9, 23)
+    store.save(
+        target,
+        DailyDocument(
+            previous_done=[
+                Task(
+                    title="레거시 배포 작업",
+                    details=["이전 버전 기록"],
+                    status=TaskStatus.COMPLETED,
+                )
+            ],
+            today_tasks=[],
+        ),
+    )
+
+    result = store.search("레거시")[0]
+
+    assert result.target == target
+    assert result.legacy
+    assert result.task_index is None
+
+
+def test_global_search_falls_back_to_raw_markdown_text(tmp_path) -> None:
+    store = MarkdownStore(tmp_path)
+    target = date(2026, 9, 23)
+    path = store.path_for(target)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        """# 2026-09-23 일일 업무
+
+수동으로 남긴 회의 메모
+
+## 오늘 업무
+
+_없음_
+""",
+        encoding="utf-8",
+    )
+
+    result = store.search("회의 메모")[0]
+
+    assert result.target == target
+    assert result.title == "문서 내용"
+    assert result.snippet == "수동으로 남긴 회의 메모"
+
+
+def test_global_search_blank_query_returns_empty(tmp_path) -> None:
+    store = MarkdownStore(tmp_path)
+
+    assert store.search("") == []
+    assert store.search("   ") == []

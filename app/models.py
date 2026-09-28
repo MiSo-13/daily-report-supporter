@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from enum import Enum
 
 
@@ -52,3 +53,13 @@ class Task:
 class DailyDocument:
     previous_done: list[Task] = field(default_factory=list)
     today_tasks: list[Task] = field(default_factory=list)
+
+
+@dataclass(slots=True, frozen=True)
+class SearchResult:
+    target: date
+    title: str
+    snippet: str
+    status: TaskStatus | None = None
+    task_index: int | None = None
+    legacy: bool = False
