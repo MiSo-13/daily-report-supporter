@@ -234,7 +234,7 @@ def test_store_writes_configured_section_titles(tmp_path) -> None:
     store.save(target, DailyDocument())
 
     content = store.path_for(target).read_text(encoding="utf-8")
-    assert "## 완료한 일" in content
+    assert "## 완료한 일" not in content
     assert "## 할 일" in content
 
 
@@ -323,3 +323,39 @@ def test_in_progress_work_appears_in_both_report_sections() -> None:
 
     assert "[진행중] 계속 진행" in progress_section
     assert "1. 계속 진행" in planned_section
+
+
+def test_single_custom_today_section_remains_readable() -> None:
+    content = """# 2026-09-23 일일 업무
+
+## 내가 정한 오늘 업무
+
+- [ ] 진행 업무
+  - 상태: 진행중
+"""
+
+    parsed = MarkdownStore.parse(
+        content,
+        today_section_title="다른 새 제목",
+    )
+
+    assert parsed.previous_done == []
+    assert [task.title for task in parsed.today_tasks] == ["진행 업무"]
+    assert parsed.today_tasks[0].status is TaskStatus.IN_PROGRESS
+
+
+def test_legacy_previous_section_is_preserved_when_it_has_data() -> None:
+    document = DailyDocument(
+        previous_done=[
+            Task(title="기존 이전 업무", status=TaskStatus.COMPLETED),
+        ],
+        today_tasks=[
+            Task(title="오늘 업무", status=TaskStatus.PLANNED),
+        ],
+    )
+
+    content = MarkdownStore.serialize(date(2026, 9, 23), document)
+
+    assert "## 어제 했던 일" in content
+    parsed = MarkdownStore.parse(content)
+    assert [task.title for task in parsed.previous_done] == ["기존 이전 업무"]
