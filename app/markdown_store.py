@@ -355,9 +355,6 @@ class MarkdownStore:
                 current.details.append(line[len(DETAIL_INDENT):])
                 continue
 
-            if reading_details and not line.strip():
-                current.details.append("")
-
         return DailyDocument(previous_done=previous_done, today_tasks=today_tasks)
 
     @staticmethod
