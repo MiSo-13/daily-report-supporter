@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSplitter,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -98,11 +99,21 @@ class TaskEditor(QWidget):
 
         self.heading_label = QLabel(f"<b>{title}</b>")
 
+        editor_panel = QWidget()
+        editor_layout = QVBoxLayout(editor_panel)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.addLayout(form)
+        editor_layout.addLayout(buttons)
+
+        self.content_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.content_splitter.setChildrenCollapsible(False)
+        self.content_splitter.addWidget(self.list_widget)
+        self.content_splitter.addWidget(editor_panel)
+        self.content_splitter.setSizes([360, 300])
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.heading_label)
-        layout.addWidget(self.list_widget, 1)
-        layout.addLayout(form)
-        layout.addLayout(buttons)
+        layout.addWidget(self.content_splitter, 1)
 
         self._set_add_mode()
 
@@ -177,6 +188,18 @@ class TaskEditor(QWidget):
         self._clear_form()
         self._set_add_mode()
         self.title_input.setFocus()
+
+    def save_current(self) -> None:
+        row = self.list_widget.currentRow()
+        if 0 <= row < len(self.tasks):
+            self.save_changes()
+            return
+
+        if self.title_input.text().strip():
+            self.add_task()
+            return
+
+        self.on_persist()
 
     def add_task(self) -> None:
         task = self._task_from_form()
