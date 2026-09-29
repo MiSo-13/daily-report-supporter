@@ -43,6 +43,7 @@ class MemoSidebar(QWidget):
         self.delete_button.clicked.connect(on_delete)
 
         actions = QHBoxLayout()
+        actions.setSpacing(8)
         actions.addWidget(self.new_button)
         actions.addWidget(self.delete_button)
 
@@ -51,7 +52,8 @@ class MemoSidebar(QWidget):
         self.list_widget.itemClicked.connect(self._selected)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
         layout.addWidget(self.search_input)
         layout.addWidget(self.count_label)
         layout.addWidget(self.list_widget, 1)

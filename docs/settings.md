@@ -94,6 +94,7 @@ GTK_IM_MODULE=ibus
 
 - Light
 - Dark
+- Purple
 - Nord
 - Solarized Light
 - Solarized Dark

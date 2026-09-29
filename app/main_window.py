@@ -102,7 +102,8 @@ class MainWindow(QMainWindow):
 
         work_nav = QWidget()
         work_nav_layout = QVBoxLayout(work_nav)
-        work_nav_layout.setContentsMargins(0, 0, 0, 0)
+        work_nav_layout.setContentsMargins(10, 10, 10, 10)
+        work_nav_layout.setSpacing(8)
         work_nav_layout.addWidget(QLabel("<b>전체 검색</b>"))
         work_nav_layout.addWidget(self.search_input)
         work_nav_layout.addWidget(self.search_count_label)
@@ -128,6 +129,7 @@ class MainWindow(QMainWindow):
         self.report_button.clicked.connect(self.open_report)
 
         toolbar = QHBoxLayout()
+        toolbar.setSpacing(8)
         toolbar.addWidget(self.current_label)
         toolbar.addStretch(1)
         toolbar.addWidget(self.today_button)
@@ -135,6 +137,8 @@ class MainWindow(QMainWindow):
 
         work_content = QWidget()
         work_content_layout = QVBoxLayout(work_content)
+        work_content_layout.setContentsMargins(12, 12, 12, 12)
+        work_content_layout.setSpacing(10)
         work_content_layout.addLayout(toolbar)
         work_content_layout.addWidget(self.today_editor, 1)
 
@@ -156,10 +160,16 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.memo_editor)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(6)
         splitter.addWidget(self.workspace_tabs)
         splitter.addWidget(self.content_stack)
         splitter.setSizes([280, 900])
-        self.setCentralWidget(splitter)
+
+        central = QWidget()
+        central_layout = QHBoxLayout(central)
+        central_layout.setContentsMargins(10, 10, 10, 10)
+        central_layout.addWidget(splitter)
+        self.setCentralWidget(central)
 
         self._build_shortcuts()
         self._build_menu()

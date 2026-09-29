@@ -53,6 +53,7 @@ class TaskEditor(QWidget):
         self.link_url_input.setPlaceholderText("https://...")
 
         self.open_url_button = QPushButton("열기")
+        self.open_url_button.setObjectName("openUrlButton")
         self.open_url_button.setEnabled(False)
         self.open_url_button.clicked.connect(self._open_link_url)
 
@@ -114,7 +115,8 @@ class TaskEditor(QWidget):
 
         editor_panel = QWidget()
         editor_layout = QVBoxLayout(editor_panel)
-        editor_layout.setContentsMargins(0, 8, 0, 0)
+        editor_layout.setContentsMargins(0, 12, 0, 0)
+        editor_layout.setSpacing(8)
         editor_layout.addLayout(form)
         editor_layout.addLayout(buttons)
 
@@ -126,6 +128,8 @@ class TaskEditor(QWidget):
         self.content_splitter.setSizes([360, 300])
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
         layout.addWidget(self.heading_label)
         layout.addWidget(self.content_splitter, 1)
 
