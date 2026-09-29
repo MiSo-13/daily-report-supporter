@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import QTimer, Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -51,6 +52,17 @@ class TaskEditor(QWidget):
         self.link_url_input = QLineEdit()
         self.link_url_input.setPlaceholderText("https://...")
 
+        self.open_url_button = QPushButton("열기")
+        self.open_url_button.setEnabled(False)
+        self.open_url_button.clicked.connect(self._open_link_url)
+
+        url_row = QWidget()
+        url_layout = QHBoxLayout(url_row)
+        url_layout.setContentsMargins(0, 0, 0, 0)
+        url_layout.setSpacing(6)
+        url_layout.addWidget(self.link_url_input, 1)
+        url_layout.addWidget(self.open_url_button)
+
         self.details_input = QTextEdit()
         self.details_input.setPlaceholderText("Markdown으로 입력하세요.")
 
@@ -64,13 +76,14 @@ class TaskEditor(QWidget):
         self.title_input.textChanged.connect(self._form_changed)
         self.link_text_input.textChanged.connect(self._form_changed)
         self.link_url_input.textChanged.connect(self._form_changed)
+        self.link_url_input.textChanged.connect(self._update_open_url_button)
         self.details_input.textChanged.connect(self._form_changed)
         self.status_input.currentIndexChanged.connect(self._form_changed)
 
         form = QFormLayout()
         form.addRow("제목", self.title_input)
         form.addRow("링크 이름", self.link_text_input)
-        form.addRow("URL", self.link_url_input)
+        form.addRow("URL", url_row)
         form.addRow("주요 내용", self.details_input)
         form.addRow("상태", self.status_input)
         form.addRow("", self.validation_label)
@@ -101,12 +114,13 @@ class TaskEditor(QWidget):
 
         editor_panel = QWidget()
         editor_layout = QVBoxLayout(editor_panel)
-        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setContentsMargins(0, 8, 0, 0)
         editor_layout.addLayout(form)
         editor_layout.addLayout(buttons)
 
         self.content_splitter = QSplitter(Qt.Orientation.Vertical)
         self.content_splitter.setChildrenCollapsible(False)
+        self.content_splitter.setHandleWidth(8)
         self.content_splitter.addWidget(self.list_widget)
         self.content_splitter.addWidget(editor_panel)
         self.content_splitter.setSizes([360, 300])
@@ -307,6 +321,23 @@ class TaskEditor(QWidget):
                 default=self.default_status,
             ),
         )
+
+    @staticmethod
+    def _valid_url(text: str) -> bool:
+        url = QUrl(text.strip())
+        return (
+            url.isValid()
+            and url.scheme().lower() in {"http", "https"}
+            and bool(url.host())
+        )
+
+    def _update_open_url_button(self, text: str) -> None:
+        self.open_url_button.setEnabled(self._valid_url(text))
+
+    def _open_link_url(self) -> None:
+        url = self.link_url_input.text().strip()
+        if self._valid_url(url):
+            QDesktopServices.openUrl(QUrl(url))
 
     def _show_validation(self, message: str) -> None:
         self.validation_label.setText(message)
