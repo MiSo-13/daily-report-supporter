@@ -290,6 +290,7 @@ class MemoEditor(QWidget):
 
         self.preview = RichMarkdownEdit()
         self.preview.setAcceptRichText(True)
+        self.preview.document().setIndentWidth(24)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.markdown_input, "편집")
@@ -305,11 +306,14 @@ class MemoEditor(QWidget):
         self.validation_label = QLabel("")
 
         actions = QHBoxLayout()
+        actions.setSpacing(8)
         actions.addWidget(self.validation_label)
         actions.addStretch(1)
         actions.addWidget(self.save_button)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
         layout.addWidget(self.title_input)
         layout.addWidget(self.tabs, 1)
         layout.addLayout(actions)
