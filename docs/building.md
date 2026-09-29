@@ -91,33 +91,38 @@ git push origin v0.1.0
 
 ```text
 <repository>/reports/
+<repository>/memos/
 ```
 
 PyInstaller 실행파일로 실행할 때:
 
 ```text
 ~/DailyReportSupporter/reports/
+~/DailyReportSupporter/memos/
 ```
 
 Windows 예:
 
 ```text
 C:\Users\<사용자>\DailyReportSupporter\reports
+C:\Users\<사용자>\DailyReportSupporter\memos
 ```
 
 macOS 예:
 
 ```text
 /Users/<사용자>/DailyReportSupporter/reports
+/Users/<사용자>/DailyReportSupporter/memos
 ```
 
 ChromeOS/Crostini 예:
 
 ```text
 /home/<사용자>/DailyReportSupporter/reports
+/home/<사용자>/DailyReportSupporter/memos
 ```
 
-실행파일을 다른 폴더로 옮겨도 업무 파일과 설정은 같은 위치를 사용합니다.
+실행파일을 다른 폴더로 옮겨도 업무 파일, 설정, 메모는 같은 위치를 사용합니다.
 
 ## 서명
 
