@@ -244,7 +244,7 @@ python -m pytest
 
 - **일일보고 설정**: 진행 업무 제목, 예정 업무 제목, 상단 문구, 꼬리말
 - **입력기 호환 모드**: 시스템 기본값 / Crostini 한글 호환 (IBus)
-- **테마**: Light, Dark, Nord, Solarized Light, Solarized Dark, Sepia
+- **테마**: Light, Dark, Purple, Nord, Solarized Light, Solarized Dark, Sepia
 - 설정은 `reports/settings.json`에 저장됩니다.
 
 
