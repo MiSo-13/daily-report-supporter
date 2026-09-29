@@ -15,6 +15,22 @@ from PyQt6.QtGui import (
     QTextFormat,
     QTextListFormat,
 )
+RICH_MARKDOWN_TOOLTIP = """줄 시작 + Space
+# 제목 1
+## 제목 2
+### 제목 3
+- / * 글머리 목록
+1. 번호 목록
+> 인용
+``` 코드 블록
+--- 수평선
+- [ ] 체크박스
+- [x] 체크 완료
+
+Ctrl/Cmd+B 굵게
+Ctrl/Cmd+I 기울임"""
+
+
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -278,6 +294,7 @@ class MemoEditor(QWidget):
         self.tabs = QTabWidget()
         self.tabs.addTab(self.markdown_input, "편집")
         self.tabs.addTab(self.preview, "미리보기")
+        self.tabs.setTabToolTip(1, RICH_MARKDOWN_TOOLTIP)
         self.tabs.currentChanged.connect(self._tab_changed)
         self.preview.textChanged.connect(self._preview_changed)
 
