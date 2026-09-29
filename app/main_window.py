@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QAction, QActionGroup
+from PyQt6.QtGui import QAction, QActionGroup, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -125,14 +125,27 @@ class MainWindow(QMainWindow):
         splitter.setSizes([260, 920])
         self.setCentralWidget(splitter)
 
+        self._build_shortcuts()
         self._build_menu()
         self._apply_theme_now(self.settings.theme, persist=False)
 
         self.brand_label = QLabel("make my MiSo")
         self.statusBar().addPermanentWidget(self.brand_label)
 
-        self.statusBar().showMessage(f"설정 파일: {self.settings.path}")
         self.open_today()
+
+    def _build_shortcuts(self) -> None:
+        file_menu = self.menuBar().addMenu("파일")
+        save_action = QAction("저장", self)
+        save_action.setShortcuts(
+            QKeySequence.keyBindings(QKeySequence.StandardKey.Save)
+        )
+        save_action.triggered.connect(self.save_current)
+        file_menu.addAction(save_action)
+
+    def save_current(self) -> None:
+        self.today_editor.save_current()
+        self.statusBar().showMessage("저장 완료", 1800)
 
     def _build_menu(self) -> None:
         settings_menu = self.menuBar().addMenu("설정")
@@ -234,10 +247,7 @@ class MainWindow(QMainWindow):
         self.settings.footer = dialog.footer
         self.settings.progress_report_title = dialog.progress_report_title
         self.settings.planned_report_title = dialog.planned_report_title
-        self.statusBar().showMessage(
-            f"문구 저장 완료 · {self.settings.path}",
-            3000,
-        )
+        self.statusBar().showMessage("설정 저장", 1800)
 
     def _sync_section_titles(self) -> None:
         today_title = self.settings.today_section_title
@@ -275,7 +285,7 @@ class MainWindow(QMainWindow):
         path = self.store.save(self.current_date, document)
         if self.search_input.text().strip():
             self._run_search()
-        self.statusBar().showMessage(f"자동 저장 완료 · {path}", 2500)
+        self.statusBar().showMessage("저장 완료", 1800)
 
     def _current_document(self) -> DailyDocument:
         return DailyDocument(
