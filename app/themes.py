@@ -76,6 +76,22 @@ QPushButton#primaryButton {{
 QPushButton#primaryButton:hover {{
     background-color: {accent_hover};
 }}
+QPushButton#openUrlButton {{
+    background-color: {accent};
+    color: white;
+    border-color: {accent};
+    font-weight: 600;
+}}
+QPushButton#openUrlButton:hover {{
+    background-color: {accent_hover};
+    border-color: {accent_hover};
+}}
+QPushButton#openUrlButton:disabled {{
+    background-color: {surface_alt};
+    color: {muted};
+    border-color: {border};
+    font-weight: 400;
+}}
 QPushButton#dangerButton:hover {{
     border-color: #d75f5f;
 }}
@@ -146,6 +162,21 @@ THEMES: dict[str, Theme] = {
             accent="#4c8dff",
             accent_hover="#3978df",
             selection="#354b69",
+        ),
+    ),
+    "Purple": Theme(
+        "Purple",
+        "보라색 강조의 가독성 높은 다크 테마",
+        _build_stylesheet(
+            window="#1d1826",
+            surface="#292132",
+            surface_alt="#241d2c",
+            text="#f2eef8",
+            muted="#bdb3ca",
+            border="#473a55",
+            accent="#9b6cff",
+            accent_hover="#8657e8",
+            selection="#4a3968",
         ),
     ),
     "Nord": Theme(
