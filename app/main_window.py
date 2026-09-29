@@ -188,6 +188,10 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("저장 완료", 1800)
 
     def _workspace_changed(self, index: int) -> None:
+        if index == 0 and self.current_memo_id is not None:
+            if self.memo_editor.is_dirty():
+                self.memo_editor.save()
+
         self.content_stack.setCurrentIndex(index)
         if index != 1:
             return
@@ -202,6 +206,9 @@ class MainWindow(QMainWindow):
             self.memo_editor.clear()
 
     def _new_memo(self) -> None:
+        if self.current_memo_id is not None and self.memo_editor.is_dirty():
+            self.memo_editor.save()
+
         memo = self.memo_store.create("새 메모")
         self.current_memo_id = memo.memo_id
         self.memo_sidebar.refresh(select_id=memo.memo_id)
@@ -210,6 +217,13 @@ class MainWindow(QMainWindow):
         self.memo_editor.title_input.setFocus()
 
     def _load_memo(self, memo_id: str) -> None:
+        if (
+            self.current_memo_id is not None
+            and self.current_memo_id != memo_id
+            and self.memo_editor.is_dirty()
+        ):
+            self.memo_editor.save()
+
         memo = self.memo_store.load(memo_id)
         self.current_memo_id = memo.memo_id
         self.memo_editor.load(memo.title, memo.content)
