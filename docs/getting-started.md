@@ -8,7 +8,7 @@ Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-1
 - macOS: `DailyReportSupporter-macos-*.zip`
 - ChromeOS/Crostini: `DailyReportSupporter-linux-*`
 
-배포 실행파일의 업무 데이터는 `~/DailyReportSupporter/reports/`에 저장됩니다.
+배포 실행파일의 업무 데이터는 `~/DailyReportSupporter/reports/`, 메모는 `~/DailyReportSupporter/memos/`에 저장됩니다.
 
 ## 1. 소스 실행 준비
 
@@ -114,3 +114,10 @@ Markdown:
 - 진행중 / 예정 → 예정 업무
 
 생성된 텍스트는 `클립보드 복사`로 바로 복사할 수 있습니다.
+
+
+## 6. 메모
+
+왼쪽의 `메모` 탭에서 날짜와 무관한 Markdown 메모를 만들 수 있습니다.
+
+`+ 새 메모`를 누르고 제목과 내용을 작성합니다. `편집`에서는 Raw Markdown을, `미리보기`에서는 렌더링된 내용을 보면서 수정할 수 있습니다.

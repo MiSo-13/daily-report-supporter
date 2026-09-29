@@ -17,14 +17,19 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QSplitter,
+    QStackedWidget,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from app.dialogs import GreetingSettingsDialog, ReportDialog
+from app.dialogs import DeleteConfirmDialog, GreetingSettingsDialog, ReportDialog
 from app.markdown_store import MarkdownStore
+from app.memo_editor import MemoEditor
+from app.memo_sidebar import MemoSidebar
+from app.memo_store import MemoStore
 from app.models import DailyDocument, Task, TaskStatus
-from app.paths import default_reports_root
+from app.paths import default_memos_root, default_reports_root
 from app.settings import (
     AppSettings,
     INPUT_METHOD_CROSTINI_IBUS,
@@ -35,7 +40,11 @@ from app.themes import THEMES, stylesheet_for, theme_names
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, reports_root: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        reports_root: Path | str | None = None,
+        memos_root: Path | str | None = None,
+    ) -> None:
         super().__init__()
         self.setWindowTitle("Daily Report Supporter")
         self.resize(1180, 760)
@@ -45,13 +54,22 @@ class MainWindow(QMainWindow):
             if reports_root is not None
             else default_reports_root()
         )
+        if memos_root is not None:
+            resolved_memos_root = Path(memos_root)
+        elif reports_root is not None:
+            resolved_memos_root = resolved_reports_root.parent / "memos"
+        else:
+            resolved_memos_root = default_memos_root()
+
         self.settings = AppSettings(resolved_reports_root)
         self.store = MarkdownStore(
             resolved_reports_root,
             previous_section_title=self.settings.previous_section_title,
             today_section_title=self.settings.today_section_title,
         )
+        self.memo_store = MemoStore(resolved_memos_root)
         self.current_date = date.today()
+        self.current_memo_id: str | None = None
         self._legacy_previous_done: list[Task] = []
         self._theme_actions: dict[str, QAction] = {}
         self._input_method_actions: dict[str, QAction] = {}
@@ -82,18 +100,19 @@ class MainWindow(QMainWindow):
         self.month_combo.currentIndexChanged.connect(self._reload_date_list)
         self.date_list.itemSelectionChanged.connect(self._date_selected)
 
-        nav = QWidget()
-        nav_layout = QVBoxLayout(nav)
-        nav_layout.addWidget(QLabel("<b>전체 검색</b>"))
-        nav_layout.addWidget(self.search_input)
-        nav_layout.addWidget(self.search_count_label)
-        nav_layout.addWidget(self.search_results, 1)
+        work_nav = QWidget()
+        work_nav_layout = QVBoxLayout(work_nav)
+        work_nav_layout.setContentsMargins(0, 0, 0, 0)
+        work_nav_layout.addWidget(QLabel("<b>전체 검색</b>"))
+        work_nav_layout.addWidget(self.search_input)
+        work_nav_layout.addWidget(self.search_count_label)
+        work_nav_layout.addWidget(self.search_results, 1)
 
         self.date_nav_label = QLabel("<b>일일 문서</b>")
-        nav_layout.addWidget(self.date_nav_label)
-        nav_layout.addWidget(self.year_combo)
-        nav_layout.addWidget(self.month_combo)
-        nav_layout.addWidget(self.date_list, 1)
+        work_nav_layout.addWidget(self.date_nav_label)
+        work_nav_layout.addWidget(self.year_combo)
+        work_nav_layout.addWidget(self.month_combo)
+        work_nav_layout.addWidget(self.date_list, 1)
 
         self.today_editor = TaskEditor(
             self.settings.today_section_title,
@@ -114,15 +133,32 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.today_button)
         toolbar.addWidget(self.report_button)
 
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.addLayout(toolbar)
-        content_layout.addWidget(self.today_editor, 1)
+        work_content = QWidget()
+        work_content_layout = QVBoxLayout(work_content)
+        work_content_layout.addLayout(toolbar)
+        work_content_layout.addWidget(self.today_editor, 1)
+
+        self.memo_editor = MemoEditor(self._save_memo)
+        self.memo_sidebar = MemoSidebar(
+            self.memo_store,
+            self._load_memo,
+            self._new_memo,
+            self._delete_memo,
+        )
+
+        self.workspace_tabs = QTabWidget()
+        self.workspace_tabs.addTab(work_nav, "업무")
+        self.workspace_tabs.addTab(self.memo_sidebar, "메모")
+        self.workspace_tabs.currentChanged.connect(self._workspace_changed)
+
+        self.content_stack = QStackedWidget()
+        self.content_stack.addWidget(work_content)
+        self.content_stack.addWidget(self.memo_editor)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(nav)
-        splitter.addWidget(content)
-        splitter.setSizes([260, 920])
+        splitter.addWidget(self.workspace_tabs)
+        splitter.addWidget(self.content_stack)
+        splitter.setSizes([280, 900])
         self.setCentralWidget(splitter)
 
         self._build_shortcuts()
@@ -144,8 +180,90 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_action)
 
     def save_current(self) -> None:
+        if self.workspace_tabs.currentIndex() == 1:
+            self.memo_editor.save()
+            return
+
         self.today_editor.save_current()
         self.statusBar().showMessage("저장 완료", 1800)
+
+    def _workspace_changed(self, index: int) -> None:
+        if index == 0 and self.current_memo_id is not None:
+            if self.memo_editor.is_dirty():
+                self.memo_editor.save()
+
+        self.content_stack.setCurrentIndex(index)
+        if index != 1:
+            return
+
+        if self.current_memo_id is not None:
+            return
+
+        memo_id = self.memo_sidebar.first_id()
+        if memo_id is not None:
+            self._load_memo(memo_id)
+        else:
+            self.memo_editor.clear()
+
+    def _new_memo(self) -> None:
+        if self.current_memo_id is not None and self.memo_editor.is_dirty():
+            self.memo_editor.save()
+
+        memo = self.memo_store.create("새 메모")
+        self.current_memo_id = memo.memo_id
+        self.memo_sidebar.refresh(select_id=memo.memo_id)
+        self.memo_editor.load(memo.title, memo.content)
+        self.memo_editor.title_input.selectAll()
+        self.memo_editor.title_input.setFocus()
+
+    def _load_memo(self, memo_id: str) -> None:
+        if (
+            self.current_memo_id is not None
+            and self.current_memo_id != memo_id
+            and self.memo_editor.is_dirty()
+        ):
+            self.memo_editor.save()
+
+        memo = self.memo_store.load(memo_id)
+        self.current_memo_id = memo.memo_id
+        self.memo_editor.load(memo.title, memo.content)
+        self.memo_sidebar.select_id(memo.memo_id)
+
+    def _save_memo(self, title: str, content: str) -> None:
+        if self.current_memo_id is None:
+            memo = self.memo_store.create(title, content)
+            self.current_memo_id = memo.memo_id
+        else:
+            memo = self.memo_store.save(self.current_memo_id, title, content)
+
+        self.memo_sidebar.refresh(select_id=memo.memo_id)
+        self.statusBar().showMessage("메모 저장", 1800)
+
+    def _delete_memo(self) -> None:
+        memo_id = self.memo_sidebar.selected_id() or self.current_memo_id
+        if memo_id is None:
+            return
+
+        memo = self.memo_store.load(memo_id)
+        dialog = DeleteConfirmDialog(
+            self,
+            memo.title,
+            item_name="메모",
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        self.memo_store.delete(memo_id)
+        self.current_memo_id = None
+        self.memo_sidebar.refresh()
+
+        next_id = self.memo_sidebar.first_id()
+        if next_id is None:
+            self.memo_editor.clear()
+        else:
+            self._load_memo(next_id)
+
+        self.statusBar().showMessage("메모 삭제", 1800)
 
     def _build_menu(self) -> None:
         settings_menu = self.menuBar().addMenu("설정")

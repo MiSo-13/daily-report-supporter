@@ -34,7 +34,7 @@ QMainWindow, QDialog {{
 QLabel {{
     background: transparent;
 }}
-QLineEdit, QTextEdit, QComboBox, QListWidget, QDateEdit {{
+QLineEdit, QTextEdit, QPlainTextEdit, QTextBrowser, QComboBox, QListWidget, QDateEdit {{
     background-color: {surface};
     color: {text};
     border: 1px solid {border};
@@ -42,7 +42,7 @@ QLineEdit, QTextEdit, QComboBox, QListWidget, QDateEdit {{
     padding: 6px;
     selection-background-color: {selection};
 }}
-QLineEdit:focus, QTextEdit:focus, QComboBox:focus, QListWidget:focus, QDateEdit:focus {{
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QTextBrowser:focus, QComboBox:focus, QListWidget:focus, QDateEdit:focus {{
     border: 1px solid {accent};
 }}
 QListWidget::item {{
