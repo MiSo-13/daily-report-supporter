@@ -86,13 +86,18 @@ class GreetingSettingsDialog(QDialog):
 
 
 class DeleteConfirmDialog(QDialog):
-    def __init__(self, parent: QWidget, task_title: str) -> None:
+    def __init__(
+        self,
+        parent: QWidget,
+        item_title: str,
+        item_name: str = "업무",
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("업무 삭제")
         self.setModal(True)
         self.setMinimumWidth(380)
 
-        message = QLabel(f"'{task_title}' 업무를 삭제할까요?")
+        message = QLabel(f"'{item_title}' {item_name}를 삭제할까요?")
         message.setWordWrap(True)
 
         buttons = QDialogButtonBox()
