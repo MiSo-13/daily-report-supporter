@@ -6,6 +6,7 @@ venv/
 .vscode/
 .DS_Store
 reports/
+memos/
 
 build/
 dist/
