@@ -93,7 +93,7 @@ class DeleteConfirmDialog(QDialog):
         item_name: str = "업무",
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("업무 삭제")
+        self.setWindowTitle(f"{item_name} 삭제")
         self.setModal(True)
         self.setMinimumWidth(380)
 
