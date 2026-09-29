@@ -247,10 +247,7 @@ class MainWindow(QMainWindow):
         self.settings.footer = dialog.footer
         self.settings.progress_report_title = dialog.progress_report_title
         self.settings.planned_report_title = dialog.planned_report_title
-        self.statusBar().showMessage(
-            f"문구 저장 완료 · {self.settings.path}",
-            3000,
-        )
+        self.statusBar().showMessage("설정 저장", 1800)
 
     def _sync_section_titles(self) -> None:
         today_title = self.settings.today_section_title
@@ -288,7 +285,7 @@ class MainWindow(QMainWindow):
         path = self.store.save(self.current_date, document)
         if self.search_input.text().strip():
             self._run_search()
-        self.statusBar().showMessage(f"자동 저장 완료 · {path}", 2500)
+        self.statusBar().showMessage("저장 완료", 1800)
 
     def _current_document(self) -> DailyDocument:
         return DailyDocument(
