@@ -51,13 +51,6 @@ class GreetingSettingsDialog(QDialog):
         self.planned_title_input = QLineEdit(planned_report_title)
         self.planned_title_input.setPlaceholderText("예: 예정 업무")
 
-        today = date.today()
-        token_help = QLabel(
-            f"날짜: YY.MM.DD → {today:%y.%m.%d} / "
-            f"YY. MM. DD → {today:%y. %m. %d}"
-        )
-        token_help.setWordWrap(True)
-
         form = QFormLayout()
         form.addRow("진행 업무 제목", self.progress_title_input)
         form.addRow("예정 업무 제목", self.planned_title_input)
@@ -72,14 +65,6 @@ class GreetingSettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
-        report_rule_help = QLabel(
-            "분류: 진행중 → 진행 업무 + 예정 업무 / "
-            "완료 → 진행 업무 / 예정 → 예정 업무"
-        )
-        report_rule_help.setWordWrap(True)
-
-        layout.addWidget(token_help)
-        layout.addWidget(report_rule_help)
         layout.addLayout(form)
         layout.addWidget(buttons)
 
@@ -172,13 +157,6 @@ class ReportDialog(QDialog):
         form.addRow("상단 문구", self.greeting)
         form.addRow("꼬리말", self.footer)
 
-        help_label = QLabel(
-            "진행중 → 진행 업무 + 예정 업무 / "
-            "완료 → 진행 업무 / 예정 → 예정 업무\n"
-            "날짜: YY.MM.DD / YY. MM. DD / YYYY.MM.DD"
-        )
-        help_label.setWordWrap(True)
-
         actions = QHBoxLayout()
         actions.addWidget(generate)
         actions.addWidget(copy)
@@ -190,7 +168,6 @@ class ReportDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addLayout(form)
-        layout.addWidget(help_label)
         layout.addLayout(actions)
         layout.addWidget(self.output, 1)
         layout.addWidget(close_buttons)
