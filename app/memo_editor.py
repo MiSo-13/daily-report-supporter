@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QTabWidget,
-    QTextBrowser,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -30,13 +30,14 @@ class MemoEditor(QWidget):
         self.markdown_input = QPlainTextEdit()
         self.markdown_input.setPlaceholderText("Markdown")
 
-        self.preview = QTextBrowser()
-        self.preview.setOpenExternalLinks(True)
+        self.preview = QTextEdit()
+        self.preview.setAcceptRichText(True)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.markdown_input, "편집")
         self.tabs.addTab(self.preview, "미리보기")
         self.tabs.currentChanged.connect(self._tab_changed)
+        self.preview.textChanged.connect(self._preview_changed)
 
         self.save_button = QPushButton("저장")
         self.save_button.setObjectName("primaryButton")
@@ -76,6 +77,9 @@ class MemoEditor(QWidget):
         self.title_input.setFocus()
 
     def save(self) -> None:
+        if self.tabs.currentIndex() == 1:
+            self._sync_markdown_from_preview()
+
         title = self.title_input.text().strip()
         if not title:
             self.validation_label.setText("제목을 입력하세요.")
@@ -92,8 +96,25 @@ class MemoEditor(QWidget):
             self._update_preview()
 
     def _tab_changed(self, index: int) -> None:
+        if self._loading:
+            return
+
         if index == 1:
             self._update_preview()
+        else:
+            self._sync_markdown_from_preview()
+
+    def _preview_changed(self) -> None:
+        if self._loading or self.tabs.currentIndex() != 1:
+            return
+        self.validation_label.clear()
 
     def _update_preview(self) -> None:
+        self._loading = True
         self.preview.setMarkdown(self.markdown_input.toPlainText())
+        self._loading = False
+
+    def _sync_markdown_from_preview(self) -> None:
+        self._loading = True
+        self.markdown_input.setPlainText(self.preview.toMarkdown().rstrip("\n"))
+        self._loading = False
