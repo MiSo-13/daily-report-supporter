@@ -83,7 +83,7 @@ class MemoEditor(QWidget):
         self.title_input.setFocus()
 
     def save(self) -> None:
-        if self.tabs.currentIndex() == 1:
+        if self.tabs.currentIndex() == 1 and self._preview_dirty:
             self._sync_markdown_from_preview()
 
         title = self.title_input.text().strip()
