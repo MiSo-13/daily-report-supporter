@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QAction, QActionGroup
+from PyQt6.QtGui import QAction, QActionGroup, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -126,6 +126,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         self._build_menu()
+        self._build_shortcuts()
         self._apply_theme_now(self.settings.theme, persist=False)
 
         self.brand_label = QLabel("make my MiSo")
@@ -133,6 +134,18 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage(f"설정 파일: {self.settings.path}")
         self.open_today()
+
+    def _build_shortcuts(self) -> None:
+        save_action = QAction(self)
+        save_action.setShortcuts(
+            QKeySequence.keyBindings(QKeySequence.StandardKey.Save)
+        )
+        save_action.triggered.connect(self.save_current)
+        self.addAction(save_action)
+
+    def save_current(self) -> None:
+        self.today_editor.save_current()
+        self.statusBar().showMessage("저장 완료", 1800)
 
     def _build_menu(self) -> None:
         settings_menu = self.menuBar().addMenu("설정")
