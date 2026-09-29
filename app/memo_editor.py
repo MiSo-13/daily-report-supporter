@@ -23,6 +23,8 @@ class MemoEditor(QWidget):
         super().__init__()
         self.on_save = on_save
         self._loading = False
+        self._dirty = False
+        self._preview_dirty = False
 
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("제목")
@@ -64,6 +66,8 @@ class MemoEditor(QWidget):
         self.markdown_input.setPlainText(content)
         self.validation_label.clear()
         self._loading = False
+        self._dirty = False
+        self._preview_dirty = False
         self._update_preview()
 
     def clear(self) -> None:
@@ -73,6 +77,8 @@ class MemoEditor(QWidget):
         self.preview.clear()
         self.validation_label.clear()
         self._loading = False
+        self._dirty = False
+        self._preview_dirty = False
         self.tabs.setCurrentIndex(0)
         self.title_input.setFocus()
 
@@ -86,13 +92,19 @@ class MemoEditor(QWidget):
             self.title_input.setFocus()
             return
         self.on_save(title, self.markdown_input.toPlainText())
+        self._dirty = False
+        self._preview_dirty = False
         self.validation_label.clear()
+
+    def is_dirty(self) -> bool:
+        return self._dirty
 
     def _changed(self) -> None:
         if self._loading:
             return
         self.validation_label.clear()
-        if self.tabs.currentIndex() == 1:
+        self._dirty = True
+        if self.tabs.currentIndex() == 1 and not self._preview_dirty:
             self._update_preview()
 
     def _tab_changed(self, index: int) -> None:
@@ -101,20 +113,25 @@ class MemoEditor(QWidget):
 
         if index == 1:
             self._update_preview()
-        else:
+        elif self._preview_dirty:
             self._sync_markdown_from_preview()
 
     def _preview_changed(self) -> None:
         if self._loading or self.tabs.currentIndex() != 1:
             return
+        self._dirty = True
+        self._preview_dirty = True
         self.validation_label.clear()
 
     def _update_preview(self) -> None:
         self._loading = True
         self.preview.setMarkdown(self.markdown_input.toPlainText())
         self._loading = False
+        self._preview_dirty = False
 
     def _sync_markdown_from_preview(self) -> None:
         self._loading = True
         self.markdown_input.setPlainText(self.preview.toMarkdown().rstrip("\n"))
         self._loading = False
+        self._preview_dirty = False
+        self._dirty = True
