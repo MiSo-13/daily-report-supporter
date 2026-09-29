@@ -92,16 +92,21 @@ class MemoStore:
 
     @staticmethod
     def parse(memo_id: str, text: str) -> MemoDocument:
-        lines = text.splitlines()
-        if lines and lines[0].startswith("# "):
-            title = lines[0][2:].strip() or "제목 없음"
-            body_start = 1
-            if len(lines) > 1 and lines[1] == "":
-                body_start = 2
-            content = "\n".join(lines[body_start:])
-        else:
-            title = memo_id
-            content = text
+        if not text.startswith("# "):
+            return MemoDocument(memo_id=memo_id, title=memo_id, content=text)
+
+        first_break = text.find("\n")
+        if first_break < 0:
+            return MemoDocument(
+                memo_id=memo_id,
+                title=text[2:].strip() or "제목 없음",
+                content="",
+            )
+
+        title = text[2:first_break].strip() or "제목 없음"
+        content = text[first_break + 1 :]
+        if content.startswith("\n"):
+            content = content[1:]
         return MemoDocument(memo_id=memo_id, title=title, content=content)
 
     def _read_path(self, path: Path) -> MemoDocument:
