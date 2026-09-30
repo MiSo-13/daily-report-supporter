@@ -31,12 +31,20 @@ class TerminalBackend(QObject):
     exited = pyqtSignal()
     failed = pyqtSignal(str)
 
-    def __init__(self, cwd: Path | str) -> None:
+    def __init__(
+        self,
+        cwd: Path | str,
+        command: list[str] | None = None,
+    ) -> None:
         super().__init__()
         self.cwd = Path(cwd).expanduser()
         if not self.cwd.is_dir():
             self.cwd = Path.home()
-        self.program, self.arguments = resolve_shell()
+        if command:
+            self.program = command[0]
+            self.arguments = command[1:]
+        else:
+            self.program, self.arguments = resolve_shell()
         self.encoding = locale.getpreferredencoding(False) or "utf-8"
 
     def start(self) -> None:
@@ -60,8 +68,12 @@ class TerminalBackend(QObject):
 
 
 class UnixPtyBackend(TerminalBackend):
-    def __init__(self, cwd: Path | str) -> None:
-        super().__init__(cwd)
+    def __init__(
+        self,
+        cwd: Path | str,
+        command: list[str] | None = None,
+    ) -> None:
+        super().__init__(cwd, command)
         self.pid: int | None = None
         self.master_fd: int | None = None
         self._running = False
@@ -168,8 +180,12 @@ class UnixPtyBackend(TerminalBackend):
 
 
 class WindowsConPtyBackend(TerminalBackend):
-    def __init__(self, cwd: Path | str) -> None:
-        super().__init__(cwd)
+    def __init__(
+        self,
+        cwd: Path | str,
+        command: list[str] | None = None,
+    ) -> None:
+        super().__init__(cwd, command)
         self.process = None
         self._running = False
         self._reader: threading.Thread | None = None
@@ -260,7 +276,10 @@ class WindowsConPtyBackend(TerminalBackend):
                 self.exited.emit()
 
 
-def create_terminal_backend(cwd: Path | str) -> TerminalBackend:
+def create_terminal_backend(
+    cwd: Path | str,
+    command: list[str] | None = None,
+) -> TerminalBackend:
     if sys.platform == "win32":
-        return WindowsConPtyBackend(cwd)
-    return UnixPtyBackend(cwd)
+        return WindowsConPtyBackend(cwd, command)
+    return UnixPtyBackend(cwd, command)
