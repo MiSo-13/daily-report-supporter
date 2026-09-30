@@ -172,6 +172,10 @@ def test_corrupt_settings_fall_back_to_defaults(tmp_path) -> None:
     payload = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
     assert payload == {
         "theme": DEFAULT_THEME,
+        "font_family": DEFAULT_FONT_FAMILY,
+        "font_size": DEFAULT_FONT_SIZE,
+        "terminal_font_family": DEFAULT_TERMINAL_FONT_FAMILY,
+        "terminal_font_size": DEFAULT_TERMINAL_FONT_SIZE,
         "greeting": DEFAULT_GREETING,
         "footer": DEFAULT_FOOTER,
         "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
