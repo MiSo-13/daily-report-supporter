@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import date
 
 from PyQt6.QtCore import QDate
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtGui import QFontDatabase, QGuiApplication
 from PyQt6.QtWidgets import (
+    QComboBox,
     QDateEdit,
     QDialog,
     QDialogButtonBox,
@@ -14,11 +15,18 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QPlainTextEdit,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from app.models import DailyDocument
+from app.settings import (
+    DEFAULT_FONT_SIZE,
+    DEFAULT_TERMINAL_FONT_SIZE,
+    MAX_FONT_SIZE,
+    MIN_FONT_SIZE,
+)
 from app.report_service import ReportService
 
 
@@ -83,6 +91,157 @@ class GreetingSettingsDialog(QDialog):
     @property
     def planned_report_title(self) -> str:
         return self.planned_title_input.text().strip()
+
+
+class FontSettingsDialog(QDialog):
+    def __init__(
+        self,
+        parent: QWidget,
+        font_family: str,
+        font_size: int,
+        terminal_font_family: str,
+        terminal_font_size: int,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("폰트 설정")
+        self.setMinimumWidth(520)
+
+        families = sorted(
+            (
+                family
+                for family in QFontDatabase.families()
+                if not QFontDatabase.isPrivateFamily(family)
+            ),
+            key=lambda value: value.casefold(),
+        )
+        fixed_families = [
+            family
+            for family in families
+            if QFontDatabase.isFixedPitch(family)
+        ]
+
+        self.font_family_combo = QComboBox()
+        self.font_family_combo.addItem("시스템 기본 폰트", "")
+        for family in families:
+            self.font_family_combo.addItem(family, family)
+
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(MIN_FONT_SIZE, MAX_FONT_SIZE)
+        self.font_size_spin.setSuffix(" pt")
+        self.font_size_spin.setValue(font_size)
+
+        self.terminal_font_family_combo = QComboBox()
+        self.terminal_font_family_combo.addItem(
+            "시스템 기본 고정폭 폰트",
+            "",
+        )
+        for family in fixed_families:
+            self.terminal_font_family_combo.addItem(family, family)
+
+        self.terminal_font_size_spin = QSpinBox()
+        self.terminal_font_size_spin.setRange(MIN_FONT_SIZE, MAX_FONT_SIZE)
+        self.terminal_font_size_spin.setSuffix(" pt")
+        self.terminal_font_size_spin.setValue(terminal_font_size)
+
+        self._select_family(self.font_family_combo, font_family)
+        self._select_family(
+            self.terminal_font_family_combo,
+            terminal_font_family,
+        )
+
+        self.app_preview = QLabel("앱 폰트 미리보기 · 가나다 ABC 123")
+        self.terminal_preview = QLabel(
+            "터미널 폰트 미리보기 · docker logs -f my_service"
+        )
+        form = QFormLayout()
+        form.addRow("앱 폰트", self.font_family_combo)
+        form.addRow("앱 크기", self.font_size_spin)
+        form.addRow("", self.app_preview)
+        form.addRow("터미널 폰트", self.terminal_font_family_combo)
+        form.addRow("터미널 크기", self.terminal_font_size_spin)
+        form.addRow("", self.terminal_preview)
+
+        reset_button = QPushButton("기본값")
+        reset_button.clicked.connect(self._restore_defaults)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        actions = QHBoxLayout()
+        actions.addWidget(reset_button)
+        actions.addStretch(1)
+        actions.addWidget(buttons)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addLayout(actions)
+
+        self.font_family_combo.currentIndexChanged.connect(
+            self._update_preview
+        )
+        self.font_size_spin.valueChanged.connect(self._update_preview)
+        self.terminal_font_family_combo.currentIndexChanged.connect(
+            self._update_preview
+        )
+        self.terminal_font_size_spin.valueChanged.connect(
+            self._update_preview
+        )
+        self._update_preview()
+
+    @property
+    def font_family(self) -> str:
+        value = self.font_family_combo.currentData()
+        return str(value) if value else ""
+
+    @property
+    def font_size(self) -> int:
+        return self.font_size_spin.value()
+
+    @property
+    def terminal_font_family(self) -> str:
+        value = self.terminal_font_family_combo.currentData()
+        return str(value) if value else ""
+
+    @property
+    def terminal_font_size(self) -> int:
+        return self.terminal_font_size_spin.value()
+
+    def _restore_defaults(self) -> None:
+        self.font_family_combo.setCurrentIndex(0)
+        self.font_size_spin.setValue(DEFAULT_FONT_SIZE)
+        self.terminal_font_family_combo.setCurrentIndex(0)
+        self.terminal_font_size_spin.setValue(DEFAULT_TERMINAL_FONT_SIZE)
+        self._update_preview()
+
+    def _update_preview(self, *_args: object) -> None:
+        app_font = QFontDatabase.systemFont(
+            QFontDatabase.SystemFont.GeneralFont
+        )
+        if self.font_family:
+            app_font.setFamily(self.font_family)
+        app_font.setPointSize(self.font_size)
+        self.app_preview.setFont(app_font)
+
+        terminal_font = QFontDatabase.systemFont(
+            QFontDatabase.SystemFont.FixedFont
+        )
+        if self.terminal_font_family:
+            terminal_font.setFamily(self.terminal_font_family)
+        terminal_font.setPointSize(self.terminal_font_size)
+        self.terminal_preview.setFont(terminal_font)
+
+    @staticmethod
+    def _select_family(combo: QComboBox, family: str) -> None:
+        if not family:
+            combo.setCurrentIndex(0)
+            return
+
+        index = combo.findData(family)
+        combo.setCurrentIndex(index if index >= 0 else 0)
 
 
 class DeleteConfirmDialog(QDialog):

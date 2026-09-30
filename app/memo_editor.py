@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
     QFont,
     QFontDatabase,
+    QFontMetricsF,
     QKeyEvent,
     QKeySequence,
     QTextBlockFormat,
@@ -290,7 +291,6 @@ class MemoEditor(QWidget):
 
         self.preview = RichMarkdownEdit()
         self.preview.setAcceptRichText(True)
-        self.preview.document().setIndentWidth(24)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.markdown_input, "편집")
@@ -320,6 +320,23 @@ class MemoEditor(QWidget):
 
         self.title_input.textChanged.connect(self._changed)
         self.markdown_input.textChanged.connect(self._changed)
+        self.apply_font_settings()
+
+    def apply_font_settings(self) -> None:
+        markdown_metrics = QFontMetricsF(self.markdown_input.font())
+        markdown_tab_width = markdown_metrics.horizontalAdvance(" ") * 4
+        self.markdown_input.setTabStopDistance(
+            max(markdown_tab_width, 1.0)
+        )
+
+        preview_metrics = QFontMetricsF(self.preview.font())
+        preview_tab_width = preview_metrics.horizontalAdvance(" ") * 4
+        preview_tab_width = max(preview_tab_width, 1.0)
+        self.preview.setTabStopDistance(preview_tab_width)
+        self.preview.document().setIndentWidth(preview_tab_width)
+
+        if not self._preview_dirty:
+            self._update_preview()
 
     def load(self, title: str, content: str) -> None:
         self._loading = True

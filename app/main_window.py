@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QAction, QActionGroup, QCloseEvent, QKeySequence
+from PyQt6.QtGui import QAction, QActionGroup, QCloseEvent, QFont, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -24,7 +24,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.dialogs import DeleteConfirmDialog, GreetingSettingsDialog, ReportDialog
+from app.dialogs import (
+    DeleteConfirmDialog,
+    FontSettingsDialog,
+    GreetingSettingsDialog,
+    ReportDialog,
+)
 from app.markdown_store import MarkdownStore
 from app.memo_editor import MemoEditor
 from app.memo_sidebar import MemoSidebar
@@ -57,8 +62,9 @@ class MainWindow(QMainWindow):
         terminal_cwd: Path | str | None = None,
     ) -> None:
         super().__init__()
-        self.setWindowTitle("Daily Report Supporter")
+        self.setWindowTitle("WorKing")
         self.resize(1180, 760)
+        self._default_application_font = QFont(QApplication.font())
 
         resolved_reports_root = (
             Path(reports_root)
@@ -89,6 +95,7 @@ class MainWindow(QMainWindow):
             resolved_terminal_cwd = default_terminal_cwd()
 
         self.settings = AppSettings(resolved_reports_root)
+        self._apply_application_font()
         self.store = MarkdownStore(
             resolved_reports_root,
             previous_section_title=self.settings.previous_section_title,
@@ -181,6 +188,10 @@ class MainWindow(QMainWindow):
         )
 
         self.terminal_panel = TerminalPanel()
+        self.terminal_panel.set_terminal_font(
+            self.settings.terminal_font_family,
+            self.settings.terminal_font_size,
+        )
         self.terminal_sidebar = TerminalSidebar(
             self._select_terminal,
             self._new_terminal,
@@ -220,19 +231,28 @@ class MainWindow(QMainWindow):
         self.resource_label = QLabel("CPU --  ·  RAM --")
         self.resource_label.setObjectName("resourceMonitor")
         self.resource_label.setToolTip(
-            "Daily Report Supporter 프로세스의 CPU / 메모리 사용량"
+            "WorKing 프로세스의 CPU / 메모리 사용량"
         )
         self.resource_monitor = ProcessResourceMonitor(self)
         self.resource_monitor.updated.connect(self.resource_label.setText)
-        self.resource_monitor.start()
+
+        self.brand_label = QLabel("made by MiSo")
+        self.status_info = QWidget()
+        status_info_layout = QHBoxLayout(self.status_info)
+        status_info_layout.setContentsMargins(0, 0, 0, 0)
+        status_info_layout.setSpacing(8)
+        status_info_layout.addWidget(self.resource_label)
+        status_info_layout.addStretch(1)
+        status_info_layout.addWidget(self.brand_label)
+        self.statusBar().addPermanentWidget(self.status_info, 1)
+
+        self.resource_label.setVisible(self.settings.show_resource_usage)
+        if self.settings.show_resource_usage:
+            self.resource_monitor.start()
 
         self._build_shortcuts()
         self._build_menu()
         self._apply_theme_now(self.settings.theme, persist=False)
-
-        self.brand_label = QLabel("made by MiSo")
-        self.statusBar().addWidget(self.resource_label)
-        self.statusBar().addPermanentWidget(self.brand_label)
 
         self.open_today()
 
@@ -490,6 +510,18 @@ class MainWindow(QMainWindow):
         greeting_action.triggered.connect(self.open_greeting_settings)
         settings_menu.addAction(greeting_action)
 
+        font_action = QAction("폰트...", self)
+        font_action.triggered.connect(self.open_font_settings)
+        settings_menu.addAction(font_action)
+
+        resource_action = QAction("CPU / RAM 표시", self)
+        resource_action.setCheckable(True)
+        resource_action.setChecked(self.settings.show_resource_usage)
+        resource_action.triggered.connect(
+            self.request_resource_usage_visibility
+        )
+        settings_menu.addAction(resource_action)
+
         input_menu = settings_menu.addMenu("입력기 호환 모드")
         input_group = QActionGroup(self)
         input_group.setExclusive(True)
@@ -526,6 +558,24 @@ class MainWindow(QMainWindow):
             group.addAction(action)
             self.theme_menu.addAction(action)
             self._theme_actions[name] = action
+
+    def request_resource_usage_visibility(
+        self,
+        visible: bool,
+    ) -> None:
+        self.settings.show_resource_usage = visible
+        self.resource_label.setVisible(visible)
+
+        if visible:
+            self.resource_monitor.start()
+        else:
+            self.resource_monitor.stop()
+
+        state = "표시" if visible else "숨김"
+        self.statusBar().showMessage(
+            f"CPU / RAM 사용량 {state}",
+            1800,
+        )
 
     def request_input_method_mode(self, mode: str) -> None:
         self.settings.input_method_mode = mode
@@ -568,6 +618,41 @@ class MainWindow(QMainWindow):
     def _sync_theme_actions(self, name: str) -> None:
         for theme_name, action in self._theme_actions.items():
             action.setChecked(theme_name == name)
+
+    def _apply_application_font(self) -> None:
+        font = QFont(self._default_application_font)
+        if self.settings.font_family:
+            font.setFamily(self.settings.font_family)
+        font.setPointSize(self.settings.font_size)
+        QApplication.setFont(font)
+
+    def _apply_font_settings(self) -> None:
+        self._apply_application_font()
+        self.memo_editor.apply_font_settings()
+        self.terminal_panel.set_terminal_font(
+            self.settings.terminal_font_family,
+            self.settings.terminal_font_size,
+        )
+
+    def open_font_settings(self) -> None:
+        dialog = FontSettingsDialog(
+            self,
+            self.settings.font_family,
+            self.settings.font_size,
+            self.settings.terminal_font_family,
+            self.settings.terminal_font_size,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        self.settings.set_font_settings(
+            font_family=dialog.font_family,
+            font_size=dialog.font_size,
+            terminal_font_family=dialog.terminal_font_family,
+            terminal_font_size=dialog.terminal_font_size,
+        )
+        self._apply_font_settings()
+        self.statusBar().showMessage("폰트 설정 적용", 2500)
 
     def open_greeting_settings(self) -> None:
         dialog = GreetingSettingsDialog(
@@ -788,6 +873,9 @@ class MainWindow(QMainWindow):
 
 def run() -> int:
     app = QApplication([])
+    app.setApplicationName("WorKing")
+    app.setApplicationDisplayName("WorKing")
+    app.setOrganizationName("MiSo")
     app.setStyle("Fusion")
     window = MainWindow()
     window.show()
