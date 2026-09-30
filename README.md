@@ -1,4 +1,4 @@
-# Daily Report Supporter
+# WorKing
 
 Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업무/TODO 관리 앱입니다.
 
@@ -24,7 +24,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
 - 다중 터미널: 로컬 PTY/ConPTY 세션 + 저장형 SSH 프로필, 직접 키 입력, Tab/Ctrl+C
-- 앱 하단 왼쪽 CPU / RAM 사용량 표시
+- 앱 하단 왼쪽 CPU / RAM 사용량 표시 및 표시 여부 설정
 - 메모/터미널 목록 항목 드래그 순서 변경 및 저장
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
 - 유효한 업무 URL은 입력창 옆 `열기` 버튼으로 바로 실행
@@ -41,11 +41,11 @@ Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-1
 
 | 환경 | 다운로드 파일 |
 | --- | --- |
-| Windows x64 | `DailyReportSupporter.exe` |
-| macOS Apple Silicon | `DailyReportSupporter-macos-arm64.zip` |
-| macOS Intel | `DailyReportSupporter-macos-x64.zip` |
-| ChromeOS/Crostini x64 | `DailyReportSupporter-linux-x64` |
-| ChromeOS/Crostini ARM64 | `DailyReportSupporter-linux-arm64` |
+| Windows x64 | `WorKing.exe` |
+| macOS Apple Silicon | `WorKing-macos-arm64.zip` |
+| macOS Intel | `WorKing-macos-x64.zip` |
+| ChromeOS/Crostini x64 | `WorKing-linux-x64` |
+| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
 
 Windows는 `.exe` 하나만 받아 실행할 수 있습니다.
 
@@ -169,6 +169,8 @@ terminal-sessions.json
 ~/DailyReportSupporter/memos/
 ```
 
+WorKing으로 이름이 변경되어도 기존 사용자 데이터 호환을 위해 저장 디렉터리 이름은 `DailyReportSupporter`를 유지합니다.
+
 `reports/`, `memos/`, `terminal-sessions.json`은 기본적으로 `.gitignore`에 포함됩니다.
 
 ## 테스트
@@ -278,13 +280,13 @@ docker logs -f my_service
 
 ## 앱 리소스 사용량
 
-앱 하단 상태바 왼쪽에 현재 Daily Report Supporter 프로세스의 CPU와 RAM 사용량을 표시합니다.
+앱 하단 상태바 왼쪽에 현재 WorKing 프로세스의 CPU와 RAM 사용량을 표시합니다.
 
 ```text
 CPU 3.2% · RAM 148 MB
 ```
 
-약 1.5초마다 갱신되며 시스템 전체 사용량이 아니라 앱 프로세스 자체의 사용량입니다.
+약 1.5초마다 갱신되며 시스템 전체 사용량이 아니라 앱 프로세스 자체의 사용량입니다. `설정 → CPU / RAM 표시`에서 숨길 수 있으며, 숨기면 측정 타이머도 중지됩니다.
 
 ## 전체 검색
 
@@ -322,6 +324,7 @@ CPU 3.2% · RAM 148 MB
 - **일일보고 설정**: 진행 업무 제목, 예정 업무 제목, 상단 문구, 꼬리말
 - **입력기 호환 모드**: 시스템 기본값 / Crostini 한글 호환 (IBus)
 - **폰트**: 앱 전체 폰트/크기, 터미널 고정폭 폰트/크기
+- **CPU / RAM 표시**: 하단 리소스 사용량 표시 여부
 - **테마**: Light, Dark, Purple, Nord, Solarized Light, Solarized Dark, Sepia
 - 설정은 `reports/settings.json`에 저장됩니다.
 
@@ -348,6 +351,7 @@ reports/
   "font_size": 10,
   "terminal_font_family": "",
   "terminal_font_size": 10,
+  "show_resource_usage": true,
   "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다.\n\nYYYY년 MM월 DD일 일일보고입니다.",
   "footer": "감사합니다.",
   "previous_section_title": "어제 했던 일",
