@@ -178,8 +178,10 @@ class TerminalDisplay(QPlainTextEdit):
             return
 
         if modifiers & Qt.KeyboardModifier.ControlModifier:
-            if Qt.Key.Key_A <= key <= Qt.Key.Key_Z:
-                self.input_ready.emit(chr(key - Qt.Key.Key_A + 1))
+            key_a = int(Qt.Key.Key_A)
+            key_z = int(Qt.Key.Key_Z)
+            if key_a <= key <= key_z:
+                self.input_ready.emit(chr(key - key_a + 1))
                 return
 
         sequence = self.KEY_SEQUENCES.get(key)
