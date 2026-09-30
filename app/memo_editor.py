@@ -335,6 +335,9 @@ class MemoEditor(QWidget):
         self.preview.setTabStopDistance(preview_tab_width)
         self.preview.document().setIndentWidth(preview_tab_width)
 
+        if not self._preview_dirty:
+            self._update_preview()
+
     def load(self, title: str, content: str) -> None:
         self._loading = True
         self.title_input.setText(title)
