@@ -258,17 +258,31 @@ class AppSettings:
 
         data = {
             "theme": payload.get("theme", DEFAULT_THEME),
-            "font_family": payload.get(
-                "font_family",
-                DEFAULT_FONT_FAMILY,
+            "font_family": (
+                payload.get("font_family", DEFAULT_FONT_FAMILY)
+                if isinstance(
+                    payload.get("font_family", DEFAULT_FONT_FAMILY),
+                    str,
+                )
+                else DEFAULT_FONT_FAMILY
             ),
             "font_size": self._clean_font_size(
                 payload.get("font_size"),
                 DEFAULT_FONT_SIZE,
             ),
-            "terminal_font_family": payload.get(
-                "terminal_font_family",
-                DEFAULT_TERMINAL_FONT_FAMILY,
+            "terminal_font_family": (
+                payload.get(
+                    "terminal_font_family",
+                    DEFAULT_TERMINAL_FONT_FAMILY,
+                )
+                if isinstance(
+                    payload.get(
+                        "terminal_font_family",
+                        DEFAULT_TERMINAL_FONT_FAMILY,
+                    ),
+                    str,
+                )
+                else DEFAULT_TERMINAL_FONT_FAMILY
             ),
             "terminal_font_size": self._clean_font_size(
                 payload.get("terminal_font_size"),
@@ -299,6 +313,15 @@ class AppSettings:
         }
 
         needs_write = set(payload) != set(defaults)
+
+        for key in (
+            "font_family",
+            "font_size",
+            "terminal_font_family",
+            "terminal_font_size",
+        ):
+            if payload.get(key, defaults[key]) != data[key]:
+                needs_write = True
 
         if data["greeting"] == LEGACY_DEFAULT_GREETING:
             data["greeting"] = DEFAULT_GREETING
