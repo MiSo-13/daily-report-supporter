@@ -30,18 +30,14 @@ from app.dialogs import (
     GreetingSettingsDialog,
     ReportDialog,
 )
+from app.app_meta import APP_NAME, ORGANIZATION_NAME
 from app.markdown_store import MarkdownStore
 from app.memo_editor import MemoEditor
 from app.memo_sidebar import MemoSidebar
 from app.memo_store import MemoStore
 from app.models import DailyDocument, Task, TaskStatus
-from app.resource_monitor import ProcessResourceMonitor
-from app.paths import (
-    default_memos_root,
-    default_reports_root,
-    default_terminal_cwd,
-    default_terminal_state_path,
-)
+from app.runtime_paths import AppRuntimePaths, resolve_runtime_paths
+from app.status_bar import AppStatusInfo
 from app.settings import (
     AppSettings,
     INPUT_METHOD_CROSTINI_IBUS,
@@ -62,56 +58,51 @@ class MainWindow(QMainWindow):
         terminal_cwd: Path | str | None = None,
     ) -> None:
         super().__init__()
-        self.setWindowTitle("WorKing")
+        self.setWindowTitle(APP_NAME)
         self.resize(1180, 760)
         self._default_application_font = QFont(QApplication.font())
 
-        resolved_reports_root = (
-            Path(reports_root)
-            if reports_root is not None
-            else default_reports_root()
+        paths = resolve_runtime_paths(
+            reports_root=reports_root,
+            memos_root=memos_root,
+            terminal_state_path=terminal_state_path,
+            terminal_cwd=terminal_cwd,
         )
-        if memos_root is not None:
-            resolved_memos_root = Path(memos_root)
-        elif reports_root is not None:
-            resolved_memos_root = resolved_reports_root.parent / "memos"
-        else:
-            resolved_memos_root = default_memos_root()
+        self._initialize_state(paths)
+        self._build_work_workspace()
+        self._build_memo_workspace()
+        self._build_terminal_workspace()
+        self._build_workspace_shell()
+        self._build_status_area()
 
-        if terminal_state_path is not None:
-            resolved_terminal_state_path = Path(terminal_state_path)
-        elif reports_root is not None:
-            resolved_terminal_state_path = (
-                resolved_reports_root.parent / "terminal-sessions.json"
-            )
-        else:
-            resolved_terminal_state_path = default_terminal_state_path()
+        self._build_shortcuts()
+        self._build_menu()
+        self._apply_theme_now(self.settings.theme, persist=False)
+        self.open_today()
 
-        if terminal_cwd is not None:
-            resolved_terminal_cwd = Path(terminal_cwd)
-        elif reports_root is not None:
-            resolved_terminal_cwd = resolved_reports_root.parent
-        else:
-            resolved_terminal_cwd = default_terminal_cwd()
-
-        self.settings = AppSettings(resolved_reports_root)
+    def _initialize_state(self, paths: AppRuntimePaths) -> None:
+        self.settings = AppSettings(paths.reports_root)
         self._apply_application_font()
+
         self.store = MarkdownStore(
-            resolved_reports_root,
+            paths.reports_root,
             previous_section_title=self.settings.previous_section_title,
             today_section_title=self.settings.today_section_title,
         )
-        self.memo_store = MemoStore(resolved_memos_root)
-        self.terminal_store = TerminalStore(resolved_terminal_state_path)
-        self.default_terminal_cwd = resolved_terminal_cwd
+        self.memo_store = MemoStore(paths.memos_root)
+        self.terminal_store = TerminalStore(paths.terminal_state_path)
+        self.default_terminal_cwd = paths.terminal_cwd
+
         self.current_date = date.today()
         self.current_memo_id: str | None = None
         self.current_terminal_id: str | None = None
         self._legacy_previous_done: list[Task] = []
+
         self._theme_actions: dict[str, QAction] = {}
         self._input_method_actions: dict[str, QAction] = {}
         self._pending_theme: str | None = None
 
+    def _build_work_workspace(self) -> None:
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("단어로 전체 문서 검색")
         self.search_input.setClearButtonEnabled(True)
@@ -130,6 +121,7 @@ class MainWindow(QMainWindow):
         self.year_combo = QComboBox()
         self.month_combo = QComboBox()
         self.date_list = QListWidget()
+
         self.search_input.textChanged.connect(self._search_text_changed)
         self.search_timer.timeout.connect(self._run_search)
         self.search_results.itemClicked.connect(self._search_result_selected)
@@ -137,20 +129,20 @@ class MainWindow(QMainWindow):
         self.month_combo.currentIndexChanged.connect(self._reload_date_list)
         self.date_list.itemSelectionChanged.connect(self._date_selected)
 
-        work_nav = QWidget()
-        work_nav_layout = QVBoxLayout(work_nav)
-        work_nav_layout.setContentsMargins(10, 10, 10, 10)
-        work_nav_layout.setSpacing(8)
-        work_nav_layout.addWidget(QLabel("<b>전체 검색</b>"))
-        work_nav_layout.addWidget(self.search_input)
-        work_nav_layout.addWidget(self.search_count_label)
-        work_nav_layout.addWidget(self.search_results, 1)
+        self.work_nav = QWidget()
+        nav_layout = QVBoxLayout(self.work_nav)
+        nav_layout.setContentsMargins(10, 10, 10, 10)
+        nav_layout.setSpacing(8)
+        nav_layout.addWidget(QLabel("<b>전체 검색</b>"))
+        nav_layout.addWidget(self.search_input)
+        nav_layout.addWidget(self.search_count_label)
+        nav_layout.addWidget(self.search_results, 1)
 
         self.date_nav_label = QLabel("<b>일일 문서</b>")
-        work_nav_layout.addWidget(self.date_nav_label)
-        work_nav_layout.addWidget(self.year_combo)
-        work_nav_layout.addWidget(self.month_combo)
-        work_nav_layout.addWidget(self.date_list, 1)
+        nav_layout.addWidget(self.date_nav_label)
+        nav_layout.addWidget(self.year_combo)
+        nav_layout.addWidget(self.month_combo)
+        nav_layout.addWidget(self.date_list, 1)
 
         self.today_editor = TaskEditor(
             self.settings.today_section_title,
@@ -172,13 +164,14 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.today_button)
         toolbar.addWidget(self.report_button)
 
-        work_content = QWidget()
-        work_content_layout = QVBoxLayout(work_content)
-        work_content_layout.setContentsMargins(12, 12, 12, 12)
-        work_content_layout.setSpacing(10)
-        work_content_layout.addLayout(toolbar)
-        work_content_layout.addWidget(self.today_editor, 1)
+        self.work_content = QWidget()
+        content_layout = QVBoxLayout(self.work_content)
+        content_layout.setContentsMargins(12, 12, 12, 12)
+        content_layout.setSpacing(10)
+        content_layout.addLayout(toolbar)
+        content_layout.addWidget(self.today_editor, 1)
 
+    def _build_memo_workspace(self) -> None:
         self.memo_editor = MemoEditor(self._save_memo)
         self.memo_sidebar = MemoSidebar(
             self.memo_store,
@@ -187,11 +180,13 @@ class MainWindow(QMainWindow):
             self._delete_memo,
         )
 
+    def _build_terminal_workspace(self) -> None:
         self.terminal_panel = TerminalPanel()
         self.terminal_panel.set_terminal_font(
             self.settings.terminal_font_family,
             self.settings.terminal_font_size,
         )
+
         self.terminal_sidebar = TerminalSidebar(
             self._select_terminal,
             self._new_terminal,
@@ -200,19 +195,21 @@ class MainWindow(QMainWindow):
             self._delete_terminal,
             self._reorder_terminals,
         )
-        terminal_profiles = self.terminal_store.list_profiles()
-        for profile in terminal_profiles:
-            self.terminal_panel.add_profile(profile)
-        self.terminal_sidebar.set_profiles(terminal_profiles)
 
+        profiles = self.terminal_store.list_profiles()
+        for profile in profiles:
+            self.terminal_panel.add_profile(profile)
+        self.terminal_sidebar.set_profiles(profiles)
+
+    def _build_workspace_shell(self) -> None:
         self.workspace_tabs = QTabWidget()
-        self.workspace_tabs.addTab(work_nav, "업무")
+        self.workspace_tabs.addTab(self.work_nav, "업무")
         self.workspace_tabs.addTab(self.memo_sidebar, "메모")
         self.workspace_tabs.addTab(self.terminal_sidebar, "터미널")
         self.workspace_tabs.currentChanged.connect(self._workspace_changed)
 
         self.content_stack = QStackedWidget()
-        self.content_stack.addWidget(work_content)
+        self.content_stack.addWidget(self.work_content)
         self.content_stack.addWidget(self.memo_editor)
         self.content_stack.addWidget(self.terminal_panel)
 
@@ -228,33 +225,12 @@ class MainWindow(QMainWindow):
         central_layout.addWidget(splitter)
         self.setCentralWidget(central)
 
-        self.resource_label = QLabel("CPU --  ·  RAM --")
-        self.resource_label.setObjectName("resourceMonitor")
-        self.resource_label.setToolTip(
-            "WorKing 프로세스의 CPU / 메모리 사용량"
-        )
-        self.resource_monitor = ProcessResourceMonitor(self)
-        self.resource_monitor.updated.connect(self.resource_label.setText)
-
-        self.brand_label = QLabel("made by MiSo")
-        self.status_info = QWidget()
-        status_info_layout = QHBoxLayout(self.status_info)
-        status_info_layout.setContentsMargins(0, 0, 0, 0)
-        status_info_layout.setSpacing(8)
-        status_info_layout.addWidget(self.resource_label)
-        status_info_layout.addStretch(1)
-        status_info_layout.addWidget(self.brand_label)
+    def _build_status_area(self) -> None:
+        self.status_info = AppStatusInfo(self)
         self.statusBar().addPermanentWidget(self.status_info, 1)
-
-        self.resource_label.setVisible(self.settings.show_resource_usage)
-        if self.settings.show_resource_usage:
-            self.resource_monitor.start()
-
-        self._build_shortcuts()
-        self._build_menu()
-        self._apply_theme_now(self.settings.theme, persist=False)
-
-        self.open_today()
+        self.status_info.set_resource_visible(
+            self.settings.show_resource_usage
+        )
 
     def _build_shortcuts(self) -> None:
         file_menu = self.menuBar().addMenu("파일")
@@ -497,7 +473,7 @@ class MainWindow(QMainWindow):
             self._select_terminal(next_id)
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        self.resource_monitor.stop()
+        self.status_info.shutdown()
         if self.current_memo_id is not None and self.memo_editor.is_dirty():
             self.memo_editor.save()
         self.terminal_panel.shutdown_all()
@@ -564,12 +540,7 @@ class MainWindow(QMainWindow):
         visible: bool,
     ) -> None:
         self.settings.show_resource_usage = visible
-        self.resource_label.setVisible(visible)
-
-        if visible:
-            self.resource_monitor.start()
-        else:
-            self.resource_monitor.stop()
+        self.status_info.set_resource_visible(visible)
 
         state = "표시" if visible else "숨김"
         self.statusBar().showMessage(
@@ -873,9 +844,9 @@ class MainWindow(QMainWindow):
 
 def run() -> int:
     app = QApplication([])
-    app.setApplicationName("WorKing")
-    app.setApplicationDisplayName("WorKing")
-    app.setOrganizationName("MiSo")
+    app.setApplicationName(APP_NAME)
+    app.setApplicationDisplayName(APP_NAME)
+    app.setOrganizationName(ORGANIZATION_NAME)
     app.setStyle("Fusion")
     window = MainWindow()
     window.show()
