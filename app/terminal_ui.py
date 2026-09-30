@@ -158,9 +158,9 @@ class TerminalDisplay(QPlainTextEdit):
         self._drop_notice_pending = False
 
         self._flush_timer = QTimer(self)
+        self._flush_timer.setSingleShot(True)
         self._flush_timer.setInterval(self.FLUSH_INTERVAL_MS)
         self._flush_timer.timeout.connect(self._flush_pending)
-        self._flush_timer.start()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         modifiers = event.modifiers()
@@ -261,6 +261,9 @@ class TerminalDisplay(QPlainTextEdit):
                 self._overloaded = True
                 self._drop_notice_pending = True
 
+        if self.isVisible() and not self._flush_timer.isActive():
+            self._flush_timer.start()
+
     def flush_pending(self) -> None:
         self._flush_pending(force=True)
 
@@ -312,6 +315,9 @@ class TerminalDisplay(QPlainTextEdit):
 
         if parts:
             self._render_terminal_text("".join(parts))
+
+        if self._pending_output and self.isVisible():
+            self._flush_timer.start()
 
     def _render_terminal_text(self, raw_text: str) -> None:
         text = ANSI_ESCAPE_RE.sub("", raw_text).replace("\x07", "")
