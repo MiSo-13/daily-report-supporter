@@ -24,7 +24,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
 - 다중 터미널: 로컬 PTY/ConPTY 세션 + 저장형 SSH 프로필, 직접 키 입력, Tab/Ctrl+C
-- 앱 하단 오른쪽 CPU / RAM 사용량 표시
+- 앱 하단 왼쪽 CPU / RAM 사용량 표시
 - 메모/터미널 목록 항목 드래그 순서 변경 및 저장
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
 - 유효한 업무 URL은 입력창 옆 `열기` 버튼으로 바로 실행
@@ -278,7 +278,7 @@ docker logs -f my_service
 
 ## 앱 리소스 사용량
 
-앱 하단 상태바 오른쪽에 현재 Daily Report Supporter 프로세스의 CPU와 RAM 사용량을 표시합니다.
+앱 하단 상태바 왼쪽에 현재 Daily Report Supporter 프로세스의 CPU와 RAM 사용량을 표시합니다.
 
 ```text
 CPU 3.2% · RAM 148 MB
