@@ -48,3 +48,38 @@ def test_unix_shell_prefers_shell_environment(monkeypatch, tmp_path) -> None:
 
 def test_terminal_backend_is_qobject_compatible() -> None:
     assert issubclass(terminal_backend.TerminalBackend, QObject)
+
+
+
+def test_ssh_command_uses_system_ssh(monkeypatch) -> None:
+    monkeypatch.setattr(
+        terminal_backend.shutil,
+        "which",
+        lambda command: "/usr/bin/ssh" if command == "ssh" else None,
+    )
+
+    program, arguments = terminal_backend.resolve_ssh_command(
+        host="10.0.1.20",
+        port=2222,
+        user="ubuntu",
+    )
+
+    assert program == "/usr/bin/ssh"
+    assert arguments == [
+        "-p",
+        "2222",
+        "ubuntu@10.0.1.20",
+    ]
+
+
+def test_backend_accepts_custom_program(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    backend = terminal_backend.create_terminal_backend(
+        tmp_path,
+        program="/usr/bin/ssh",
+        arguments=["example"],
+    )
+
+    assert backend.program == "/usr/bin/ssh"
+    assert backend.arguments == ["example"]
