@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
         self._build_menu()
         self._apply_theme_now(self.settings.theme, persist=False)
 
-        self.brand_label = QLabel("make my MiSo")
+        self.brand_label = QLabel("made by MiSo")
         self.statusBar().addPermanentWidget(self.brand_label)
 
         self.open_today()
