@@ -48,3 +48,16 @@ def test_unix_shell_prefers_shell_environment(monkeypatch, tmp_path) -> None:
 
 def test_terminal_backend_is_qobject_compatible() -> None:
     assert issubclass(terminal_backend.TerminalBackend, QObject)
+
+
+
+def test_factory_accepts_direct_command(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    backend = terminal_backend.create_terminal_backend(
+        tmp_path,
+        command=["ssh", "-p", "2222", "ubuntu@example.com"],
+    )
+
+    assert backend.program == "ssh"
+    assert backend.arguments == ["-p", "2222", "ubuntu@example.com"]
