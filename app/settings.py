@@ -16,6 +16,7 @@ DEFAULT_FONT_FAMILY = ""
 DEFAULT_FONT_SIZE = 10
 DEFAULT_TERMINAL_FONT_FAMILY = ""
 DEFAULT_TERMINAL_FONT_SIZE = 10
+DEFAULT_SHOW_RESOURCE_USAGE = True
 MIN_FONT_SIZE = 8
 MAX_FONT_SIZE = 32
 DEFAULT_PREVIOUS_SECTION_TITLE = "어제 했던 일"
@@ -209,6 +210,20 @@ class AppSettings:
         self._save()
 
     @property
+    def show_resource_usage(self) -> bool:
+        value = self._data.get("show_resource_usage")
+        return (
+            value
+            if isinstance(value, bool)
+            else DEFAULT_SHOW_RESOURCE_USAGE
+        )
+
+    @show_resource_usage.setter
+    def show_resource_usage(self, value: bool) -> None:
+        self._data["show_resource_usage"] = bool(value)
+        self._save()
+
+    @property
     def theme(self) -> str:
         value = self._data.get("theme")
         return value if isinstance(value, str) and value.strip() else DEFAULT_THEME
@@ -225,6 +240,7 @@ class AppSettings:
             "font_size": DEFAULT_FONT_SIZE,
             "terminal_font_family": DEFAULT_TERMINAL_FONT_FAMILY,
             "terminal_font_size": DEFAULT_TERMINAL_FONT_SIZE,
+            "show_resource_usage": DEFAULT_SHOW_RESOURCE_USAGE,
             "greeting": DEFAULT_GREETING,
             "footer": DEFAULT_FOOTER,
             "previous_section_title": DEFAULT_PREVIOUS_SECTION_TITLE,
@@ -288,6 +304,20 @@ class AppSettings:
                 payload.get("terminal_font_size"),
                 DEFAULT_TERMINAL_FONT_SIZE,
             ),
+            "show_resource_usage": (
+                payload.get(
+                    "show_resource_usage",
+                    DEFAULT_SHOW_RESOURCE_USAGE,
+                )
+                if isinstance(
+                    payload.get(
+                        "show_resource_usage",
+                        DEFAULT_SHOW_RESOURCE_USAGE,
+                    ),
+                    bool,
+                )
+                else DEFAULT_SHOW_RESOURCE_USAGE
+            ),
             "greeting": payload.get("greeting", DEFAULT_GREETING),
             "footer": payload.get("footer", DEFAULT_FOOTER),
             "previous_section_title": payload.get(
@@ -319,6 +349,7 @@ class AppSettings:
             "font_size",
             "terminal_font_family",
             "terminal_font_size",
+            "show_resource_usage",
         ):
             if payload.get(key, defaults[key]) != data[key]:
                 needs_write = True
