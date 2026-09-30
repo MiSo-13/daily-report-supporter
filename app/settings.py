@@ -24,6 +24,15 @@ DEFAULT_WORKSPACE_TAB_ORDER = ["work", "memo", "terminal"]
 SETTINGS_FILE_NAME = "settings.json"
 
 
+def _valid_workspace_tab_order(value: object) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) == len(DEFAULT_WORKSPACE_TAB_ORDER)
+        and all(isinstance(item, str) for item in value)
+        and set(value) == set(DEFAULT_WORKSPACE_TAB_ORDER)
+    )
+
+
 class AppSettings:
     def __init__(self, reports_root: Path | str = "reports") -> None:
         self.path = Path(reports_root) / SETTINGS_FILE_NAME
@@ -135,21 +144,13 @@ class AppSettings:
     @property
     def workspace_tab_order(self) -> list[str]:
         value = self._data.get("workspace_tab_order")
-        if (
-            isinstance(value, list)
-            and len(value) == len(DEFAULT_WORKSPACE_TAB_ORDER)
-            and set(value) == set(DEFAULT_WORKSPACE_TAB_ORDER)
-            and all(isinstance(item, str) for item in value)
-        ):
+        if _valid_workspace_tab_order(value):
             return list(value)
         return list(DEFAULT_WORKSPACE_TAB_ORDER)
 
     @workspace_tab_order.setter
     def workspace_tab_order(self, value: list[str]) -> None:
-        if (
-            len(value) == len(DEFAULT_WORKSPACE_TAB_ORDER)
-            and set(value) == set(DEFAULT_WORKSPACE_TAB_ORDER)
-        ):
+        if _valid_workspace_tab_order(value):
             self._data["workspace_tab_order"] = list(value)
         else:
             self._data["workspace_tab_order"] = list(DEFAULT_WORKSPACE_TAB_ORDER)
@@ -231,6 +232,10 @@ class AppSettings:
         }
 
         needs_write = set(payload) != set(defaults)
+
+        if not _valid_workspace_tab_order(data["workspace_tab_order"]):
+            data["workspace_tab_order"] = list(DEFAULT_WORKSPACE_TAB_ORDER)
+            needs_write = True
 
         if data["greeting"] == LEGACY_DEFAULT_GREETING:
             data["greeting"] = DEFAULT_GREETING
