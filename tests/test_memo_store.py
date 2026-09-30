@@ -57,3 +57,48 @@ def test_parse_legacy_plain_markdown_without_title(tmp_path) -> None:
 
     assert memo.title == "legacy"
     assert memo.content == "## 내용\n\n- 항목\n"
+
+
+
+def test_memo_order_is_persisted(tmp_path) -> None:
+    store = MemoStore(tmp_path)
+    first = store.create("첫 번째", "")
+    second = store.create("두 번째", "")
+    third = store.create("세 번째", "")
+
+    store.reorder([third.memo_id, first.memo_id, second.memo_id])
+
+    reloaded = MemoStore(tmp_path)
+    assert [memo.memo_id for memo in reloaded.list_memos()] == [
+        third.memo_id,
+        first.memo_id,
+        second.memo_id,
+    ]
+
+
+def test_new_memo_is_appended_after_custom_order(tmp_path) -> None:
+    store = MemoStore(tmp_path)
+    first = store.create("첫 번째", "")
+    second = store.create("두 번째", "")
+    store.reorder([second.memo_id, first.memo_id])
+
+    third = store.create("세 번째", "")
+
+    assert [memo.memo_id for memo in store.list_memos()] == [
+        second.memo_id,
+        first.memo_id,
+        third.memo_id,
+    ]
+
+
+def test_delete_memo_removes_it_from_saved_order(tmp_path) -> None:
+    store = MemoStore(tmp_path)
+    first = store.create("첫 번째", "")
+    second = store.create("두 번째", "")
+    store.reorder([second.memo_id, first.memo_id])
+
+    store.delete(second.memo_id)
+
+    assert [memo.memo_id for memo in MemoStore(tmp_path).list_memos()] == [
+        first.memo_id
+    ]
