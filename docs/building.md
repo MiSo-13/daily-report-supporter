@@ -14,11 +14,11 @@ https://github.com/MiSo-13/daily-report-supporter/releases/latest
 
 | 환경 | 파일 |
 | --- | --- |
-| Windows x64 | `DailyReportSupporter.exe` |
-| macOS Apple Silicon | `DailyReportSupporter-macos-arm64.zip` |
-| macOS Intel | `DailyReportSupporter-macos-x64.zip` |
-| ChromeOS/Crostini x64 | `DailyReportSupporter-linux-x64` |
-| ChromeOS/Crostini ARM64 | `DailyReportSupporter-linux-arm64` |
+| Windows x64 | `WorKing.exe` |
+| macOS Apple Silicon | `WorKing-macos-arm64.zip` |
+| macOS Intel | `WorKing-macos-x64.zip` |
+| ChromeOS/Crostini x64 | `WorKing-linux-x64` |
+| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
 
 Windows 사용자는 `.exe` 하나만 받아 실행하면 Python 설치가 필요하지 않습니다.
 
@@ -41,7 +41,7 @@ python scripts/build_app.py
 결과:
 
 ```text
-dist/DailyReportSupporter.exe
+dist/WorKing.exe
 ```
 
 단일 실행파일이며 콘솔 창 없이 실행됩니다.
@@ -51,7 +51,7 @@ dist/DailyReportSupporter.exe
 결과:
 
 ```text
-dist/DailyReportSupporter.app
+dist/WorKing.app
 ```
 
 macOS에서는 PyInstaller 권장 방식에 맞춰 `.app` bundle을 생성합니다.
@@ -61,13 +61,13 @@ macOS에서는 PyInstaller 권장 방식에 맞춰 `.app` bundle을 생성합니
 결과:
 
 ```text
-dist/DailyReportSupporter
+dist/WorKing
 ```
 
 필요하면 실행 권한을 부여합니다.
 
 ```bash
-chmod +x dist/DailyReportSupporter
+chmod +x dist/WorKing
 ```
 
 ## GitHub Actions
@@ -84,6 +84,8 @@ git push origin v0.1.0
 ```
 
 태그 빌드가 모두 성공하면 해당 GitHub Release에 OS별 파일이 자동 첨부됩니다.
+
+앱 이름은 WorKing으로 변경됐지만 기존 설치본과 데이터 호환을 위해 사용자 데이터 디렉터리는 `DailyReportSupporter` 이름을 유지합니다.
 
 ## 배포판 데이터 위치
 
