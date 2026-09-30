@@ -35,7 +35,6 @@ def _build_stylesheet(
 QWidget {{
     background-color: {window};
     color: {text};
-    font-size: 13px;
 }}
 QMainWindow, QDialog {{
     background-color: {window};
