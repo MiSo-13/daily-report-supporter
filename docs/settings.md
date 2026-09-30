@@ -88,6 +88,30 @@ GTK_IM_MODULE=ibus
 
 실제 한/영 전환은 ChromeOS 또는 IBus의 단축키를 사용합니다.
 
+## 폰트
+
+`설정 → 폰트...`에서 다음 값을 설정할 수 있습니다.
+
+- 앱 font family
+- 앱 font size (8~32pt)
+- 터미널 fixed-pitch font family
+- 터미널 font size (8~32pt)
+
+family 값이 빈 문자열이면 운영체제 기본 폰트를 사용합니다.
+
+기본값:
+
+```json
+{
+  "font_family": "",
+  "font_size": 10,
+  "terminal_font_family": "",
+  "terminal_font_size": 10
+}
+```
+
+저장된 폰트가 다른 PC에 설치되어 있지 않으면 Qt/운영체제의 font fallback이 적용됩니다.
+
 ## 테마
 
 `설정 → 테마`에서 변경할 수 있습니다.
@@ -113,6 +137,10 @@ reports/settings.json
 ```json
 {
   "theme": "Nord",
+  "font_family": "",
+  "font_size": 10,
+  "terminal_font_family": "",
+  "terminal_font_size": 10,
   "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다.\n\nYYYY년 MM월 DD일 일일보고입니다.",
   "footer": "감사합니다.",
   "previous_section_title": "어제 했던 일",
