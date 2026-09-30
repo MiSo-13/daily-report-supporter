@@ -8,6 +8,7 @@ from app.resource_monitor import ProcessResourceMonitor
 
 class AppStatusInfo(QWidget):
     LEFT_MARGIN = 12
+    VERTICAL_MARGIN = 2
     RIGHT_MARGIN = 8
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -24,9 +25,9 @@ class AppStatusInfo(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(
             self.LEFT_MARGIN,
-            0,
+            self.VERTICAL_MARGIN,
             self.RIGHT_MARGIN,
-            0,
+            self.VERTICAL_MARGIN,
         )
         layout.setSpacing(8)
         layout.addWidget(self.resource_label)
