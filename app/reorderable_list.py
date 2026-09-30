@@ -20,6 +20,7 @@ class ReorderableListWidget(QListWidget):
         )
         self.setDragDropMode(mode)
         self.setDragEnabled(enabled)
+        self.setAcceptDrops(enabled)
         self.viewport().setAcceptDrops(enabled)
         self.setDropIndicatorShown(enabled)
         if enabled:
