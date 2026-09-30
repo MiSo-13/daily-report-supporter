@@ -388,4 +388,4 @@ YY. MM. DD 업무 공유드립니다.
 
 ## App
 
-앱 하단 상태바에 `make my MiSo`가 표시됩니다.
+앱 하단 상태바에 `made by MiSo`가 표시됩니다.
