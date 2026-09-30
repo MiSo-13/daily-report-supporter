@@ -142,3 +142,10 @@ ChromeOS/Crostini 예:
 Crostini x64와 ARM64 빌드를 각각 제공합니다.
 
 Linux 실행파일은 시스템의 glibc 버전에 영향을 받습니다. 배포 실행파일이 동작하지 않는 오래된 Crostini 환경에서는 [빠른 시작](./getting-started.md)의 Python 실행 방식을 사용하면 됩니다.
+
+
+## Windows 터미널 빌드
+
+Windows 터미널은 ConPTY를 위해 `pywinpty==3.0.5`를 사용합니다. `requirements.txt`의 platform marker로 Windows에서만 설치됩니다.
+
+PyInstaller Windows 빌드는 `winpty`의 native binary를 포함하기 위해 `--collect-all winpty`를 사용합니다.
