@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import shutil
 
-from PyQt6.QtCore import QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QFontDatabase,
     QInputMethodEvent,
@@ -21,7 +21,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
@@ -31,6 +30,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.reorderable_list import ReorderableListWidget
 from app.terminal_backend import create_terminal_backend, resolve_shell
 from app.terminal_store import (
     TERMINAL_LOCAL,
@@ -40,6 +40,12 @@ from app.terminal_store import (
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+CLEAR_SCREEN_MARKERS = (
+    "\x1b[2J",
+    "\x1b[3J",
+    "\x1bc",
+    "\x0c",
+)
 
 
 class SshProfileDialog(QDialog):
@@ -147,6 +153,7 @@ class TerminalDisplay(QPlainTextEdit):
         )
         self.document().setMaximumBlockCount(self.MAX_BLOCKS)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setTabChangesFocus(False)
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
@@ -161,6 +168,18 @@ class TerminalDisplay(QPlainTextEdit):
         self._flush_timer.setSingleShot(True)
         self._flush_timer.setInterval(self.FLUSH_INTERVAL_MS)
         self._flush_timer.timeout.connect(self._flush_pending)
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):
+            if event.key() == Qt.Key.Key_Tab:
+                self.input_ready.emit("\t")
+                event.accept()
+                return True
+            if event.key() == Qt.Key.Key_Backtab:
+                self.input_ready.emit("\x1b[Z")
+                event.accept()
+                return True
+        return super().event(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         modifiers = event.modifiers()
@@ -320,6 +339,18 @@ class TerminalDisplay(QPlainTextEdit):
             self._flush_timer.start()
 
     def _render_terminal_text(self, raw_text: str) -> None:
+        clear_index = -1
+        clear_length = 0
+        for marker in CLEAR_SCREEN_MARKERS:
+            index = raw_text.rfind(marker)
+            if index > clear_index:
+                clear_index = index
+                clear_length = len(marker)
+
+        if clear_index >= 0:
+            self.clear()
+            raw_text = raw_text[clear_index + clear_length:]
+
         text = ANSI_ESCAPE_RE.sub("", raw_text).replace("\x07", "")
         text = text.replace("\r\n", "\n")
 
@@ -540,12 +571,15 @@ class TerminalSidebar(QWidget):
         on_new_ssh: Callable[[], None],
         on_edit: Callable[[], None],
         on_delete: Callable[[], None],
+        on_reorder: Callable[[list[str]], None],
     ) -> None:
         super().__init__()
         self.on_select = on_select
+        self.on_reorder = on_reorder
 
-        self.list_widget = QListWidget()
+        self.list_widget = ReorderableListWidget()
         self.list_widget.itemClicked.connect(self._selected)
+        self.list_widget.order_changed.connect(self._persist_order)
 
         self.new_local_button = QPushButton("+ 로컬")
         self.new_local_button.setObjectName("primaryButton")
@@ -615,6 +649,15 @@ class TerminalSidebar(QWidget):
             if item.data(Qt.ItemDataRole.UserRole) == terminal_id:
                 self.list_widget.setCurrentItem(item)
                 return
+
+    def _persist_order(self) -> None:
+        terminal_ids: list[str] = []
+        for index in range(self.list_widget.count()):
+            value = self.list_widget.item(index).data(Qt.ItemDataRole.UserRole)
+            if value:
+                terminal_ids.append(str(value))
+        if terminal_ids:
+            self.on_reorder(terminal_ids)
 
     def _selected(self, item: QListWidgetItem) -> None:
         value = item.data(Qt.ItemDataRole.UserRole)

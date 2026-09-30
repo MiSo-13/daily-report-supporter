@@ -24,7 +24,8 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
 - 다중 터미널: 로컬 PTY/ConPTY 세션 + 저장형 SSH 프로필, 직접 키 입력, Tab/Ctrl+C
-- 앱 상단 CPU / RAM 사용량 표시
+- 앱 하단 오른쪽 CPU / RAM 사용량 표시
+- 메모/터미널 목록 항목 드래그 순서 변경 및 저장
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
 - 유효한 업무 URL은 입력창 옆 `열기` 버튼으로 바로 실행
 - Markdown 체크박스 + `상태` 메타데이터 기반 저장
@@ -155,7 +156,8 @@ reports/
 
 memos/
 ├─ <memo-id>.md
-└─ <memo-id>.md
+├─ <memo-id>.md
+└─ .order.json
 
 terminal-sessions.json
 ```
@@ -192,6 +194,8 @@ python -m pytest
 
 미리보기에서 수정한 내용은 저장할 때 Markdown으로 변환됩니다. Markdown 원문 형식을 정확히 유지하려면 `편집` 탭을 사용합니다.
 
+메모 목록의 항목은 드래그해서 순서를 변경할 수 있습니다. 검색 중에는 검색 결과와 실제 순서가 섞이지 않도록 드래그 정렬이 비활성화됩니다. 메모 순서는 `memos/.order.json`에 저장됩니다.
+
 ### 미리보기 Markdown 단축키
 
 줄 시작에서 문법을 입력한 뒤 Space를 누르면 즉시 서식으로 바뀝니다.
@@ -222,6 +226,7 @@ python -m pytest
 - `편집`: 이름 또는 SSH Host/Port/User 수정
 - `삭제`: 세션 종료 및 프로필 삭제
 - 세션을 전환해도 앱 실행 중인 shell/SSH 프로세스는 유지
+- 터미널 목록 항목을 드래그해서 원하는 순서로 정렬
 
 SSH 프로필에는 아래 값만 저장합니다.
 
@@ -234,7 +239,7 @@ User
 
 **SSH 비밀번호와 passphrase는 저장하지 않습니다.** SSH 프로필을 선택하면 운영체제의 `ssh` 명령을 PTY/ConPTY에서 직접 실행하고, `password:` 프롬프트가 나오면 터미널 화면에 직접 입력합니다. SSH가 터미널 echo를 끄므로 비밀번호 문자는 화면에 표시되지 않습니다.
 
-터미널 화면을 클릭한 뒤 키보드로 바로 입력합니다. 별도의 명령 입력창을 사용하지 않습니다.
+터미널 화면을 클릭한 뒤 키보드로 바로 입력합니다. 별도의 명령 입력창을 사용하지 않습니다. Tab 키는 Qt 포커스 이동에 사용하지 않고 PTY/ConPTY로 직접 전달합니다.
 
 - `Tab`: shell/원격 shell의 원래 자동완성
 - 방향키: shell history/cursor 이동
@@ -245,6 +250,7 @@ User
 - `중지`: Ctrl+C와 동일
 - `재시작`: 현재 로컬 shell 또는 SSH 연결 재시작
 - `지우기`: 출력 화면만 비우기
+- shell의 `clear` / Windows의 `cls`: clear-screen ANSI를 감지해 실제 터미널 화면 비우기
 
 예를 들어 shell에 Docker completion이 설정되어 있다면 아래 입력 뒤 Tab을 눌렀을 때 shell 자체의 completion이 동작합니다.
 
@@ -260,7 +266,7 @@ docker logs -f my_service
 
 같은 streaming 명령은 `Ctrl+C`로 중단한 뒤 같은 SSH 세션을 계속 사용할 수 있습니다.
 
-터미널 프로필은 `terminal-sessions.json`에 저장됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
+터미널 프로필은 `terminal-sessions.json`에 저장됩니다. 터미널 목록 항목을 드래그하면 배열 순서도 함께 저장되어 다음 실행에 유지됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
 
 터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다.
 
@@ -272,7 +278,7 @@ docker logs -f my_service
 
 ## 앱 리소스 사용량
 
-앱 상단 오른쪽에 현재 Daily Report Supporter 프로세스의 CPU와 RAM 사용량을 표시합니다.
+앱 하단 상태바 오른쪽에 현재 Daily Report Supporter 프로세스의 CPU와 RAM 사용량을 표시합니다.
 
 ```text
 CPU 3.2% · RAM 148 MB

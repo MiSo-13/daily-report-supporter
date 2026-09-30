@@ -137,6 +137,24 @@ class TerminalStore:
         if len(self._profiles) != before:
             self._save()
 
+    def reorder(self, terminal_ids: list[str]) -> None:
+        existing = [profile.terminal_id for profile in self._profiles]
+        if (
+            len(terminal_ids) != len(existing)
+            or len(set(terminal_ids)) != len(terminal_ids)
+            or set(terminal_ids) != set(existing)
+        ):
+            raise ValueError(
+                "terminal order must contain every profile exactly once"
+            )
+
+        by_id = {
+            profile.terminal_id: profile
+            for profile in self._profiles
+        }
+        self._profiles = [by_id[terminal_id] for terminal_id in terminal_ids]
+        self._save()
+
     def get(self, terminal_id: str) -> TerminalProfile:
         for profile in self._profiles:
             if profile.terminal_id == terminal_id:

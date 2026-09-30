@@ -98,6 +98,7 @@ URL만 입력하면 URL 자체가 링크 이름으로 사용됩니다.
 - 검색: 모든 메모의 제목과 본문 검색
 - 삭제: 현재 메모 파일 삭제
 - 저장: `Ctrl+S` / macOS `Cmd+S`
+- 목록 항목 드래그: 메모 표시 순서 변경 및 저장
 
 ### Markdown 편집
 
@@ -126,6 +127,12 @@ URL만 입력하면 URL 자체가 링크 이름으로 사용됩니다.
 
 - `Ctrl/Cmd+B`: 굵게
 - `Ctrl/Cmd+I`: 기울임
+
+### 메모 순서
+
+메모 목록의 항목을 위아래로 드래그해 원하는 순서로 배치할 수 있습니다. 변경된 순서는 `memos/.order.json`에 저장되어 다음 실행에도 유지됩니다.
+
+검색 중에는 메모 드래그 정렬이 비활성화됩니다. 검색 결과의 순서를 실제 메모 순서로 잘못 저장하는 것을 막기 위한 동작입니다.
 
 ### 저장 위치
 
@@ -191,7 +198,7 @@ ubuntu@example.com's password:
 터미널 화면을 클릭한 뒤 바로 입력합니다. 이전의 별도 명령어 입력창은 사용하지 않습니다.
 
 - `Enter`: 현재 명령 실행
-- `Tab`: shell Tab completion
+- `Tab`: Qt 포커스 이동을 막고 PTY/ConPTY로 직접 전달해 shell Tab completion 실행
 - `↑ / ↓ / ← / →`: shell에 방향키 전달
 - `Ctrl+C`: foreground 명령 중단
 - `Ctrl+D`: EOF
@@ -200,6 +207,7 @@ ubuntu@example.com's password:
 - `중지`: Ctrl+C와 동일
 - `재시작`: 현재 shell/SSH 연결 재시작
 - `지우기`: 출력 화면만 비우기
+- `clear` / Windows `cls`: shell의 clear-screen 출력을 인식해 화면 초기화
 
 따라서 shell에 Docker completion이 설치되어 있다면 다음처럼 원래 shell의 자동완성을 사용할 수 있습니다.
 
@@ -215,6 +223,10 @@ tail -f application.log
 ```
 
 같은 명령의 출력도 계속 받을 수 있습니다. `Ctrl+C`를 누르면 foreground 명령만 중단하고 로컬 shell 또는 SSH 세션은 계속 사용합니다.
+
+### 터미널 목록 순서
+
+로컬/SSH 터미널 항목을 목록 안에서 드래그해 순서를 변경할 수 있습니다. 변경 순서는 `terminal-sessions.json`의 세션 배열 순서로 저장되어 다음 실행에도 유지됩니다.
 
 ### 프로필 유지
 
@@ -256,7 +268,7 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 ## CPU / RAM 표시
 
-앱 상단 오른쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
+앱 하단 상태바 오른쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
 
 ```text
 CPU 3.2% · RAM 148 MB

@@ -187,6 +187,7 @@ class MainWindow(QMainWindow):
             self._new_ssh_terminal,
             self._edit_terminal,
             self._delete_terminal,
+            self._reorder_terminals,
         )
         terminal_profiles = self.terminal_store.list_profiles()
         for profile in terminal_profiles:
@@ -210,25 +211,17 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.content_stack)
         splitter.setSizes([280, 900])
 
+        central = QWidget()
+        central_layout = QHBoxLayout(central)
+        central_layout.setContentsMargins(10, 10, 10, 10)
+        central_layout.addWidget(splitter)
+        self.setCentralWidget(central)
+
         self.resource_label = QLabel("CPU --  ·  RAM --")
         self.resource_label.setObjectName("resourceMonitor")
         self.resource_label.setToolTip(
             "Daily Report Supporter 프로세스의 CPU / 메모리 사용량"
         )
-
-        resource_row = QHBoxLayout()
-        resource_row.setContentsMargins(0, 0, 0, 0)
-        resource_row.addStretch(1)
-        resource_row.addWidget(self.resource_label)
-
-        central = QWidget()
-        central_layout = QVBoxLayout(central)
-        central_layout.setContentsMargins(10, 8, 10, 10)
-        central_layout.setSpacing(6)
-        central_layout.addLayout(resource_row)
-        central_layout.addWidget(splitter, 1)
-        self.setCentralWidget(central)
-
         self.resource_monitor = ProcessResourceMonitor(self)
         self.resource_monitor.updated.connect(self.resource_label.setText)
         self.resource_monitor.start()
@@ -239,6 +232,7 @@ class MainWindow(QMainWindow):
 
         self.brand_label = QLabel("made by MiSo")
         self.statusBar().addPermanentWidget(self.brand_label)
+        self.statusBar().addPermanentWidget(self.resource_label)
 
         self.open_today()
 
@@ -446,6 +440,9 @@ class MainWindow(QMainWindow):
             self.terminal_store.list_profiles(),
             select_id=terminal_id,
         )
+
+    def _reorder_terminals(self, terminal_ids: list[str]) -> None:
+        self.terminal_store.reorder(terminal_ids)
 
     def _delete_terminal(self) -> None:
         terminal_id = (
