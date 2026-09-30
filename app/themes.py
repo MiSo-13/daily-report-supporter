@@ -21,7 +21,16 @@ def _build_stylesheet(
     accent: str,
     accent_hover: str,
     selection: str,
+    terminal_background: str | None = None,
+    terminal_text: str | None = None,
+    terminal_muted: str | None = None,
+    terminal_selection: str | None = None,
 ) -> str:
+    terminal_background = terminal_background or surface_alt
+    terminal_text = terminal_text or text
+    terminal_muted = terminal_muted or muted
+    terminal_selection = terminal_selection or selection
+
     return f"""
 QWidget {{
     background-color: {window};
@@ -122,6 +131,28 @@ QMenuBar::item:selected, QMenu::item:selected {{
 QStatusBar {{
     color: {muted};
 }}
+QLabel#resourceMonitor {{
+    background-color: {surface_alt};
+    color: {muted};
+    border: 1px solid {border};
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+}}
+QPlainTextEdit#terminalOutput {{
+    background-color: {terminal_background};
+    color: {terminal_text};
+    border: 1px solid {border};
+    border-radius: 6px;
+    padding: 10px;
+    selection-background-color: {terminal_selection};
+}}
+QPlainTextEdit#terminalOutput:focus {{
+    border: 1px solid {accent};
+}}
+QLabel#terminalHint, QLabel#terminalTarget {{
+    color: {terminal_muted};
+}}
 QSplitter::handle {{
     background-color: {border};
 }}
@@ -147,6 +178,10 @@ THEMES: dict[str, Theme] = {
             accent="#4263eb",
             accent_hover="#3654d4",
             selection="#dce5ff",
+            terminal_background="#e8edf5",
+            terminal_text="#18212f",
+            terminal_muted="#657184",
+            terminal_selection="#cbd8ee",
         ),
     ),
     "Dark": Theme(
@@ -162,6 +197,10 @@ THEMES: dict[str, Theme] = {
             accent="#4c8dff",
             accent_hover="#3978df",
             selection="#354b69",
+            terminal_background="#15171a",
+            terminal_text="#f0f2f5",
+            terminal_muted="#9ea4ad",
+            terminal_selection="#2d4666",
         ),
     ),
     "Purple": Theme(
@@ -177,6 +216,10 @@ THEMES: dict[str, Theme] = {
             accent="#9b6cff",
             accent_hover="#8657e8",
             selection="#4a3968",
+            terminal_background="#15101d",
+            terminal_text="#f5f0fa",
+            terminal_muted="#b7a9c7",
+            terminal_selection="#49345f",
         ),
     ),
     "Nord": Theme(
@@ -192,6 +235,10 @@ THEMES: dict[str, Theme] = {
             accent="#5e81ac",
             accent_hover="#4c6f98",
             selection="#434c5e",
+            terminal_background="#242933",
+            terminal_text="#eceff4",
+            terminal_muted="#aeb8c7",
+            terminal_selection="#3b4658",
         ),
     ),
     "Solarized Light": Theme(
@@ -207,6 +254,10 @@ THEMES: dict[str, Theme] = {
             accent="#268bd2",
             accent_hover="#1f78b6",
             selection="#d9ebee",
+            terminal_background="#eee8d5",
+            terminal_text="#4f646b",
+            terminal_muted="#657b83",
+            terminal_selection="#d5dfd7",
         ),
     ),
     "Solarized Dark": Theme(
@@ -222,6 +273,10 @@ THEMES: dict[str, Theme] = {
             accent="#268bd2",
             accent_hover="#1f78b6",
             selection="#164a55",
+            terminal_background="#001f27",
+            terminal_text="#eee8d5",
+            terminal_muted="#839496",
+            terminal_selection="#124650",
         ),
     ),
     "Sepia": Theme(
@@ -237,6 +292,10 @@ THEMES: dict[str, Theme] = {
             accent="#8a6d3b",
             accent_hover="#735a31",
             selection="#e3d3b8",
+            terminal_background="#e7dccb",
+            terminal_text="#3f382f",
+            terminal_muted="#70675c",
+            terminal_selection="#d8c7aa",
         ),
     ),
 }

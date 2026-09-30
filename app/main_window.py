@@ -30,6 +30,7 @@ from app.memo_editor import MemoEditor
 from app.memo_sidebar import MemoSidebar
 from app.memo_store import MemoStore
 from app.models import DailyDocument, Task, TaskStatus
+from app.resource_monitor import ProcessResourceMonitor
 from app.paths import (
     default_memos_root,
     default_reports_root,
@@ -209,11 +210,28 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.content_stack)
         splitter.setSizes([280, 900])
 
+        self.resource_label = QLabel("CPU --  ·  RAM --")
+        self.resource_label.setObjectName("resourceMonitor")
+        self.resource_label.setToolTip(
+            "Daily Report Supporter 프로세스의 CPU / 메모리 사용량"
+        )
+
+        resource_row = QHBoxLayout()
+        resource_row.setContentsMargins(0, 0, 0, 0)
+        resource_row.addStretch(1)
+        resource_row.addWidget(self.resource_label)
+
         central = QWidget()
-        central_layout = QHBoxLayout(central)
-        central_layout.setContentsMargins(10, 10, 10, 10)
-        central_layout.addWidget(splitter)
+        central_layout = QVBoxLayout(central)
+        central_layout.setContentsMargins(10, 8, 10, 10)
+        central_layout.setSpacing(6)
+        central_layout.addLayout(resource_row)
+        central_layout.addWidget(splitter, 1)
         self.setCentralWidget(central)
+
+        self.resource_monitor = ProcessResourceMonitor(self)
+        self.resource_monitor.updated.connect(self.resource_label.setText)
+        self.resource_monitor.start()
 
         self._build_shortcuts()
         self._build_menu()
@@ -462,6 +480,7 @@ class MainWindow(QMainWindow):
             self._select_terminal(next_id)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        self.resource_monitor.stop()
         if self.current_memo_id is not None and self.memo_editor.is_dirty():
             self.memo_editor.save()
         self.terminal_panel.shutdown_all()
