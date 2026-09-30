@@ -143,49 +143,92 @@ memos/<memo-id>.md
 
 ## 터미널
 
-왼쪽에서 `터미널` 탭을 선택하면 여러 shell 세션을 관리할 수 있습니다.
+왼쪽에서 `터미널` 탭을 선택하면 로컬 shell과 SSH 연결을 같은 화면에서 관리할 수 있습니다.
 
-### 세션 관리
+### 로컬 터미널
 
-- `+ 새 터미널`: 이름을 지정해 새 터미널 생성
-- `이름 변경`: 선택한 터미널 이름 변경
-- `삭제`: 선택한 shell 프로세스를 종료하고 세션 제거
-- 다른 업무/메모/터미널로 이동해도 실행 중인 터미널 프로세스는 유지
-
-터미널 세션 이름과 시작 경로는 저장됩니다. 앱을 종료하면 shell 프로세스는 종료되며, 다음 실행 때 같은 세션 목록을 새 shell 프로세스로 복원합니다.
-
-### shell
+`+ 로컬`을 눌러 이름을 지정합니다.
 
 - Windows: `cmd.exe`
 - macOS/Linux/Crostini: 환경변수 `SHELL`
-- `SHELL`을 찾지 못하면 `bash`, 이후 `sh` 순으로 사용
+- `SHELL`이 없으면 `bash`, 이후 `sh`
 
-명령어를 입력하고 Enter를 누르면 실행합니다. 위/아래 방향키로 현재 세션의 명령 히스토리를 이동할 수 있습니다.
+프로필을 선택하면 PTY/ConPTY 세션이 시작됩니다. 다른 업무/메모/터미널로 이동해도 앱 실행 중에는 프로세스가 유지됩니다.
 
-- `Ctrl+C`: 현재 foreground 명령 중단
-- `중지`: `Ctrl+C`와 동일
-- `Ctrl+Shift+C`: 선택한 터미널 출력 복사
-- `재시작`: 현재 shell 재시작
-- `지우기`: 출력 영역만 비우기
+### SSH 프로필
 
-예를 들어 아래처럼 계속 실행되는 명령의 출력도 받을 수 있습니다.
+`+ SSH`에서 다음 값만 지정합니다.
 
-```bash
-docker logs -f <container>
+- 이름
+- Host
+- Port
+- User
+
+비밀번호나 private-key passphrase를 저장하는 필드는 없습니다.
+
+SSH 프로필을 선택하면 내부적으로 운영체제의 `ssh` 클라이언트를 직접 실행합니다.
+
+```text
+ssh -p <port> <user>@<host>
 ```
 
-필요할 때 `Ctrl+C`로 로그 follow만 중단하고 shell 세션은 계속 사용할 수 있습니다.
+처음 연결이면 host key 확인 메시지가 그대로 표시될 수 있습니다.
 
-### PTY / ConPTY
+```text
+Are you sure you want to continue connecting (yes/no)?
+```
 
-- Linux/macOS/Crostini: 운영체제 PTY 사용
-- Windows: ConPTY를 제공하는 `pywinpty` 사용
+비밀번호 인증을 사용하는 서버라면 다음 프롬프트에서 직접 비밀번호를 입력합니다.
+
+```text
+ubuntu@example.com's password:
+```
+
+비밀번호 입력은 PTY/ConPTY로 SSH에 바로 전달됩니다. 앱은 비밀번호를 별도로 받거나 저장하지 않으며, SSH가 echo를 비활성화하므로 입력 문자는 화면에도 표시되지 않습니다.
+
+### 직접 키 입력
+
+터미널 화면을 클릭한 뒤 바로 입력합니다. 이전의 별도 명령어 입력창은 사용하지 않습니다.
+
+- `Enter`: 현재 명령 실행
+- `Tab`: shell Tab completion
+- `↑ / ↓ / ← / →`: shell에 방향키 전달
+- `Ctrl+C`: foreground 명령 중단
+- `Ctrl+D`: EOF
+- `Ctrl+Shift+C`: 선택한 출력 복사
+- `Ctrl+Shift+V`: 클립보드 내용을 터미널에 입력
+- `중지`: Ctrl+C와 동일
+- `재시작`: 현재 shell/SSH 연결 재시작
+- `지우기`: 출력 화면만 비우기
+
+따라서 shell에 Docker completion이 설치되어 있다면 다음처럼 원래 shell의 자동완성을 사용할 수 있습니다.
+
+```bash
+docker logs -f my_<Tab>
+```
+
+### Streaming 명령
+
+```bash
+docker logs -f my_service
+tail -f application.log
+```
+
+같은 명령의 출력도 계속 받을 수 있습니다. `Ctrl+C`를 누르면 foreground 명령만 중단하고 로컬 shell 또는 SSH 세션은 계속 사용합니다.
+
+### 프로필 유지
+
+로컬/SSH 프로필은 `terminal-sessions.json`에 저장됩니다.
+
+SSH 프로필에 저장되는 정보는 이름/Host/Port/User뿐이며 비밀번호는 저장하지 않습니다.
+
+앱을 종료하면 실제 shell/SSH 프로세스는 종료됩니다. 다음 실행에서는 프로필 목록만 복원되고, 해당 프로필을 선택할 때 새 연결을 시작합니다.
 
 ### 제한
 
-현재 구현은 실제 PTY/ConPTY를 사용하므로 streaming 명령과 terminal interrupt를 지원합니다.
+Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
-다만 출력 영역은 ANSI 커서 이동을 완전히 해석하는 터미널 에뮬레이터는 아닙니다. `vim`, `top`, `htop` 같은 전체 화면 프로그램은 실행되더라도 화면 표현이 제한될 수 있습니다.
+키 입력과 streaming I/O는 실제 pseudo-terminal로 처리하지만 현재 출력 화면은 ANSI cursor/screen 명령을 완전히 구현한 terminal emulator는 아닙니다. `vim`, `top`, `htop` 같은 전체 화면 프로그램은 표시가 제한될 수 있습니다.
 
 ## 전체 검색
 
