@@ -42,6 +42,7 @@ from app.settings import (
     INPUT_METHOD_SYSTEM,
 )
 from app.task_editor import TaskEditor
+from app.terminal_dialogs import SshProfileDialog
 from app.terminal_store import TerminalStore
 from app.terminal_ui import TerminalPanel, TerminalSidebar
 from app.themes import THEMES, stylesheet_for, theme_names
@@ -182,8 +183,9 @@ class MainWindow(QMainWindow):
         self.terminal_panel = TerminalPanel()
         self.terminal_sidebar = TerminalSidebar(
             self._select_terminal,
-            self._new_terminal,
-            self._rename_terminal,
+            self._new_local_terminal,
+            self._new_ssh_terminal,
+            self._edit_terminal,
             self._delete_terminal,
         )
         terminal_profiles = self.terminal_store.list_profiles()
@@ -270,7 +272,7 @@ class MainWindow(QMainWindow):
             if terminal_id is not None:
                 self._select_terminal(terminal_id)
             else:
-                self._new_terminal()
+                self._new_local_terminal()
 
     def _new_memo(self) -> None:
         if self.current_memo_id is not None and self.memo_editor.is_dirty():
@@ -332,12 +334,16 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("메모 삭제", 1800)
 
-    def _new_terminal(self) -> None:
+    def _new_local_terminal(self) -> None:
         profiles = self.terminal_store.list_profiles()
-        default_name = f"터미널 {len(profiles) + 1}"
+        local_count = sum(
+            1 for profile in profiles
+            if not profile.is_ssh
+        )
+        default_name = f"터미널 {local_count + 1}"
         name, accepted = QInputDialog.getText(
             self,
-            "새 터미널",
+            "새 로컬 터미널",
             "이름",
             text=default_name,
         )
@@ -348,6 +354,23 @@ class MainWindow(QMainWindow):
             name,
             self.default_terminal_cwd,
         )
+        self._add_and_select_terminal(profile)
+
+    def _new_ssh_terminal(self) -> None:
+        dialog = SshProfileDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        profile = self.terminal_store.create_ssh(
+            dialog.profile_name,
+            dialog.host,
+            dialog.port,
+            dialog.user,
+            self.default_terminal_cwd,
+        )
+        self._add_and_select_terminal(profile)
+
+    def _add_and_select_terminal(self, profile) -> None:
         self.terminal_panel.add_profile(profile)
         self.current_terminal_id = profile.terminal_id
         self.terminal_sidebar.set_profiles(
@@ -366,7 +389,7 @@ class MainWindow(QMainWindow):
         self.terminal_sidebar.select_id(terminal_id)
         self.terminal_panel.select(terminal_id)
 
-    def _rename_terminal(self) -> None:
+    def _edit_terminal(self) -> None:
         terminal_id = (
             self.terminal_sidebar.selected_id()
             or self.current_terminal_id
@@ -379,16 +402,38 @@ class MainWindow(QMainWindow):
         except KeyError:
             return
 
-        name, accepted = QInputDialog.getText(
-            self,
-            "터미널 이름 변경",
-            "이름",
-            text=profile.name,
-        )
-        if not accepted:
-            return
+        if not profile.is_ssh:
+            name, accepted = QInputDialog.getText(
+                self,
+                "터미널 이름 변경",
+                "이름",
+                text=profile.name,
+            )
+            if not accepted:
+                return
+            updated = self.terminal_store.rename(
+                terminal_id,
+                name,
+            )
+        else:
+            dialog = SshProfileDialog(
+                self,
+                name=profile.name,
+                host=profile.host,
+                port=profile.port,
+                user=profile.user,
+            )
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
 
-        updated = self.terminal_store.rename(terminal_id, name)
+            updated = self.terminal_store.update_ssh(
+                terminal_id,
+                name=dialog.profile_name,
+                host=dialog.host,
+                port=dialog.port,
+                user=dialog.user,
+            )
+
         self.terminal_panel.set_profile(updated)
         self.terminal_sidebar.set_profiles(
             self.terminal_store.list_profiles(),
