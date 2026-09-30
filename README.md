@@ -321,6 +321,7 @@ CPU 3.2% · RAM 148 MB
 
 - **일일보고 설정**: 진행 업무 제목, 예정 업무 제목, 상단 문구, 꼬리말
 - **입력기 호환 모드**: 시스템 기본값 / Crostini 한글 호환 (IBus)
+- **폰트**: 앱 전체 폰트/크기, 터미널 고정폭 폰트/크기
 - **테마**: Light, Dark, Purple, Nord, Solarized Light, Solarized Dark, Sepia
 - 설정은 `reports/settings.json`에 저장됩니다.
 
@@ -343,6 +344,10 @@ reports/
 ```json
 {
   "theme": "Nord",
+  "font_family": "",
+  "font_size": 10,
+  "terminal_font_family": "",
+  "terminal_font_size": 10,
   "greeting": "안녕하세요.\n금일 업무 진행사항 공유드립니다.\n\nYYYY년 MM월 DD일 일일보고입니다.",
   "footer": "감사합니다.",
   "previous_section_title": "어제 했던 일",
@@ -361,6 +366,20 @@ reports/
 - 필요한 X11 패키지가 없으면 첫 실행 시 자동 설치를 시도합니다.
 - 자동 설치가 실패하면 `bash scripts/setup_crostini.sh`를 실행하면 됩니다.
 - Windows/macOS에는 이 설정을 적용하지 않습니다.
+
+## 폰트 설정
+
+`설정 → 폰트...`에서 앱 전체 폰트와 터미널 폰트를 각각 지정할 수 있습니다.
+
+- 앱 폰트: 현재 OS에 설치된 일반 폰트
+- 앱 크기: 8~32pt
+- 터미널 폰트: 현재 OS의 고정폭 폰트만 표시
+- 터미널 크기: 8~32pt
+- `기본값`: 시스템 기본 UI 폰트 + 시스템 기본 고정폭 폰트, 10pt
+
+폰트 설정은 저장 즉시 적용됩니다. 특정 OS에 선택한 폰트가 없으면 Qt/OS의 fallback 폰트를 사용합니다.
+
+메모의 Tab/들여쓰기 폭은 앱 폰트에 맞춰 항상 약 4 spaces 기준으로 다시 계산됩니다.
 
 ## 입력기 호환 모드
 
