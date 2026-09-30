@@ -143,49 +143,66 @@ memos/<memo-id>.md
 
 ## 터미널
 
-왼쪽에서 `터미널` 탭을 선택하면 여러 shell 세션을 관리할 수 있습니다.
+왼쪽의 `터미널` 탭에서 로컬 터미널과 SSH 프로필을 관리합니다.
 
-### 세션 관리
+### 로컬 터미널
 
-- `+ 새 터미널`: 이름을 지정해 새 터미널 생성
-- `이름 변경`: 선택한 터미널 이름 변경
-- `삭제`: 선택한 shell 프로세스를 종료하고 세션 제거
-- 다른 업무/메모/터미널로 이동해도 실행 중인 터미널 프로세스는 유지
-
-터미널 세션 이름과 시작 경로는 저장됩니다. 앱을 종료하면 shell 프로세스는 종료되며, 다음 실행 때 같은 세션 목록을 새 shell 프로세스로 복원합니다.
-
-### shell
+`+ 로컬`을 누르고 이름을 정하면 새 로컬 shell을 만듭니다.
 
 - Windows: `cmd.exe`
 - macOS/Linux/Crostini: 환경변수 `SHELL`
-- `SHELL`을 찾지 못하면 `bash`, 이후 `sh` 순으로 사용
+- `SHELL`을 찾지 못하면 `bash`, 이후 `sh`
 
-명령어를 입력하고 Enter를 누르면 실행합니다. 위/아래 방향키로 현재 세션의 명령 히스토리를 이동할 수 있습니다.
+화면 자체에 바로 입력합니다. shell이 PTY/ConPTY에 연결되어 있으므로 Tab completion, 방향키 history, `Ctrl+C`, `Ctrl+D` 같은 terminal 입력을 그대로 사용할 수 있습니다.
 
-- `Ctrl+C`: 현재 foreground 명령 중단
-- `중지`: `Ctrl+C`와 동일
-- `Ctrl+Shift+C`: 선택한 터미널 출력 복사
-- `재시작`: 현재 shell 재시작
-- `지우기`: 출력 영역만 비우기
-
-예를 들어 아래처럼 계속 실행되는 명령의 출력도 받을 수 있습니다.
+예:
 
 ```bash
-docker logs -f <container>
+docker logs -f my_<Tab>
 ```
 
-필요할 때 `Ctrl+C`로 로그 follow만 중단하고 shell 세션은 계속 사용할 수 있습니다.
+shell에 Docker completion이 설정되어 있다면 컨테이너 이름 자동완성도 shell이 직접 처리합니다.
 
-### PTY / ConPTY
+### SSH 프로필
 
-- Linux/macOS/Crostini: 운영체제 PTY 사용
-- Windows: ConPTY를 제공하는 `pywinpty` 사용
+`+ SSH`에서 아래 항목을 저장합니다.
 
-### 제한
+- 이름
+- Host
+- Port
+- User
 
-현재 구현은 실제 PTY/ConPTY를 사용하므로 streaming 명령과 terminal interrupt를 지원합니다.
+비밀번호나 key passphrase를 저장하는 항목은 없습니다.
 
-다만 출력 영역은 ANSI 커서 이동을 완전히 해석하는 터미널 에뮬레이터는 아닙니다. `vim`, `top`, `htop` 같은 전체 화면 프로그램은 실행되더라도 화면 표현이 제한될 수 있습니다.
+SSH 프로필을 선택할 때 시스템 `ssh`를 실행합니다.
+
+```text
+ubuntu@10.0.1.20's password:
+```
+
+이 prompt가 터미널에 나타나면 비밀번호를 직접 입력합니다. SSH가 echo를 끄기 때문에 입력 문자는 화면에 표시되지 않습니다. 최초 host-key 확인, 원격 서버의 `sudo` password 입력도 동일하게 직접 처리합니다.
+
+SSH 접속에는 시스템의 `ssh` 실행 파일이 필요합니다. Windows에서 `ssh`를 찾지 못하면 Windows OpenSSH Client 기능을 설치해야 합니다.
+
+### 세션 동작
+
+- 다른 업무/메모/터미널로 이동해도 앱 실행 중인 세션은 유지
+- `중지`: 현재 foreground 명령에 Ctrl+C 전달
+- `재시작`: 로컬 shell 재시작
+- `재연결`: SSH 프로세스 종료 후 다시 연결
+- `지우기`: 현재 화면 지우기
+- `Ctrl+Shift+C`: 선택한 텍스트 복사
+- `Ctrl+Shift+V`: 클립보드 붙여넣기
+
+프로필 이름과 접속 정보는 `terminal-sessions.json`에 저장됩니다. 앱 종료 시 실제 shell/SSH 프로세스는 종료되며, 다음 실행 시 목록만 복원됩니다. SSH 프로필도 선택하기 전에는 자동 접속하지 않습니다.
+
+### 터미널 엔진
+
+- Linux/macOS/Crostini: PTY
+- Windows: ConPTY(`pywinpty`)
+- 화면 렌더링: `termqt` VT/XTerm renderer
+
+ANSI 색상, 커서 이동, alternate screen을 해석하는 네이티브 터미널 화면을 사용합니다.
 
 ## 전체 검색
 
