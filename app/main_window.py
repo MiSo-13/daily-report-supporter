@@ -25,16 +25,13 @@ from PyQt6.QtWidgets import (
 )
 
 from app.dialogs import (
-    DeleteConfirmDialog,
     FontSettingsDialog,
     GreetingSettingsDialog,
     ReportDialog,
 )
 from app.app_meta import APP_NAME, ORGANIZATION_NAME
 from app.markdown_store import MarkdownStore
-from app.memo_editor import MemoEditor
-from app.memo_sidebar import MemoSidebar
-from app.memo_store import MemoStore
+from app.memo_workspace import MemoWorkspace
 from app.models import DailyDocument, Task, TaskStatus
 from app.runtime_paths import AppRuntimePaths, resolve_runtime_paths
 from app.status_bar import AppStatusInfo
@@ -44,9 +41,7 @@ from app.settings import (
     INPUT_METHOD_SYSTEM,
 )
 from app.task_editor import TaskEditor
-from app.terminal_dialogs import SshProfileDialog
-from app.terminal_store import TERMINAL_SSH, TerminalStore
-from app.terminal_ui import TerminalPanel, TerminalSidebar
+from app.terminal_workspace import TerminalWorkspace
 from app.themes import THEMES, stylesheet_for, theme_names
 
 
@@ -90,13 +85,8 @@ class MainWindow(QMainWindow):
             previous_section_title=self.settings.previous_section_title,
             today_section_title=self.settings.today_section_title,
         )
-        self.memo_store = MemoStore(paths.memos_root)
-        self.terminal_store = TerminalStore(paths.terminal_state_path)
-        self.default_terminal_cwd = paths.terminal_cwd
-
+        self.paths = paths
         self.current_date = date.today()
-        self.current_memo_id: str | None = None
-        self.current_terminal_id: str | None = None
         self._legacy_previous_done: list[Task] = []
 
         self._theme_actions: dict[str, QAction] = {}
@@ -173,34 +163,24 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.today_editor, 1)
 
     def _build_memo_workspace(self) -> None:
-        self.memo_editor = MemoEditor(self._save_memo)
-        self.memo_sidebar = MemoSidebar(
-            self.memo_store,
-            self._load_memo,
-            self._new_memo,
-            self._delete_memo,
+        self.memo_workspace = MemoWorkspace(
+            self.paths.memos_root,
+            self,
+            self.statusBar().showMessage,
         )
+        self.memo_editor = self.memo_workspace.editor
+        self.memo_sidebar = self.memo_workspace.sidebar
 
     def _build_terminal_workspace(self) -> None:
-        self.terminal_panel = TerminalPanel()
-        self.terminal_panel.set_terminal_font(
-            self.settings.terminal_font_family,
-            self.settings.terminal_font_size,
+        self.terminal_workspace = TerminalWorkspace(
+            self.paths.terminal_state_path,
+            self.paths.terminal_cwd,
+            self,
+            font_family=self.settings.terminal_font_family,
+            font_size=self.settings.terminal_font_size,
         )
-
-        self.terminal_sidebar = TerminalSidebar(
-            self._select_terminal,
-            self._new_terminal,
-            self._new_ssh_terminal,
-            self._edit_terminal,
-            self._delete_terminal,
-            self._reorder_terminals,
-        )
-
-        profiles = self.terminal_store.list_profiles()
-        for profile in profiles:
-            self.terminal_panel.add_profile(profile)
-        self.terminal_sidebar.set_profiles(profiles)
+        self.terminal_panel = self.terminal_workspace.panel
+        self.terminal_sidebar = self.terminal_workspace.sidebar
 
     def _build_workspace_shell(self) -> None:
         self.workspace_tabs = QTabWidget()
@@ -245,7 +225,7 @@ class MainWindow(QMainWindow):
     def save_current(self) -> None:
         workspace_index = self.workspace_tabs.currentIndex()
         if workspace_index == 1:
-            self.memo_editor.save()
+            self.memo_workspace.save_current()
             return
         if workspace_index == 2:
             return
@@ -254,230 +234,20 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("저장 완료", 1800)
 
     def _workspace_changed(self, index: int) -> None:
-        if index != 1 and self.current_memo_id is not None:
-            if self.memo_editor.is_dirty():
-                self.memo_editor.save()
+        if index != 1:
+            self.memo_workspace.save_if_dirty()
 
         self.content_stack.setCurrentIndex(index)
 
         if index == 1:
-            if self.current_memo_id is not None:
-                return
-
-            memo_id = self.memo_sidebar.first_id()
-            if memo_id is not None:
-                self._load_memo(memo_id)
-            else:
-                self.memo_editor.clear()
-            return
-
-        if index == 2:
-            if self.current_terminal_id is not None:
-                self.terminal_panel.select(self.current_terminal_id)
-                return
-
-            terminal_id = self.terminal_sidebar.first_id()
-            if terminal_id is not None:
-                self._select_terminal(terminal_id)
-            else:
-                self._new_terminal()
-
-    def _new_memo(self) -> None:
-        if self.current_memo_id is not None and self.memo_editor.is_dirty():
-            self.memo_editor.save()
-
-        memo = self.memo_store.create("새 메모")
-        self.current_memo_id = memo.memo_id
-        self.memo_sidebar.refresh(select_id=memo.memo_id)
-        self.memo_editor.load(memo.title, memo.content)
-        self.memo_editor.title_input.selectAll()
-        self.memo_editor.title_input.setFocus()
-
-    def _load_memo(self, memo_id: str) -> None:
-        if (
-            self.current_memo_id is not None
-            and self.current_memo_id != memo_id
-            and self.memo_editor.is_dirty()
-        ):
-            self.memo_editor.save()
-
-        memo = self.memo_store.load(memo_id)
-        self.current_memo_id = memo.memo_id
-        self.memo_editor.load(memo.title, memo.content)
-        self.memo_sidebar.select_id(memo.memo_id)
-
-    def _save_memo(self, title: str, content: str) -> None:
-        if self.current_memo_id is None:
-            memo = self.memo_store.create(title, content)
-            self.current_memo_id = memo.memo_id
-        else:
-            memo = self.memo_store.save(self.current_memo_id, title, content)
-
-        self.memo_sidebar.refresh(select_id=memo.memo_id)
-        self.statusBar().showMessage("메모 저장", 1800)
-
-    def _delete_memo(self) -> None:
-        memo_id = self.memo_sidebar.selected_id() or self.current_memo_id
-        if memo_id is None:
-            return
-
-        memo = self.memo_store.load(memo_id)
-        dialog = DeleteConfirmDialog(
-            self,
-            memo.title,
-            item_name="메모",
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        self.memo_store.delete(memo_id)
-        self.current_memo_id = None
-        self.memo_sidebar.refresh()
-
-        next_id = self.memo_sidebar.first_id()
-        if next_id is None:
-            self.memo_editor.clear()
-        else:
-            self._load_memo(next_id)
-
-        self.statusBar().showMessage("메모 삭제", 1800)
-
-    def _new_terminal(self) -> None:
-        profiles = self.terminal_store.list_profiles()
-        default_name = f"터미널 {len(profiles) + 1}"
-        name, accepted = QInputDialog.getText(
-            self,
-            "새 터미널",
-            "이름",
-            text=default_name,
-        )
-        if not accepted:
-            return
-
-        profile = self.terminal_store.create(
-            name,
-            self.default_terminal_cwd,
-        )
-        self.terminal_panel.add_profile(profile)
-        self.current_terminal_id = profile.terminal_id
-        self.terminal_sidebar.set_profiles(
-            self.terminal_store.list_profiles(),
-            select_id=profile.terminal_id,
-        )
-        self.terminal_panel.select(profile.terminal_id)
-
-    def _new_ssh_terminal(self) -> None:
-        dialog = SshProfileDialog(self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        profile = self.terminal_store.create_ssh(
-            dialog.profile_name,
-            dialog.host,
-            dialog.port,
-            dialog.user,
-            self.default_terminal_cwd,
-        )
-        self.terminal_panel.add_profile(profile)
-        self.current_terminal_id = profile.terminal_id
-        self.terminal_sidebar.set_profiles(
-            self.terminal_store.list_profiles(),
-            select_id=profile.terminal_id,
-        )
-        self.terminal_panel.select(profile.terminal_id)
-
-    def _select_terminal(self, terminal_id: str) -> None:
-        try:
-            self.terminal_store.get(terminal_id)
-        except KeyError:
-            return
-
-        self.current_terminal_id = terminal_id
-        self.terminal_sidebar.select_id(terminal_id)
-        self.terminal_panel.select(terminal_id)
-
-    def _edit_terminal(self) -> None:
-        terminal_id = (
-            self.terminal_sidebar.selected_id()
-            or self.current_terminal_id
-        )
-        if terminal_id is None:
-            return
-
-        try:
-            profile = self.terminal_store.get(terminal_id)
-        except KeyError:
-            return
-
-        if profile.kind == TERMINAL_SSH:
-            dialog = SshProfileDialog(self, profile)
-            if dialog.exec() != QDialog.DialogCode.Accepted:
-                return
-            updated = self.terminal_store.update_ssh(
-                terminal_id,
-                name=dialog.profile_name,
-                host=dialog.host,
-                port=dialog.port,
-                user=dialog.user,
-            )
-            self.terminal_panel.set_profile(updated, restart=True)
-        else:
-            name, accepted = QInputDialog.getText(
-                self,
-                "터미널 이름 변경",
-                "이름",
-                text=profile.name,
-            )
-            if not accepted:
-                return
-            updated = self.terminal_store.rename(terminal_id, name)
-            self.terminal_panel.set_profile(updated)
-
-        self.terminal_sidebar.set_profiles(
-            self.terminal_store.list_profiles(),
-            select_id=terminal_id,
-        )
-
-    def _reorder_terminals(self, terminal_ids: list[str]) -> None:
-        self.terminal_store.reorder(terminal_ids)
-
-    def _delete_terminal(self) -> None:
-        terminal_id = (
-            self.terminal_sidebar.selected_id()
-            or self.current_terminal_id
-        )
-        if terminal_id is None:
-            return
-
-        try:
-            profile = self.terminal_store.get(terminal_id)
-        except KeyError:
-            return
-
-        dialog = DeleteConfirmDialog(
-            self,
-            profile.name,
-            item_name="터미널",
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        self.terminal_panel.remove(terminal_id)
-        self.terminal_store.delete(terminal_id)
-        self.current_terminal_id = None
-        self.terminal_sidebar.set_profiles(
-            self.terminal_store.list_profiles()
-        )
-
-        next_id = self.terminal_sidebar.first_id()
-        if next_id is not None:
-            self._select_terminal(next_id)
+            self.memo_workspace.activate()
+        elif index == 2:
+            self.terminal_workspace.activate()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.status_info.shutdown()
-        if self.current_memo_id is not None and self.memo_editor.is_dirty():
-            self.memo_editor.save()
-        self.terminal_panel.shutdown_all()
+        self.memo_workspace.save_if_dirty()
+        self.terminal_workspace.shutdown()
         super().closeEvent(event)
 
     def _build_menu(self) -> None:
@@ -601,7 +371,7 @@ class MainWindow(QMainWindow):
     def _apply_font_settings(self) -> None:
         self._apply_application_font()
         self.memo_editor.apply_font_settings()
-        self.terminal_panel.set_terminal_font(
+        self.terminal_workspace.set_font(
             self.settings.terminal_font_family,
             self.settings.terminal_font_size,
         )
