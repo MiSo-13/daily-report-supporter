@@ -282,13 +282,15 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 ## CPU / RAM 표시
 
-앱 하단 상태바 왼쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
+앱 하단 상태바 왼쪽에는 WorKing 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
 
 ```text
 CPU 3.2% · RAM 148 MB
 ```
 
 약 1.5초 간격으로 갱신합니다. 시스템 전체 CPU/RAM 사용량이 아니라 이 앱 프로세스가 현재 사용하는 양입니다.
+
+`설정 → CPU / RAM 표시`에서 표시 여부를 변경할 수 있습니다. 끄면 라벨을 숨기고 리소스 측정 타이머도 중지합니다. 설정값은 `reports/settings.json`에 저장됩니다.
 
 ## 전체 검색
 
