@@ -312,8 +312,7 @@ class TerminalDisplay(QPlainTextEdit):
                 self._reset_ansi_style()
             raw_text = raw_text[clear_index + clear_length:]
 
-        text = raw_text.replace("\x07", "")
-        text = text.replace("\r\n", "\n")
+        text = raw_text.replace("\r\n", "\n")
 
         scrollbar = self.verticalScrollBar()
         follow_tail = scrollbar.value() >= scrollbar.maximum() - 4
@@ -322,6 +321,7 @@ class TerminalDisplay(QPlainTextEdit):
             "\r" not in text
             and "\b" not in text
             and "\x1b" not in text
+            and "\x07" not in text
             and self._terminal_cursor.atEnd()
         ):
             self._write_printable(self._terminal_cursor, text)
@@ -373,6 +373,8 @@ class TerminalDisplay(QPlainTextEdit):
                     cursor.movePosition(
                         QTextCursor.MoveOperation.PreviousCharacter
                     )
+            elif char == "\x07":
+                flush()
             else:
                 buffer.append(char)
 
