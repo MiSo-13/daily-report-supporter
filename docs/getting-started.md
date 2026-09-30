@@ -125,6 +125,8 @@ Markdown:
 
 ## 7. 터미널
 
-왼쪽의 `터미널` 탭에서 여러 shell 세션을 만들 수 있습니다.
+왼쪽 `터미널` 탭에서 `+ 로컬` 또는 `+ SSH`를 선택합니다.
 
-`+ 새 터미널`을 눌러 이름을 지정하면 Windows는 `cmd.exe`, macOS/Linux/Crostini는 기본 shell을 시작합니다. 세션 이름은 앱을 다시 실행해도 유지됩니다.
+SSH는 이름, Host, Port, User만 저장합니다. 비밀번호는 저장하지 않으며 접속 후 터미널에 표시되는 SSH password prompt에 직접 입력합니다.
+
+로컬/SSH 모두 터미널 화면 자체에 바로 입력하며 Tab completion, Ctrl+C, 방향키를 사용할 수 있습니다.
