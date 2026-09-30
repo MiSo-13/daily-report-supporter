@@ -155,7 +155,7 @@ class UnixPtyBackend(TerminalBackend):
         try:
             while self._running:
                 try:
-                    chunk = os.read(fd, 4096)
+                    chunk = os.read(fd, 32768)
                 except OSError:
                     break
                 if not chunk:
@@ -262,7 +262,7 @@ class WindowsConPtyBackend(TerminalBackend):
         try:
             while self._running and process.isalive():
                 try:
-                    data = process.read(4096)
+                    data = process.read(32768)
                 except EOFError:
                     break
                 except Exception:
