@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_NAME = "DailyReportSupporter"
+APP_NAME = "WorKing"
 ROOT = Path(__file__).resolve().parent.parent
 ENTRYPOINT = ROOT / "main.py"
 CROSTINI_SETUP = ROOT / "scripts" / "setup_crostini.sh"
@@ -29,7 +29,7 @@ def build() -> None:
                 "--onedir",
                 "--windowed",
                 "--osx-bundle-identifier",
-                "com.miso.daily-report-supporter",
+                "com.miso.working",
             ]
         )
     elif sys.platform == "win32":
