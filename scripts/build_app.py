@@ -4,8 +4,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from app.app_meta import APP_NAME, BUNDLE_IDENTIFIER
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.app_meta import APP_NAME, BUNDLE_IDENTIFIER
 ENTRYPOINT = ROOT / "main.py"
 CROSTINI_SETUP = ROOT / "scripts" / "setup_crostini.sh"
 
