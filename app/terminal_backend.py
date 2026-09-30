@@ -95,7 +95,7 @@ class UnixPtyBackend(TerminalBackend):
             try:
                 os.chdir(self.cwd)
                 environment = os.environ.copy()
-                environment["TERM"] = "dumb"
+                environment["TERM"] = "xterm-256color"
                 os.execvpe(
                     self.program,
                     [self.program, *self.arguments],
@@ -203,6 +203,7 @@ class WindowsConPtyBackend(TerminalBackend):
             return
 
         environment = os.environ.copy()
+        environment.setdefault("TERM", "xterm-256color")
         try:
             self.process = PtyProcess.spawn(
                 [self.program, *self.arguments],
