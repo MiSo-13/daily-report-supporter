@@ -57,7 +57,7 @@ class TerminalSessionWidget(QWidget):
         hint.setObjectName("terminalHint")
 
         limit_hint = QLabel("⚠ 전체화면 TUI 미지원")
-        limit_hint.setObjectName("terminalHint")
+        limit_hint.setObjectName("terminalLimitHint")
         limit_hint.setToolTip(
             "WorKing 터미널은 로그 확인과 일반 CLI 명령에 최적화되어 있습니다.\n"
             "지원: grep, tail/tail -f, cat, sed, awk, git, journalctl 등\n"
