@@ -123,3 +123,28 @@ def test_legacy_terminal_profile_defaults_to_local(tmp_path) -> None:
     profile = TerminalStore(state_path).get("legacy")
 
     assert profile.kind == TERMINAL_LOCAL
+
+
+
+def test_terminal_order_is_persisted(tmp_path) -> None:
+    state_path = tmp_path / "terminal-sessions.json"
+    store = TerminalStore(state_path)
+    first = store.create("첫 번째", tmp_path)
+    second = store.create("두 번째", tmp_path)
+    third = store.create("세 번째", tmp_path)
+
+    store.reorder([
+        third.terminal_id,
+        first.terminal_id,
+        second.terminal_id,
+    ])
+
+    reloaded = TerminalStore(state_path)
+    assert [
+        profile.terminal_id
+        for profile in reloaded.list_profiles()
+    ] == [
+        third.terminal_id,
+        first.terminal_id,
+        second.terminal_id,
+    ]
