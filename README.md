@@ -349,7 +349,8 @@ reports/
   "today_section_title": "오늘 업무",
   "progress_report_title": "진행 업무",
   "planned_report_title": "예정 업무",
-  "input_method_mode": "system"
+  "input_method_mode": "system",
+  "workspace_tab_order": ["work", "memo", "terminal"]
 }
 ```
 
