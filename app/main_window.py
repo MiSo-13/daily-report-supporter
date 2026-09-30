@@ -44,8 +44,9 @@ from app.settings import (
     INPUT_METHOD_SYSTEM,
 )
 from app.task_editor import TaskEditor
+from app.terminal_dialogs import SshProfileDialog
 from app.terminal_store import TERMINAL_SSH, TerminalStore
-from app.terminal_ui import SshProfileDialog, TerminalPanel, TerminalSidebar
+from app.terminal_ui import TerminalPanel, TerminalSidebar
 from app.themes import THEMES, stylesheet_for, theme_names
 
 
