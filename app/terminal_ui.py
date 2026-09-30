@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import shutil
 
-from PyQt6.QtCore import QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QFontDatabase,
     QInputMethodEvent,
@@ -40,6 +40,12 @@ from app.terminal_store import (
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+CLEAR_SCREEN_MARKERS = (
+    "\x1b[2J",
+    "\x1b[3J",
+    "\x1bc",
+    "\x0c",
+)
 
 
 class SshProfileDialog(QDialog):
@@ -147,6 +153,7 @@ class TerminalDisplay(QPlainTextEdit):
         )
         self.document().setMaximumBlockCount(self.MAX_BLOCKS)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setTabChangesFocus(False)
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
@@ -161,6 +168,18 @@ class TerminalDisplay(QPlainTextEdit):
         self._flush_timer.setSingleShot(True)
         self._flush_timer.setInterval(self.FLUSH_INTERVAL_MS)
         self._flush_timer.timeout.connect(self._flush_pending)
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):
+            if event.key() == Qt.Key.Key_Tab:
+                self.input_ready.emit("\t")
+                event.accept()
+                return True
+            if event.key() == Qt.Key.Key_Backtab:
+                self.input_ready.emit("\x1b[Z")
+                event.accept()
+                return True
+        return super().event(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         modifiers = event.modifiers()
@@ -320,6 +339,18 @@ class TerminalDisplay(QPlainTextEdit):
             self._flush_timer.start()
 
     def _render_terminal_text(self, raw_text: str) -> None:
+        clear_index = -1
+        clear_length = 0
+        for marker in CLEAR_SCREEN_MARKERS:
+            index = raw_text.rfind(marker)
+            if index > clear_index:
+                clear_index = index
+                clear_length = len(marker)
+
+        if clear_index >= 0:
+            self.clear()
+            raw_text = raw_text[clear_index + clear_length:]
+
         text = ANSI_ESCAPE_RE.sub("", raw_text).replace("\x07", "")
         text = text.replace("\r\n", "\n")
 
