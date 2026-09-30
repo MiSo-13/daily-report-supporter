@@ -191,7 +191,7 @@ ubuntu@example.com's password:
 터미널 화면을 클릭한 뒤 바로 입력합니다. 이전의 별도 명령어 입력창은 사용하지 않습니다.
 
 - `Enter`: 현재 명령 실행
-- `Tab`: shell Tab completion
+- `Tab`: Qt 포커스 이동을 막고 PTY/ConPTY로 직접 전달해 shell Tab completion 실행
 - `↑ / ↓ / ← / →`: shell에 방향키 전달
 - `Ctrl+C`: foreground 명령 중단
 - `Ctrl+D`: EOF
@@ -200,6 +200,7 @@ ubuntu@example.com's password:
 - `중지`: Ctrl+C와 동일
 - `재시작`: 현재 shell/SSH 연결 재시작
 - `지우기`: 출력 화면만 비우기
+- `clear` / Windows `cls`: shell의 clear-screen 출력을 인식해 화면 초기화
 
 따라서 shell에 Docker completion이 설치되어 있다면 다음처럼 원래 shell의 자동완성을 사용할 수 있습니다.
 
@@ -256,13 +257,27 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 ## CPU / RAM 표시
 
-앱 상단 오른쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
+앱 하단 상태바 오른쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
 
 ```text
 CPU 3.2% · RAM 148 MB
 ```
 
 약 1.5초 간격으로 갱신합니다. 시스템 전체 CPU/RAM 사용량이 아니라 이 앱 프로세스가 현재 사용하는 양입니다.
+
+## 워크스페이스 탭 순서 변경
+
+왼쪽의 `업무 / 메모 / 터미널` 탭을 마우스로 드래그해 순서를 변경할 수 있습니다.
+
+예:
+
+```text
+업무 | 메모 | 터미널
+↓
+업무 | 터미널 | 메모
+```
+
+탭 순서는 자동 저장되어 앱을 다시 실행해도 유지됩니다. 탭 순서와 무관하게 오른쪽 콘텐츠는 선택한 업무/메모/터미널에 맞춰 표시됩니다.
 
 ## 전체 검색
 
