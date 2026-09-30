@@ -107,7 +107,11 @@ class FontSettingsDialog(QDialog):
         self.setMinimumWidth(520)
 
         families = sorted(
-            QFontDatabase.families(),
+            (
+                family
+                for family in QFontDatabase.families()
+                if not QFontDatabase.isPrivateFamily(family)
+            ),
             key=lambda value: value.casefold(),
         )
         fixed_families = [
