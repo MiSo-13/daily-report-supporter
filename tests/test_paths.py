@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 
 from app import paths
+from app.app_meta import LEGACY_DATA_DIR_NAME
+from app.runtime_paths import resolve_runtime_paths
 
 
 def test_source_build_uses_repository_reports() -> None:
@@ -64,3 +66,36 @@ def test_source_terminal_starts_in_repository() -> None:
 
 def test_frozen_terminal_starts_in_home(tmp_path) -> None:
     assert paths.default_terminal_cwd(frozen=True, home=tmp_path) == tmp_path
+
+
+
+def test_runtime_paths_derive_sibling_data_from_explicit_reports_root(
+    tmp_path,
+) -> None:
+    reports_root = tmp_path / "reports"
+
+    resolved = resolve_runtime_paths(reports_root=reports_root)
+
+    assert resolved.reports_root == reports_root
+    assert resolved.memos_root == tmp_path / "memos"
+    assert resolved.terminal_state_path == tmp_path / "terminal-sessions.json"
+    assert resolved.terminal_cwd == tmp_path
+
+
+def test_runtime_paths_respect_explicit_overrides(tmp_path) -> None:
+    resolved = resolve_runtime_paths(
+        reports_root=tmp_path / "custom-reports",
+        memos_root=tmp_path / "custom-memos",
+        terminal_state_path=tmp_path / "custom-terminal.json",
+        terminal_cwd=tmp_path / "workspace",
+    )
+
+    assert resolved.reports_root == tmp_path / "custom-reports"
+    assert resolved.memos_root == tmp_path / "custom-memos"
+    assert resolved.terminal_state_path == tmp_path / "custom-terminal.json"
+    assert resolved.terminal_cwd == tmp_path / "workspace"
+
+
+def test_legacy_data_directory_name_is_centralized() -> None:
+    assert paths.APP_DIR_NAME == LEGACY_DATA_DIR_NAME
+    assert LEGACY_DATA_DIR_NAME == "DailyReportSupporter"

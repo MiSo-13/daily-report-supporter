@@ -6,6 +6,7 @@
 2. [사용 가이드](./user-guide.md)
 3. [설정 가이드](./settings.md)
 4. [빌드/배포](./building.md)
+5. [코드 구조](./architecture.md)
 
 ## 문서별 내용
 
@@ -24,3 +25,8 @@
 ### 빌드/배포
 
 PyInstaller 빌드, GitHub Actions, Release 실행파일 배포 방법을 설명합니다.
+
+
+### 코드 구조
+
+WorKing의 주요 모듈 책임과 기능을 추가할 위치를 설명합니다.

@@ -3,8 +3,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Keep the legacy directory name so existing WorKing users keep their data.
-APP_DIR_NAME = "DailyReportSupporter"
+from app.app_meta import LEGACY_DATA_DIR_NAME
+
+APP_DIR_NAME = LEGACY_DATA_DIR_NAME
 
 
 def source_root() -> Path:
