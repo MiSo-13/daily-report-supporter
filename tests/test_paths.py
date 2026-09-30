@@ -41,3 +41,26 @@ def test_frozen_build_uses_home_memos_directory(tmp_path) -> None:
         paths.default_memos_root(frozen=True, home=tmp_path)
         == tmp_path / "DailyReportSupporter" / "memos"
     )
+
+
+
+def test_source_build_uses_repository_terminal_state() -> None:
+    assert (
+        paths.default_terminal_state_path(frozen=False)
+        == paths.source_root() / "terminal-sessions.json"
+    )
+
+
+def test_frozen_build_uses_home_terminal_state(tmp_path) -> None:
+    assert (
+        paths.default_terminal_state_path(frozen=True, home=tmp_path)
+        == tmp_path / "DailyReportSupporter" / "terminal-sessions.json"
+    )
+
+
+def test_source_terminal_starts_in_repository() -> None:
+    assert paths.default_terminal_cwd(frozen=False) == paths.source_root()
+
+
+def test_frozen_terminal_starts_in_home(tmp_path) -> None:
+    assert paths.default_terminal_cwd(frozen=True, home=tmp_path) == tmp_path
