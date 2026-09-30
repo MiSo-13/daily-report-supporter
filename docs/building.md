@@ -149,3 +149,8 @@ Linux 실행파일은 시스템의 glibc 버전에 영향을 받습니다. 배�
 Windows 터미널은 ConPTY를 위해 `pywinpty==3.0.5`를 사용합니다. `requirements.txt`의 platform marker로 Windows에서만 설치됩니다.
 
 PyInstaller Windows 빌드는 `winpty`의 native binary를 포함하기 위해 `--collect-all winpty`를 사용합니다.
+
+
+## 터미널 렌더러
+
+터미널 화면은 `termqt==1.1`을 사용합니다. PyInstaller 빌드에서는 동적 platform 모듈을 포함하기 위해 `--collect-all termqt`를 적용합니다.
