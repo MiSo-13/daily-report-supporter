@@ -130,7 +130,8 @@ class MainWindow(QMainWindow):
         self.month_combo.currentIndexChanged.connect(self._reload_date_list)
         self.date_list.itemSelectionChanged.connect(self._date_selected)
 
-        work_nav = QWidget()
+        self.work_nav = QWidget()
+        work_nav = self.work_nav
         work_nav_layout = QVBoxLayout(work_nav)
         work_nav_layout.setContentsMargins(10, 10, 10, 10)
         work_nav_layout.setSpacing(8)
@@ -165,7 +166,8 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.today_button)
         toolbar.addWidget(self.report_button)
 
-        work_content = QWidget()
+        self.work_content = QWidget()
+        work_content = self.work_content
         work_content_layout = QVBoxLayout(work_content)
         work_content_layout.setContentsMargins(12, 12, 12, 12)
         work_content_layout.setSpacing(10)
@@ -193,16 +195,43 @@ class MainWindow(QMainWindow):
             self.terminal_panel.add_profile(profile)
         self.terminal_sidebar.set_profiles(terminal_profiles)
 
+        self._workspace_pages = {
+            "work": work_nav,
+            "memo": self.memo_sidebar,
+            "terminal": self.terminal_sidebar,
+        }
+        self._workspace_labels = {
+            "work": "업무",
+            "memo": "메모",
+            "terminal": "터미널",
+        }
+        self._workspace_contents = {
+            "work": work_content,
+            "memo": self.memo_editor,
+            "terminal": self.terminal_panel,
+        }
+        for key, page in self._workspace_pages.items():
+            page.setProperty("workspaceKey", key)
+
         self.workspace_tabs = QTabWidget()
-        self.workspace_tabs.addTab(work_nav, "업무")
-        self.workspace_tabs.addTab(self.memo_sidebar, "메모")
-        self.workspace_tabs.addTab(self.terminal_sidebar, "터미널")
-        self.workspace_tabs.currentChanged.connect(self._workspace_changed)
+        self.workspace_tabs.tabBar().setMovable(True)
+        for key in self.settings.workspace_tab_order:
+            self.workspace_tabs.addTab(
+                self._workspace_pages[key],
+                self._workspace_labels[key],
+            )
 
         self.content_stack = QStackedWidget()
         self.content_stack.addWidget(work_content)
         self.content_stack.addWidget(self.memo_editor)
         self.content_stack.addWidget(self.terminal_panel)
+
+        self.workspace_tabs.currentChanged.connect(self._workspace_changed)
+        self.workspace_tabs.tabBar().tabMoved.connect(
+            self._workspace_tab_moved
+        )
+        self.workspace_tabs.setCurrentWidget(work_nav)
+        self.content_stack.setCurrentWidget(work_content)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(6)
@@ -210,25 +239,17 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.content_stack)
         splitter.setSizes([280, 900])
 
+        central = QWidget()
+        central_layout = QHBoxLayout(central)
+        central_layout.setContentsMargins(10, 10, 10, 10)
+        central_layout.addWidget(splitter)
+        self.setCentralWidget(central)
+
         self.resource_label = QLabel("CPU --  ·  RAM --")
         self.resource_label.setObjectName("resourceMonitor")
         self.resource_label.setToolTip(
             "Daily Report Supporter 프로세스의 CPU / 메모리 사용량"
         )
-
-        resource_row = QHBoxLayout()
-        resource_row.setContentsMargins(0, 0, 0, 0)
-        resource_row.addStretch(1)
-        resource_row.addWidget(self.resource_label)
-
-        central = QWidget()
-        central_layout = QVBoxLayout(central)
-        central_layout.setContentsMargins(10, 8, 10, 10)
-        central_layout.setSpacing(6)
-        central_layout.addLayout(resource_row)
-        central_layout.addWidget(splitter, 1)
-        self.setCentralWidget(central)
-
         self.resource_monitor = ProcessResourceMonitor(self)
         self.resource_monitor.updated.connect(self.resource_label.setText)
         self.resource_monitor.start()
@@ -239,6 +260,7 @@ class MainWindow(QMainWindow):
 
         self.brand_label = QLabel("made by MiSo")
         self.statusBar().addPermanentWidget(self.brand_label)
+        self.statusBar().addPermanentWidget(self.resource_label)
 
         self.open_today()
 
@@ -252,24 +274,32 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_action)
 
     def save_current(self) -> None:
-        workspace_index = self.workspace_tabs.currentIndex()
-        if workspace_index == 1:
+        workspace = self.workspace_tabs.currentWidget()
+        if workspace is self.memo_sidebar:
             self.memo_editor.save()
             return
-        if workspace_index == 2:
+        if workspace is self.terminal_sidebar:
             return
 
         self.today_editor.save_current()
         self.statusBar().showMessage("저장 완료", 1800)
 
     def _workspace_changed(self, index: int) -> None:
-        if index != 1 and self.current_memo_id is not None:
+        page = self.workspace_tabs.widget(index)
+        if page is None:
+            return
+
+        key = page.property("workspaceKey")
+        if not isinstance(key, str) or key not in self._workspace_contents:
+            return
+
+        if page is not self.memo_sidebar and self.current_memo_id is not None:
             if self.memo_editor.is_dirty():
                 self.memo_editor.save()
 
-        self.content_stack.setCurrentIndex(index)
+        self.content_stack.setCurrentWidget(self._workspace_contents[key])
 
-        if index == 1:
+        if page is self.memo_sidebar:
             if self.current_memo_id is not None:
                 return
 
@@ -280,7 +310,7 @@ class MainWindow(QMainWindow):
                 self.memo_editor.clear()
             return
 
-        if index == 2:
+        if page is self.terminal_sidebar:
             if self.current_terminal_id is not None:
                 self.terminal_panel.select(self.current_terminal_id)
                 return
@@ -290,6 +320,18 @@ class MainWindow(QMainWindow):
                 self._select_terminal(terminal_id)
             else:
                 self._new_terminal()
+
+    def _workspace_tab_moved(self, _from: int, _to: int) -> None:
+        order: list[str] = []
+        for index in range(self.workspace_tabs.count()):
+            page = self.workspace_tabs.widget(index)
+            if page is None:
+                continue
+            key = page.property("workspaceKey")
+            if isinstance(key, str):
+                order.append(key)
+
+        self.settings.workspace_tab_order = order
 
     def _new_memo(self) -> None:
         if self.current_memo_id is not None and self.memo_editor.is_dirty():
