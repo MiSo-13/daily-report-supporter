@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
         terminal_cwd: Path | str | None = None,
     ) -> None:
         super().__init__()
-        self.setWindowTitle("Daily Report Supporter")
+        self.setWindowTitle("WorKing")
         self.resize(1180, 760)
         self._default_application_font = QFont(QApplication.font())
 
@@ -231,19 +231,29 @@ class MainWindow(QMainWindow):
         self.resource_label = QLabel("CPU --  ·  RAM --")
         self.resource_label.setObjectName("resourceMonitor")
         self.resource_label.setToolTip(
-            "Daily Report Supporter 프로세스의 CPU / 메모리 사용량"
+            "WorKing 프로세스의 CPU / 메모리 사용량"
         )
         self.resource_monitor = ProcessResourceMonitor(self)
         self.resource_monitor.updated.connect(self.resource_label.setText)
-        self.resource_monitor.start()
+        self.resource_label.setVisible(self.settings.show_resource_usage)
+        if self.settings.show_resource_usage:
+            self.resource_monitor.start()
 
         self._build_shortcuts()
         self._build_menu()
         self._apply_theme_now(self.settings.theme, persist=False)
 
         self.brand_label = QLabel("made by MiSo")
-        self.statusBar().addWidget(self.resource_label)
-        self.statusBar().addPermanentWidget(self.brand_label)
+
+        self.status_info = QWidget()
+        status_info_layout = QHBoxLayout(self.status_info)
+        status_info_layout.setContentsMargins(0, 0, 0, 0)
+        status_info_layout.setSpacing(8)
+        status_info_layout.addWidget(self.resource_label)
+        status_info_layout.addStretch(1)
+        status_info_layout.addWidget(self.brand_label)
+
+        self.statusBar().addPermanentWidget(self.status_info, 1)
 
         self.open_today()
 
@@ -505,6 +515,14 @@ class MainWindow(QMainWindow):
         font_action.triggered.connect(self.open_font_settings)
         settings_menu.addAction(font_action)
 
+        resource_action = QAction("CPU / RAM 표시", self)
+        resource_action.setCheckable(True)
+        resource_action.setChecked(self.settings.show_resource_usage)
+        resource_action.triggered.connect(
+            self.request_resource_usage_visibility
+        )
+        settings_menu.addAction(resource_action)
+
         input_menu = settings_menu.addMenu("입력기 호환 모드")
         input_group = QActionGroup(self)
         input_group.setExclusive(True)
@@ -541,6 +559,24 @@ class MainWindow(QMainWindow):
             group.addAction(action)
             self.theme_menu.addAction(action)
             self._theme_actions[name] = action
+
+    def request_resource_usage_visibility(
+        self,
+        visible: bool,
+    ) -> None:
+        self.settings.show_resource_usage = visible
+        self.resource_label.setVisible(visible)
+
+        if visible:
+            self.resource_monitor.start()
+        else:
+            self.resource_monitor.stop()
+
+        state = "표시" if visible else "숨김"
+        self.statusBar().showMessage(
+            f"CPU / RAM 사용량 {state}",
+            1800,
+        )
 
     def request_input_method_mode(self, mode: str) -> None:
         self.settings.input_method_mode = mode
@@ -838,6 +874,9 @@ class MainWindow(QMainWindow):
 
 def run() -> int:
     app = QApplication([])
+    app.setApplicationName("WorKing")
+    app.setApplicationDisplayName("WorKing")
+    app.setOrganizationName("MiSo")
     app.setStyle("Fusion")
     window = MainWindow()
     window.show()
