@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
