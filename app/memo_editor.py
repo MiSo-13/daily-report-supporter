@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
     QFont,
     QFontDatabase,
+    QFontMetricsF,
     QKeyEvent,
     QKeySequence,
     QTextBlockFormat,
@@ -320,6 +321,12 @@ class MemoEditor(QWidget):
 
         self.title_input.textChanged.connect(self._changed)
         self.markdown_input.textChanged.connect(self._changed)
+        self.apply_font_settings()
+
+    def apply_font_settings(self) -> None:
+        metrics = QFontMetricsF(self.markdown_input.font())
+        tab_width = metrics.horizontalAdvance(" ") * 4
+        self.markdown_input.setTabStopDistance(max(tab_width, 1.0))
 
     def load(self, title: str, content: str) -> None:
         self._loading = True
