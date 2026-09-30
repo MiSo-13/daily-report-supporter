@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import locale
 import os
 from pathlib import Path
 import shutil
 import signal
+import struct
 import sys
 import threading
 
@@ -26,18 +26,40 @@ def resolve_shell() -> tuple[str, list[str]]:
     return shutil.which("sh") or "/bin/sh", []
 
 
+def resolve_ssh_command(
+    *,
+    host: str,
+    port: int,
+    user: str,
+) -> tuple[str, list[str]]:
+    program = shutil.which("ssh") or "ssh"
+    return program, ["-p", str(port), f"{user}@{host}"]
+
+
 class TerminalBackend(QObject):
-    output = pyqtSignal(str)
+    output = pyqtSignal(bytes)
     exited = pyqtSignal()
     failed = pyqtSignal(str)
 
-    def __init__(self, cwd: Path | str) -> None:
+    def __init__(
+        self,
+        cwd: Path | str,
+        *,
+        program: str | None = None,
+        arguments: list[str] | None = None,
+    ) -> None:
         super().__init__()
         self.cwd = Path(cwd).expanduser()
         if not self.cwd.is_dir():
             self.cwd = Path.home()
-        self.program, self.arguments = resolve_shell()
-        self.encoding = locale.getpreferredencoding(False) or "utf-8"
+
+        default_program, default_arguments = resolve_shell()
+        self.program = program or default_program
+        self.arguments = (
+            list(arguments)
+            if arguments is not None
+            else default_arguments
+        )
 
     def start(self) -> None:
         raise NotImplementedError
@@ -45,23 +67,32 @@ class TerminalBackend(QObject):
     def is_running(self) -> bool:
         raise NotImplementedError
 
-    def write(self, text: str) -> None:
+    def write(self, data: bytes) -> None:
         raise NotImplementedError
 
-    def write_line(self, text: str) -> None:
-        suffix = "\r\n" if sys.platform == "win32" else "\n"
-        self.write(text + suffix)
-
     def interrupt(self) -> None:
-        self.write("\x03")
+        self.write(b"\x03")
+
+    def resize(self, rows: int, cols: int) -> None:
+        raise NotImplementedError
 
     def close(self) -> None:
         raise NotImplementedError
 
 
 class UnixPtyBackend(TerminalBackend):
-    def __init__(self, cwd: Path | str) -> None:
-        super().__init__(cwd)
+    def __init__(
+        self,
+        cwd: Path | str,
+        *,
+        program: str | None = None,
+        arguments: list[str] | None = None,
+    ) -> None:
+        super().__init__(
+            cwd,
+            program=program,
+            arguments=arguments,
+        )
         self.pid: int | None = None
         self.master_fd: int | None = None
         self._running = False
@@ -83,7 +114,7 @@ class UnixPtyBackend(TerminalBackend):
             try:
                 os.chdir(self.cwd)
                 environment = os.environ.copy()
-                environment["TERM"] = "dumb"
+                environment["TERM"] = "xterm-256color"
                 os.execvpe(
                     self.program,
                     [self.program, *self.arguments],
@@ -105,16 +136,36 @@ class UnixPtyBackend(TerminalBackend):
     def is_running(self) -> bool:
         return self._running
 
-    def write(self, text: str) -> None:
+    def write(self, data: bytes) -> None:
         if not self._running or self.master_fd is None:
             return
         try:
-            os.write(
-                self.master_fd,
-                text.encode(self.encoding, errors="replace"),
-            )
+            os.write(self.master_fd, data)
         except OSError:
             self._running = False
+
+    def resize(self, rows: int, cols: int) -> None:
+        if not self._running or self.master_fd is None:
+            return
+
+        try:
+            import fcntl
+            import termios
+
+            size = struct.pack(
+                "HHHH",
+                max(1, rows),
+                max(1, cols),
+                0,
+                0,
+            )
+            fcntl.ioctl(
+                self.master_fd,
+                termios.TIOCSWINSZ,
+                size,
+            )
+        except (ImportError, OSError):
+            return
 
     def close(self) -> None:
         if not self._running:
@@ -148,9 +199,7 @@ class UnixPtyBackend(TerminalBackend):
                     break
                 if not chunk:
                     break
-                self.output.emit(
-                    chunk.decode(self.encoding, errors="replace")
-                )
+                self.output.emit(chunk)
         finally:
             was_running = self._running
             self._running = False
@@ -168,8 +217,18 @@ class UnixPtyBackend(TerminalBackend):
 
 
 class WindowsConPtyBackend(TerminalBackend):
-    def __init__(self, cwd: Path | str) -> None:
-        super().__init__(cwd)
+    def __init__(
+        self,
+        cwd: Path | str,
+        *,
+        program: str | None = None,
+        arguments: list[str] | None = None,
+    ) -> None:
+        super().__init__(
+            cwd,
+            program=program,
+            arguments=arguments,
+        )
         self.process = None
         self._running = False
         self._reader: threading.Thread | None = None
@@ -214,13 +273,26 @@ class WindowsConPtyBackend(TerminalBackend):
             and process.isalive()
         )
 
-    def write(self, text: str) -> None:
+    def write(self, data: bytes) -> None:
         if not self.is_running():
             return
         try:
-            self.process.write(text)
+            self.process.write(
+                data.decode("utf-8", errors="replace")
+            )
         except Exception:
             self._running = False
+
+    def resize(self, rows: int, cols: int) -> None:
+        if not self.is_running():
+            return
+        try:
+            self.process.setwinsize(
+                max(1, rows),
+                max(1, cols),
+            )
+        except Exception:
+            return
 
     def close(self) -> None:
         process = self.process
@@ -252,7 +324,12 @@ class WindowsConPtyBackend(TerminalBackend):
                 except Exception:
                     break
                 if data:
-                    self.output.emit(str(data))
+                    self.output.emit(
+                        str(data).encode(
+                            "utf-8",
+                            errors="replace",
+                        )
+                    )
         finally:
             was_running = self._running
             self._running = False
@@ -260,7 +337,19 @@ class WindowsConPtyBackend(TerminalBackend):
                 self.exited.emit()
 
 
-def create_terminal_backend(cwd: Path | str) -> TerminalBackend:
-    if sys.platform == "win32":
-        return WindowsConPtyBackend(cwd)
-    return UnixPtyBackend(cwd)
+def create_terminal_backend(
+    cwd: Path | str,
+    *,
+    program: str | None = None,
+    arguments: list[str] | None = None,
+) -> TerminalBackend:
+    backend_type = (
+        WindowsConPtyBackend
+        if sys.platform == "win32"
+        else UnixPtyBackend
+    )
+    return backend_type(
+        cwd,
+        program=program,
+        arguments=arguments,
+    )
