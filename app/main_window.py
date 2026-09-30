@@ -189,49 +189,23 @@ class MainWindow(QMainWindow):
             self._new_ssh_terminal,
             self._edit_terminal,
             self._delete_terminal,
+            self._reorder_terminals,
         )
         terminal_profiles = self.terminal_store.list_profiles()
         for profile in terminal_profiles:
             self.terminal_panel.add_profile(profile)
         self.terminal_sidebar.set_profiles(terminal_profiles)
 
-        self._workspace_pages = {
-            "work": work_nav,
-            "memo": self.memo_sidebar,
-            "terminal": self.terminal_sidebar,
-        }
-        self._workspace_labels = {
-            "work": "업무",
-            "memo": "메모",
-            "terminal": "터미널",
-        }
-        self._workspace_contents = {
-            "work": work_content,
-            "memo": self.memo_editor,
-            "terminal": self.terminal_panel,
-        }
-        for key, page in self._workspace_pages.items():
-            page.setProperty("workspaceKey", key)
-
         self.workspace_tabs = QTabWidget()
-        self.workspace_tabs.tabBar().setMovable(True)
-        for key in self.settings.workspace_tab_order:
-            self.workspace_tabs.addTab(
-                self._workspace_pages[key],
-                self._workspace_labels[key],
-            )
+        self.workspace_tabs.addTab(work_nav, "업무")
+        self.workspace_tabs.addTab(self.memo_sidebar, "메모")
+        self.workspace_tabs.addTab(self.terminal_sidebar, "터미널")
+        self.workspace_tabs.currentChanged.connect(self._workspace_changed)
 
         self.content_stack = QStackedWidget()
         self.content_stack.addWidget(work_content)
         self.content_stack.addWidget(self.memo_editor)
         self.content_stack.addWidget(self.terminal_panel)
-
-        self.workspace_tabs.currentChanged.connect(self._workspace_changed)
-        self.workspace_tabs.tabBar().tabMoved.connect(
-            self._workspace_tab_moved
-        )
-        self.workspace_tabs.setCurrentWidget(work_nav)
-        self.content_stack.setCurrentWidget(work_content)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(6)
@@ -274,32 +248,24 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_action)
 
     def save_current(self) -> None:
-        workspace = self.workspace_tabs.currentWidget()
-        if workspace is self.memo_sidebar:
+        workspace_index = self.workspace_tabs.currentIndex()
+        if workspace_index == 1:
             self.memo_editor.save()
             return
-        if workspace is self.terminal_sidebar:
+        if workspace_index == 2:
             return
 
         self.today_editor.save_current()
         self.statusBar().showMessage("저장 완료", 1800)
 
     def _workspace_changed(self, index: int) -> None:
-        page = self.workspace_tabs.widget(index)
-        if page is None:
-            return
-
-        key = page.property("workspaceKey")
-        if not isinstance(key, str) or key not in self._workspace_contents:
-            return
-
-        if page is not self.memo_sidebar and self.current_memo_id is not None:
+        if index != 1 and self.current_memo_id is not None:
             if self.memo_editor.is_dirty():
                 self.memo_editor.save()
 
-        self.content_stack.setCurrentWidget(self._workspace_contents[key])
+        self.content_stack.setCurrentIndex(index)
 
-        if page is self.memo_sidebar:
+        if index == 1:
             if self.current_memo_id is not None:
                 return
 
@@ -310,7 +276,7 @@ class MainWindow(QMainWindow):
                 self.memo_editor.clear()
             return
 
-        if page is self.terminal_sidebar:
+        if index == 2:
             if self.current_terminal_id is not None:
                 self.terminal_panel.select(self.current_terminal_id)
                 return
@@ -320,18 +286,6 @@ class MainWindow(QMainWindow):
                 self._select_terminal(terminal_id)
             else:
                 self._new_terminal()
-
-    def _workspace_tab_moved(self, _from: int, _to: int) -> None:
-        order: list[str] = []
-        for index in range(self.workspace_tabs.count()):
-            page = self.workspace_tabs.widget(index)
-            if page is None:
-                continue
-            key = page.property("workspaceKey")
-            if isinstance(key, str):
-                order.append(key)
-
-        self.settings.workspace_tab_order = order
 
     def _new_memo(self) -> None:
         if self.current_memo_id is not None and self.memo_editor.is_dirty():
@@ -488,6 +442,9 @@ class MainWindow(QMainWindow):
             self.terminal_store.list_profiles(),
             select_id=terminal_id,
         )
+
+    def _reorder_terminals(self, terminal_ids: list[str]) -> None:
+        self.terminal_store.reorder(terminal_ids)
 
     def _delete_terminal(self) -> None:
         terminal_id = (
