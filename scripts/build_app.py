@@ -33,7 +33,14 @@ def build() -> None:
             ]
         )
     elif sys.platform == "win32":
-        args.extend(["--onefile", "--windowed"])
+        args.extend(
+            [
+                "--onefile",
+                "--windowed",
+                "--collect-all",
+                "winpty",
+            ]
+        )
     else:
         args.append("--onefile")
 

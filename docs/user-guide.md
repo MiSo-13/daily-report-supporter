@@ -162,13 +162,30 @@ memos/<memo-id>.md
 
 명령어를 입력하고 Enter를 누르면 실행합니다. 위/아래 방향키로 현재 세션의 명령 히스토리를 이동할 수 있습니다.
 
-`재시작`은 현재 shell을 다시 시작하고, `지우기`는 출력 영역만 비웁니다.
+- `Ctrl+C`: 현재 foreground 명령 중단
+- `중지`: `Ctrl+C`와 동일
+- `Ctrl+Shift+C`: 선택한 터미널 출력 복사
+- `재시작`: 현재 shell 재시작
+- `지우기`: 출력 영역만 비우기
+
+예를 들어 아래처럼 계속 실행되는 명령의 출력도 받을 수 있습니다.
+
+```bash
+docker logs -f <container>
+```
+
+필요할 때 `Ctrl+C`로 로그 follow만 중단하고 shell 세션은 계속 사용할 수 있습니다.
+
+### PTY / ConPTY
+
+- Linux/macOS/Crostini: 운영체제 PTY 사용
+- Windows: ConPTY를 제공하는 `pywinpty` 사용
 
 ### 제한
 
-현재 구현은 PyQt `QProcess` 기반입니다. 일반적인 shell 명령과 `cd` 같은 built-in 명령은 같은 세션에서 상태가 유지됩니다.
+현재 구현은 실제 PTY/ConPTY를 사용하므로 streaming 명령과 terminal interrupt를 지원합니다.
 
-다만 PTY/ConPTY 기반의 완전한 터미널 에뮬레이터는 아니므로 `vim`, `top`, 대화형 `ssh`처럼 실제 TTY 제어가 필요한 프로그램은 정상 동작하지 않을 수 있습니다.
+다만 출력 영역은 ANSI 커서 이동을 완전히 해석하는 터미널 에뮬레이터는 아닙니다. `vim`, `top`, `htop` 같은 전체 화면 프로그램은 실행되더라도 화면 표현이 제한될 수 있습니다.
 
 ## 전체 검색
 
