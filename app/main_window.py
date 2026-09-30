@@ -130,8 +130,7 @@ class MainWindow(QMainWindow):
         self.month_combo.currentIndexChanged.connect(self._reload_date_list)
         self.date_list.itemSelectionChanged.connect(self._date_selected)
 
-        self.work_nav = QWidget()
-        work_nav = self.work_nav
+        work_nav = QWidget()
         work_nav_layout = QVBoxLayout(work_nav)
         work_nav_layout.setContentsMargins(10, 10, 10, 10)
         work_nav_layout.setSpacing(8)
@@ -166,8 +165,7 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.today_button)
         toolbar.addWidget(self.report_button)
 
-        self.work_content = QWidget()
-        work_content = self.work_content
+        work_content = QWidget()
         work_content_layout = QVBoxLayout(work_content)
         work_content_layout.setContentsMargins(12, 12, 12, 12)
         work_content_layout.setSpacing(10)
