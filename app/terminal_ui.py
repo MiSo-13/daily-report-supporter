@@ -154,7 +154,8 @@ class TerminalDisplay(QPlainTextEdit):
 
         self._pending_output: deque[str] = deque()
         self._pending_chars = 0
-        self._dropped_output = False
+        self._overloaded = False
+        self._drop_notice_pending = False
 
         self._flush_timer = QTimer(self)
         self._flush_timer.setInterval(self.FLUSH_INTERVAL_MS)
@@ -256,7 +257,9 @@ class TerminalDisplay(QPlainTextEdit):
         while self._pending_chars > limit and self._pending_output:
             dropped = self._pending_output.popleft()
             self._pending_chars -= len(dropped)
-            self._dropped_output = True
+            if not self._overloaded:
+                self._overloaded = True
+                self._drop_notice_pending = True
 
     def flush_pending(self) -> None:
         self._flush_pending(force=True)
@@ -264,7 +267,8 @@ class TerminalDisplay(QPlainTextEdit):
     def clear_terminal(self) -> None:
         self._pending_output.clear()
         self._pending_chars = 0
-        self._dropped_output = False
+        self._overloaded = False
+        self._drop_notice_pending = False
         self.clear()
 
     def _flush_pending(self, force: bool = False) -> None:
@@ -296,12 +300,15 @@ class TerminalDisplay(QPlainTextEdit):
             used += remaining
             break
 
-        if self._dropped_output:
+        if self._drop_notice_pending:
             parts.insert(
                 0,
                 "\n[출력량이 많아 오래된 터미널 로그 일부를 생략했습니다.]\n",
             )
-            self._dropped_output = False
+            self._drop_notice_pending = False
+
+        if self._overloaded and self._pending_chars < self.MAX_PENDING_CHARS // 2:
+            self._overloaded = False
 
         if parts:
             self._render_terminal_text("".join(parts))
