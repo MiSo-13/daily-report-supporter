@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from PyQt6.QtCore import QDate
-from PyQt6.QtGui import QFont, QFontDatabase, QGuiApplication
+from PyQt6.QtGui import QFontDatabase, QGuiApplication
 from PyQt6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -214,7 +214,9 @@ class FontSettingsDialog(QDialog):
         self._update_preview()
 
     def _update_preview(self, *_args: object) -> None:
-        app_font = QFont(self.font())
+        app_font = QFontDatabase.systemFont(
+            QFontDatabase.SystemFont.GeneralFont
+        )
         if self.font_family:
             app_font.setFamily(self.font_family)
         app_font.setPointSize(self.font_size)
