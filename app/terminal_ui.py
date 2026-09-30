@@ -3,16 +3,20 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 import re
+import shutil
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import (
     QFontDatabase,
+    QInputMethodEvent,
     QKeyEvent,
-    QKeySequence,
-    QShortcut,
     QTextCursor,
 )
 from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -20,63 +24,249 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
+    QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from app.terminal_backend import create_terminal_backend, resolve_shell
-from app.terminal_store import TerminalProfile
+from app.terminal_store import (
+    TERMINAL_LOCAL,
+    TERMINAL_SSH,
+    TerminalProfile,
+)
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
-class CommandLineEdit(QLineEdit):
+class SshProfileDialog(QDialog):
+    def __init__(
+        self,
+        parent: QWidget,
+        profile: TerminalProfile | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("SSH 연결")
+
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("예: 운영 서버")
+
+        self.host_input = QLineEdit()
+        self.host_input.setPlaceholderText("예: 10.0.1.20 또는 server.example.com")
+
+        self.port_input = QSpinBox()
+        self.port_input.setRange(1, 65535)
+        self.port_input.setValue(22)
+
+        self.user_input = QLineEdit()
+        self.user_input.setPlaceholderText("예: ubuntu")
+
+        self.validation_label = QLabel("")
+        self.validation_label.setWordWrap(True)
+
+        if profile is not None:
+            self.name_input.setText(profile.name)
+            self.host_input.setText(profile.host)
+            self.port_input.setValue(profile.port)
+            self.user_input.setText(profile.user)
+
+        form = QFormLayout()
+        form.addRow("이름", self.name_input)
+        form.addRow("Host", self.host_input)
+        form.addRow("Port", self.port_input)
+        form.addRow("User", self.user_input)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(self.validation_label)
+        layout.addWidget(buttons)
+
+    @property
+    def profile_name(self) -> str:
+        return self.name_input.text().strip() or "SSH"
+
+    @property
+    def host(self) -> str:
+        return self.host_input.text().strip()
+
+    @property
+    def port(self) -> int:
+        return self.port_input.value()
+
+    @property
+    def user(self) -> str:
+        return self.user_input.text().strip()
+
+    def _accept(self) -> None:
+        if not self.host:
+            self.validation_label.setText("Host를 입력하세요.")
+            self.host_input.setFocus()
+            return
+        self.accept()
+
+
+class TerminalDisplay(QPlainTextEdit):
+    input_ready = pyqtSignal(str)
+
+    KEY_SEQUENCES = {
+        Qt.Key.Key_Up: "\x1b[A",
+        Qt.Key.Key_Down: "\x1b[B",
+        Qt.Key.Key_Right: "\x1b[C",
+        Qt.Key.Key_Left: "\x1b[D",
+        Qt.Key.Key_Home: "\x1b[H",
+        Qt.Key.Key_End: "\x1b[F",
+        Qt.Key.Key_Delete: "\x1b[3~",
+        Qt.Key.Key_PageUp: "\x1b[5~",
+        Qt.Key.Key_PageDown: "\x1b[6~",
+    }
+
     def __init__(self) -> None:
         super().__init__()
-        self._history: list[str] = []
-        self._history_index = 0
-
-    def add_history(self, command: str) -> None:
-        if not command:
-            return
-        if not self._history or self._history[-1] != command:
-            self._history.append(command)
-        self._history_index = len(self._history)
+        self.setReadOnly(True)
+        self.setObjectName("terminalOutput")
+        self.setFont(
+            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        )
+        self.document().setMaximumBlockCount(5000)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        if event.key() == Qt.Key.Key_Up and self._history:
-            self._history_index = max(0, self._history_index - 1)
-            self.setText(self._history[self._history_index])
-            self.end(False)
+        modifiers = event.modifiers()
+        key = event.key()
+
+        if (
+            modifiers & Qt.KeyboardModifier.ControlModifier
+            and modifiers & Qt.KeyboardModifier.ShiftModifier
+            and key == Qt.Key.Key_C
+        ):
+            self.copy()
             return
 
-        if event.key() == Qt.Key.Key_Down and self._history:
-            self._history_index = min(
-                len(self._history),
-                self._history_index + 1,
+        if (
+            modifiers & Qt.KeyboardModifier.ControlModifier
+            and modifiers & Qt.KeyboardModifier.ShiftModifier
+            and key == Qt.Key.Key_V
+        ):
+            self._paste_to_terminal()
+            return
+
+        if (
+            modifiers & Qt.KeyboardModifier.MetaModifier
+            and key == Qt.Key.Key_C
+        ):
+            self.copy()
+            return
+
+        if (
+            modifiers & Qt.KeyboardModifier.MetaModifier
+            and key == Qt.Key.Key_V
+        ):
+            self._paste_to_terminal()
+            return
+
+        if modifiers & Qt.KeyboardModifier.ControlModifier:
+            if Qt.Key.Key_A <= key <= Qt.Key.Key_Z:
+                self.input_ready.emit(chr(key - Qt.Key.Key_A + 1))
+                return
+
+        sequence = self.KEY_SEQUENCES.get(key)
+        if sequence is not None:
+            self.input_ready.emit(sequence)
+            return
+
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.input_ready.emit("\r")
+            return
+        if key == Qt.Key.Key_Backspace:
+            self.input_ready.emit("\x7f")
+            return
+        if key == Qt.Key.Key_Tab:
+            self.input_ready.emit("\t")
+            return
+        if key == Qt.Key.Key_Escape:
+            self.input_ready.emit("\x1b")
+            return
+
+        text = event.text()
+        if (
+            text
+            and not modifiers
+            & (
+                Qt.KeyboardModifier.ControlModifier
+                | Qt.KeyboardModifier.AltModifier
+                | Qt.KeyboardModifier.MetaModifier
             )
-            if self._history_index == len(self._history):
-                self.clear()
-            else:
-                self.setText(self._history[self._history_index])
-                self.end(False)
+        ):
+            self.input_ready.emit(text)
             return
 
         super().keyPressEvent(event)
+
+    def inputMethodEvent(self, event: QInputMethodEvent) -> None:
+        commit = event.commitString()
+        if commit:
+            self.input_ready.emit(commit)
+        event.accept()
+
+    def append_terminal_text(self, raw_text: str) -> None:
+        text = ANSI_ESCAPE_RE.sub("", raw_text).replace("\x07", "")
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+
+        buffer: list[str] = []
+
+        def flush() -> None:
+            if buffer:
+                cursor.insertText("".join(buffer))
+                buffer.clear()
+
+        for char in text:
+            if char == "\r":
+                flush()
+                cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock)
+            elif char == "\n":
+                flush()
+                cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock)
+                cursor.insertBlock()
+            elif char == "\b":
+                flush()
+                if cursor.positionInBlock() > 0:
+                    cursor.deletePreviousChar()
+            else:
+                buffer.append(char)
+
+        flush()
+        self.setTextCursor(cursor)
+        self.ensureCursorVisible()
+
+    def _paste_to_terminal(self) -> None:
+        text = QApplication.clipboard().text()
+        if text:
+            self.input_ready.emit(text)
 
 
 class TerminalSessionWidget(QWidget):
     def __init__(self, profile: TerminalProfile) -> None:
         super().__init__()
         self.profile = profile
-        self.program, _arguments = resolve_shell()
         self.backend = None
 
         self.name_label = QLabel(f"<b>{profile.name}</b>")
-        self.cwd_label = QLabel(profile.cwd)
-        self.cwd_label.setTextInteractionFlags(
+        self.target_label = QLabel(profile.target_label)
+        self.target_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
 
@@ -89,66 +279,41 @@ class TerminalSessionWidget(QWidget):
         header = QHBoxLayout()
         header.setSpacing(8)
         header.addWidget(self.name_label)
-        header.addWidget(self.cwd_label, 1)
+        header.addWidget(self.target_label, 1)
         header.addWidget(self.interrupt_button)
         header.addWidget(self.clear_button)
         header.addWidget(self.restart_button)
 
-        self.output = QPlainTextEdit()
-        self.output.setReadOnly(True)
-        self.output.setObjectName("terminalOutput")
-        self.output.setFont(
-            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        self.output = TerminalDisplay()
+        self.output.input_ready.connect(self.send_input)
+
+        hint = QLabel(
+            "터미널을 클릭한 뒤 바로 입력 · Ctrl+C 중지 · Ctrl+Shift+C 복사"
         )
-        self.output.document().setMaximumBlockCount(5000)
-
-        self.command_input = CommandLineEdit()
-        self.command_input.setPlaceholderText("명령어")
-        self.run_button = QPushButton("실행")
-        self.run_button.setObjectName("primaryButton")
-
-        command_row = QHBoxLayout()
-        command_row.setSpacing(8)
-        command_row.addWidget(self.command_input, 1)
-        command_row.addWidget(self.run_button)
+        hint.setObjectName("terminalHint")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
         layout.addLayout(header)
         layout.addWidget(self.output, 1)
-        layout.addLayout(command_row)
+        layout.addWidget(hint)
 
-        self.command_input.returnPressed.connect(self.run_command)
-        self.run_button.clicked.connect(self.run_command)
         self.interrupt_button.clicked.connect(self.interrupt)
         self.restart_button.clicked.connect(self.restart)
         self.clear_button.clicked.connect(self.output.clear)
 
-        self.interrupt_shortcut = QShortcut(
-            QKeySequence("Ctrl+C"),
-            self,
-        )
-        self.interrupt_shortcut.setContext(
-            Qt.ShortcutContext.WidgetWithChildrenShortcut
-        )
-        self.interrupt_shortcut.activated.connect(self.interrupt)
-
-        self.copy_shortcut = QShortcut(
-            QKeySequence("Ctrl+Shift+C"),
-            self,
-        )
-        self.copy_shortcut.setContext(
-            Qt.ShortcutContext.WidgetWithChildrenShortcut
-        )
-        self.copy_shortcut.activated.connect(self.output.copy)
-
-        self.start()
-
-    def set_profile(self, profile: TerminalProfile) -> None:
+    def set_profile(
+        self,
+        profile: TerminalProfile,
+        *,
+        restart: bool = False,
+    ) -> None:
         self.profile = profile
         self.name_label.setText(f"<b>{profile.name}</b>")
-        self.cwd_label.setText(profile.cwd)
+        self.target_label.setText(profile.target_label)
+        if restart and self.backend is not None:
+            self.restart()
 
     def start(self) -> None:
         if self.backend is not None and self.backend.is_running():
@@ -157,62 +322,75 @@ class TerminalSessionWidget(QWidget):
         if self.backend is not None:
             self.backend.close()
 
-        self.backend = create_terminal_backend(self.profile.cwd)
+        command = self._command_for_profile()
+        self.backend = create_terminal_backend(
+            self.profile.cwd,
+            command=command,
+        )
         self.backend.output.connect(self._read_output)
         self.backend.exited.connect(self._finished)
         self.backend.failed.connect(self._process_error)
         self.backend.start()
 
         if self.backend.is_running():
-            shell_name = Path(self.program).name
-            self._append_text(
-                f"{shell_name} · {self.profile.cwd}\n"
-            )
+            if self.profile.kind == TERMINAL_SSH:
+                self.output.append_terminal_text(
+                    f"SSH · {self.profile.target_label}\n"
+                )
+            else:
+                program, _arguments = resolve_shell()
+                self.output.append_terminal_text(
+                    f"{Path(program).name} · {self.profile.cwd}\n"
+                )
 
     def restart(self) -> None:
         self._stop_process()
-        self._append_text("\n")
+        self.output.append_terminal_text("\n")
         self.start()
+        self.output.setFocus()
 
     def shutdown(self) -> None:
         self._stop_process()
 
     def interrupt(self) -> None:
-        if self.backend is None or not self.backend.is_running():
-            return
-        self.backend.interrupt()
+        self.send_input("\x03")
 
-    def run_command(self) -> None:
-        command = self.command_input.text()
-        if not command.strip():
-            return
-
+    def send_input(self, text: str) -> None:
         if self.backend is None or not self.backend.is_running():
             self.start()
         if self.backend is None or not self.backend.is_running():
             return
+        self.backend.write(text)
 
-        self.command_input.add_history(command)
-        self.backend.write_line(command)
-        self.command_input.clear()
+    def focus_terminal(self) -> None:
+        self.start()
+        self.output.setFocus()
+
+    def _command_for_profile(self) -> list[str] | None:
+        if self.profile.kind != TERMINAL_SSH:
+            return None
+
+        ssh = shutil.which("ssh") or "ssh"
+        target = (
+            f"{self.profile.user}@{self.profile.host}"
+            if self.profile.user
+            else self.profile.host
+        )
+        return [
+            ssh,
+            "-p",
+            str(self.profile.port),
+            target,
+        ]
 
     def _read_output(self, raw_text: str) -> None:
-        text = ANSI_ESCAPE_RE.sub("", raw_text)
-        text = text.replace("\r\n", "\n").replace("\r", "\n")
-        self._append_text(text)
+        self.output.append_terminal_text(raw_text)
 
     def _finished(self) -> None:
-        self._append_text("\n[종료]\n")
+        self.output.append_terminal_text("\n[종료]\n")
 
     def _process_error(self, message: str) -> None:
-        self._append_text(f"[실행 실패] {message}\n")
-
-    def _append_text(self, text: str) -> None:
-        cursor = self.output.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
-        cursor.insertText(text)
-        self.output.setTextCursor(cursor)
-        self.output.ensureCursorVisible()
+        self.output.append_terminal_text(f"[실행 실패] {message}\n")
 
     def _stop_process(self) -> None:
         if self.backend is None:
@@ -225,8 +403,9 @@ class TerminalSidebar(QWidget):
     def __init__(
         self,
         on_select: Callable[[str], None],
-        on_new: Callable[[], None],
-        on_rename: Callable[[], None],
+        on_new_local: Callable[[], None],
+        on_new_ssh: Callable[[], None],
+        on_edit: Callable[[], None],
         on_delete: Callable[[], None],
     ) -> None:
         super().__init__()
@@ -235,28 +414,36 @@ class TerminalSidebar(QWidget):
         self.list_widget = QListWidget()
         self.list_widget.itemClicked.connect(self._selected)
 
-        self.new_button = QPushButton("+ 새 터미널")
-        self.new_button.setObjectName("primaryButton")
-        self.new_button.clicked.connect(on_new)
+        self.new_local_button = QPushButton("+ 로컬")
+        self.new_local_button.setObjectName("primaryButton")
+        self.new_local_button.clicked.connect(on_new_local)
 
-        self.rename_button = QPushButton("이름 변경")
-        self.rename_button.clicked.connect(on_rename)
+        self.new_ssh_button = QPushButton("+ SSH")
+        self.new_ssh_button.clicked.connect(on_new_ssh)
+
+        self.edit_button = QPushButton("편집")
+        self.edit_button.clicked.connect(on_edit)
 
         self.delete_button = QPushButton("삭제")
         self.delete_button.setObjectName("dangerButton")
         self.delete_button.clicked.connect(on_delete)
 
-        actions = QHBoxLayout()
-        actions.setSpacing(8)
-        actions.addWidget(self.new_button)
-        actions.addWidget(self.rename_button)
-        actions.addWidget(self.delete_button)
+        create_actions = QHBoxLayout()
+        create_actions.setSpacing(8)
+        create_actions.addWidget(self.new_local_button)
+        create_actions.addWidget(self.new_ssh_button)
+
+        manage_actions = QHBoxLayout()
+        manage_actions.setSpacing(8)
+        manage_actions.addWidget(self.edit_button)
+        manage_actions.addWidget(self.delete_button)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
         layout.addWidget(self.list_widget, 1)
-        layout.addLayout(actions)
+        layout.addLayout(create_actions)
+        layout.addLayout(manage_actions)
 
     def set_profiles(
         self,
@@ -267,9 +454,10 @@ class TerminalSidebar(QWidget):
         self.list_widget.blockSignals(True)
         self.list_widget.clear()
         for profile in profiles:
-            item = QListWidgetItem(profile.name)
+            prefix = "[SSH]" if profile.kind == TERMINAL_SSH else "[로컬]"
+            item = QListWidgetItem(f"{prefix} {profile.name}")
             item.setData(Qt.ItemDataRole.UserRole, profile.terminal_id)
-            item.setToolTip(profile.cwd)
+            item.setToolTip(profile.target_label)
             self.list_widget.addItem(item)
             if profile.terminal_id == select_id:
                 self.list_widget.setCurrentItem(item)
@@ -318,16 +506,21 @@ class TerminalPanel(QWidget):
         self.widgets[profile.terminal_id] = widget
         self.stack.addWidget(widget)
 
-    def set_profile(self, profile: TerminalProfile) -> None:
+    def set_profile(
+        self,
+        profile: TerminalProfile,
+        *,
+        restart: bool = False,
+    ) -> None:
         widget = self.widgets.get(profile.terminal_id)
         if widget is not None:
-            widget.set_profile(profile)
+            widget.set_profile(profile, restart=restart)
 
     def select(self, terminal_id: str) -> None:
         widget = self.widgets.get(terminal_id)
         if widget is not None:
             self.stack.setCurrentWidget(widget)
-            widget.command_input.setFocus()
+            widget.focus_terminal()
 
     def remove(self, terminal_id: str) -> None:
         widget = self.widgets.pop(terminal_id, None)
