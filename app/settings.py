@@ -188,6 +188,26 @@ class AppSettings:
         )
         self._save()
 
+    def set_font_settings(
+        self,
+        *,
+        font_family: str,
+        font_size: int,
+        terminal_font_family: str,
+        terminal_font_size: int,
+    ) -> None:
+        self._data["font_family"] = font_family.strip()
+        self._data["font_size"] = self._clean_font_size(
+            font_size,
+            DEFAULT_FONT_SIZE,
+        )
+        self._data["terminal_font_family"] = terminal_font_family.strip()
+        self._data["terminal_font_size"] = self._clean_font_size(
+            terminal_font_size,
+            DEFAULT_TERMINAL_FONT_SIZE,
+        )
+        self._save()
+
     @property
     def theme(self) -> str:
         value = self._data.get("theme")
