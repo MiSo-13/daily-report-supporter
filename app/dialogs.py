@@ -149,10 +149,6 @@ class FontSettingsDialog(QDialog):
         self.terminal_preview = QLabel(
             "터미널 폰트 미리보기 · docker logs -f my_service"
         )
-        self.terminal_preview.setTextInteractionFlags(
-            self.terminal_preview.textInteractionFlags()
-        )
-
         form = QFormLayout()
         form.addRow("앱 폰트", self.font_family_combo)
         form.addRow("앱 크기", self.font_size_spin)
