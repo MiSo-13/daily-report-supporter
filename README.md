@@ -23,6 +23,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 연도/월별 날짜 목록 조회 및 과거 문서 수정
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
+- 다중 터미널: 여러 shell 세션, 이름 변경, 실행 중 세션 유지
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
 - 유효한 업무 URL은 입력창 옆 `열기` 버튼으로 바로 실행
 - Markdown 체크박스 + `상태` 메타데이터 기반 저장
@@ -154,6 +155,8 @@ reports/
 memos/
 ├─ <memo-id>.md
 └─ <memo-id>.md
+
+terminal-sessions.json
 ```
 
 배포 실행파일에서는 아래 위치를 사용합니다.
@@ -163,7 +166,7 @@ memos/
 ~/DailyReportSupporter/memos/
 ```
 
-`reports/`와 `memos/`는 기본적으로 `.gitignore`에 포함됩니다.
+`reports/`, `memos/`, `terminal-sessions.json`은 기본적으로 `.gitignore`에 포함됩니다.
 
 ## 테스트
 
@@ -208,6 +211,24 @@ python -m pytest
 체크박스는 미리보기에서 직접 클릭해 체크 상태를 바꿀 수 있습니다.
 
 텍스트 선택 후 `Ctrl/Cmd+B`는 굵게, `Ctrl/Cmd+I`는 기울임을 적용합니다.
+
+## 터미널
+
+왼쪽의 `터미널` 탭에서 여러 shell 세션을 열 수 있습니다.
+
+- Windows: `cmd.exe`
+- macOS/Linux/Crostini: `$SHELL` 사용, 없으면 bash/sh
+- `+ 새 터미널`: 새 세션 생성
+- `이름 변경`: 터미널 이름 변경
+- `삭제`: 세션 종료 및 목록 삭제
+- 세션을 전환해도 실행 중 shell 프로세스는 유지
+- 위/아래 방향키로 해당 세션의 명령 히스토리 이동
+- `재시작`: 해당 shell 프로세스 재시작
+- `지우기`: 출력 화면 비우기
+
+터미널 이름과 시작 경로는 `terminal-sessions.json`에 저장되어 앱을 다시 실행해도 목록이 복원됩니다. 앱을 종료하면 실제 shell 프로세스는 종료되고 다음 실행 시 새 프로세스로 시작합니다.
+
+현재 터미널은 외부 패키지 없이 PyQt `QProcess`로 구현되어 있습니다. 일반적인 명령 실행과 shell built-in(`cd` 등)은 사용할 수 있지만 VS Code처럼 완전한 PTY/ConPTY 에뮬레이터는 아니므로 `vim`, `top`, `ssh`의 대화형 화면처럼 TTY에 강하게 의존하는 프로그램은 제한될 수 있습니다.
 
 ## 전체 검색
 
@@ -388,4 +409,4 @@ YY. MM. DD 업무 공유드립니다.
 
 ## App
 
-앱 하단 상태바에 `make my MiSo`가 표시됩니다.
+앱 하단 상태바에 `made by MiSo`가 표시됩니다.

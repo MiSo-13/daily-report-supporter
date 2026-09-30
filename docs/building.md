@@ -92,6 +92,7 @@ git push origin v0.1.0
 ```text
 <repository>/reports/
 <repository>/memos/
+<repository>/terminal-sessions.json
 ```
 
 PyInstaller 실행파일로 실행할 때:
@@ -99,6 +100,7 @@ PyInstaller 실행파일로 실행할 때:
 ```text
 ~/DailyReportSupporter/reports/
 ~/DailyReportSupporter/memos/
+~/DailyReportSupporter/terminal-sessions.json
 ```
 
 Windows 예:
