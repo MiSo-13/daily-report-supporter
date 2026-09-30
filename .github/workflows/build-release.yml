@@ -95,7 +95,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p release
-          cp dist/DailyReportSupporter release/WorKing-linux-x64
+          cp dist/WorKing release/WorKing-linux-x64
           chmod +x release/WorKing-linux-x64
       - uses: actions/upload-artifact@v4
         with:
@@ -123,7 +123,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p release
-          cp dist/DailyReportSupporter release/WorKing-linux-arm64
+          cp dist/WorKing release/WorKing-linux-arm64
           chmod +x release/WorKing-linux-arm64
       - uses: actions/upload-artifact@v4
         with:
