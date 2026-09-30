@@ -8,7 +8,6 @@ import shutil
 
 from PyQt6.QtCore import QEvent, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import (
-    QFont,
     QFontDatabase,
     QInputMethodEvent,
     QKeyEvent,
@@ -479,12 +478,6 @@ class TerminalSessionWidget(QWidget):
     def set_terminal_font(self, family: str, point_size: int) -> None:
         self.output.set_terminal_font(family, point_size)
 
-    def set_terminal_font(self, family: str, point_size: int) -> None:
-        self._font_family = family
-        self._font_size = point_size
-        for widget in self.widgets.values():
-            widget.set_terminal_font(family, point_size)
-
     def set_profile(
         self,
         profile: TerminalProfile,
@@ -706,6 +699,12 @@ class TerminalPanel(QWidget):
         )
         self.widgets[profile.terminal_id] = widget
         self.stack.addWidget(widget)
+
+    def set_terminal_font(self, family: str, point_size: int) -> None:
+        self._font_family = family
+        self._font_size = point_size
+        for widget in self.widgets.values():
+            widget.set_terminal_font(family, point_size)
 
     def set_profile(
         self,
