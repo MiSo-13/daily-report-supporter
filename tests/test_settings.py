@@ -113,6 +113,7 @@ def test_old_settings_are_migrated_with_new_fields(tmp_path) -> None:
     assert payload["progress_report_title"] == DEFAULT_PROGRESS_REPORT_TITLE
     assert payload["planned_report_title"] == DEFAULT_PLANNED_REPORT_TITLE
     assert payload["input_method_mode"] == DEFAULT_INPUT_METHOD_MODE
+    assert payload["workspace_tab_order"] == DEFAULT_WORKSPACE_TAB_ORDER
 
 
 def test_blank_section_titles_use_defaults(tmp_path) -> None:
@@ -136,6 +137,7 @@ def test_corrupt_settings_fall_back_to_defaults(tmp_path) -> None:
     assert settings.progress_report_title == DEFAULT_PROGRESS_REPORT_TITLE
     assert settings.planned_report_title == DEFAULT_PLANNED_REPORT_TITLE
     assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
+    assert settings.workspace_tab_order == DEFAULT_WORKSPACE_TAB_ORDER
 
     payload = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
     assert payload == {
@@ -147,6 +149,7 @@ def test_corrupt_settings_fall_back_to_defaults(tmp_path) -> None:
         "progress_report_title": DEFAULT_PROGRESS_REPORT_TITLE,
         "planned_report_title": DEFAULT_PLANNED_REPORT_TITLE,
         "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+        "workspace_tab_order": DEFAULT_WORKSPACE_TAB_ORDER,
     }
 
 
@@ -279,3 +282,21 @@ def test_invalid_workspace_tab_order_uses_default(tmp_path) -> None:
     settings.workspace_tab_order = ["terminal", "memo"]
 
     assert settings.workspace_tab_order == DEFAULT_WORKSPACE_TAB_ORDER
+
+
+
+def test_invalid_persisted_workspace_tab_order_is_migrated(tmp_path) -> None:
+    config_path = tmp_path / "settings.json"
+    settings = AppSettings(tmp_path)
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    payload["workspace_tab_order"] = ["work", "work", "terminal"]
+    config_path.write_text(
+        json.dumps(payload, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    reloaded = AppSettings(tmp_path)
+
+    assert reloaded.workspace_tab_order == DEFAULT_WORKSPACE_TAB_ORDER
+    saved = json.loads(config_path.read_text(encoding="utf-8"))
+    assert saved["workspace_tab_order"] == DEFAULT_WORKSPACE_TAB_ORDER
