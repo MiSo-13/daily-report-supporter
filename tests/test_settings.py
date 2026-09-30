@@ -5,6 +5,7 @@ from app.settings import (
     DEFAULT_FOOTER,
     DEFAULT_GREETING,
     DEFAULT_INPUT_METHOD_MODE,
+    DEFAULT_WORKSPACE_TAB_ORDER,
     DEFAULT_PLANNED_REPORT_TITLE,
     DEFAULT_PREVIOUS_SECTION_TITLE,
     DEFAULT_PROGRESS_REPORT_TITLE,
@@ -24,6 +25,7 @@ def test_settings_are_saved_under_reports(tmp_path) -> None:
     settings.progress_report_title = "진행한 일"
     settings.planned_report_title = "다음 할 일"
     settings.input_method_mode = INPUT_METHOD_CROSTINI_IBUS
+    settings.workspace_tab_order = ["work", "terminal", "memo"]
 
     config_path = tmp_path / "settings.json"
     assert config_path.exists()
@@ -38,6 +40,7 @@ def test_settings_are_saved_under_reports(tmp_path) -> None:
         "progress_report_title": "진행한 일",
         "planned_report_title": "다음 할 일",
         "input_method_mode": INPUT_METHOD_CROSTINI_IBUS,
+        "workspace_tab_order": ["work", "terminal", "memo"],
     }
 
     reloaded = AppSettings(tmp_path)
@@ -49,6 +52,7 @@ def test_settings_are_saved_under_reports(tmp_path) -> None:
     assert reloaded.progress_report_title == "진행한 일"
     assert reloaded.planned_report_title == "다음 할 일"
     assert reloaded.input_method_mode == INPUT_METHOD_CROSTINI_IBUS
+    assert reloaded.workspace_tab_order == ["work", "terminal", "memo"]
 
 
 def test_missing_settings_are_created_with_defaults(tmp_path) -> None:
@@ -64,6 +68,7 @@ def test_missing_settings_are_created_with_defaults(tmp_path) -> None:
     assert settings.progress_report_title == DEFAULT_PROGRESS_REPORT_TITLE
     assert settings.planned_report_title == DEFAULT_PLANNED_REPORT_TITLE
     assert settings.input_method_mode == DEFAULT_INPUT_METHOD_MODE
+    assert settings.workspace_tab_order == DEFAULT_WORKSPACE_TAB_ORDER
 
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     assert payload == {
@@ -75,6 +80,7 @@ def test_missing_settings_are_created_with_defaults(tmp_path) -> None:
         "progress_report_title": DEFAULT_PROGRESS_REPORT_TITLE,
         "planned_report_title": DEFAULT_PLANNED_REPORT_TITLE,
         "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+        "workspace_tab_order": DEFAULT_WORKSPACE_TAB_ORDER,
     }
 
 
@@ -252,3 +258,24 @@ def test_custom_today_title_migrates_to_progress_report_title(tmp_path) -> None:
 
     assert settings.progress_report_title == "금일 업무"
     assert settings.planned_report_title == DEFAULT_PLANNED_REPORT_TITLE
+
+
+
+def test_workspace_tab_order_is_persisted(tmp_path) -> None:
+    settings = AppSettings(tmp_path)
+
+    settings.workspace_tab_order = ["terminal", "work", "memo"]
+
+    assert AppSettings(tmp_path).workspace_tab_order == [
+        "terminal",
+        "work",
+        "memo",
+    ]
+
+
+def test_invalid_workspace_tab_order_uses_default(tmp_path) -> None:
+    settings = AppSettings(tmp_path)
+
+    settings.workspace_tab_order = ["terminal", "memo"]
+
+    assert settings.workspace_tab_order == DEFAULT_WORKSPACE_TAB_ORDER
