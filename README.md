@@ -23,7 +23,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 연도/월별 날짜 목록 조회 및 과거 문서 수정
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
-- 다중 터미널: 여러 PTY/ConPTY shell 세션, 이름 변경, 실행 중 세션 유지, Ctrl+C
+- 다중 터미널: 로컬 PTY/ConPTY 세션 + 저장형 SSH 프로필, 직접 키 입력, Tab/Ctrl+C
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
 - 유효한 업무 URL은 입력창 옆 `열기` 버튼으로 바로 실행
 - Markdown 체크박스 + `상태` 메타데이터 기반 저장
@@ -214,29 +214,54 @@ python -m pytest
 
 ## 터미널
 
-왼쪽의 `터미널` 탭에서 여러 shell 세션을 열 수 있습니다.
+왼쪽의 `터미널` 탭에서 로컬 shell과 SSH 연결을 함께 관리할 수 있습니다.
 
-- Windows: `cmd.exe`
-- macOS/Linux/Crostini: `$SHELL` 사용, 없으면 bash/sh
-- `+ 새 터미널`: 새 세션 생성
-- `이름 변경`: 터미널 이름 변경
-- `삭제`: 세션 종료 및 목록 삭제
-- 세션을 전환해도 실행 중 shell 프로세스는 유지
-- 위/아래 방향키로 해당 세션의 명령 히스토리 이동
-- `재시작`: 해당 shell 프로세스 재시작
-- `지우기`: 출력 화면 비우기
+- `+ 로컬`: 로컬 shell 프로필 생성
+- `+ SSH`: SSH 프로필 생성
+- `편집`: 이름 또는 SSH Host/Port/User 수정
+- `삭제`: 세션 종료 및 프로필 삭제
+- 세션을 전환해도 앱 실행 중인 shell/SSH 프로세스는 유지
 
-터미널 이름과 시작 경로는 `terminal-sessions.json`에 저장되어 앱을 다시 실행해도 목록이 복원됩니다. 앱을 종료하면 실제 shell 프로세스는 종료되고 다음 실행 시 새 프로세스로 시작합니다.
+SSH 프로필에는 아래 값만 저장합니다.
 
-터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다.
-
-```bash
-docker logs -f <container>
+```text
+이름
+Host
+Port
+User
 ```
 
-처럼 계속 출력되는 명령을 실행할 수 있고 `Ctrl+C` 또는 `중지` 버튼으로 현재 foreground 명령에 interrupt를 보낼 수 있습니다. 출력 복사는 터미널 관례에 맞춰 `Ctrl+Shift+C`를 사용합니다.
+**SSH 비밀번호와 passphrase는 저장하지 않습니다.** SSH 프로필을 선택하면 운영체제의 `ssh` 명령을 PTY/ConPTY에서 직접 실행하고, `password:` 프롬프트가 나오면 터미널 화면에 직접 입력합니다. SSH가 터미널 echo를 끄므로 비밀번호 문자는 화면에 표시되지 않습니다.
 
-PTY 입력과 스트리밍 출력은 지원하지만 화면 자체는 완전한 ANSI 터미널 에뮬레이터가 아닙니다. 따라서 `vim`, `top`, `htop`처럼 커서 이동/전체 화면 렌더링에 강하게 의존하는 프로그램은 표시가 제한될 수 있습니다.
+터미널 화면을 클릭한 뒤 키보드로 바로 입력합니다. 별도의 명령 입력창을 사용하지 않습니다.
+
+- `Tab`: shell/원격 shell의 원래 자동완성
+- 방향키: shell history/cursor 이동
+- `Ctrl+C`: 현재 foreground 명령 중단
+- `Ctrl+D`: EOF
+- `Ctrl+Shift+C`: 선택한 출력 복사
+- `Ctrl+Shift+V`: 클립보드 내용을 터미널에 입력
+- `중지`: Ctrl+C와 동일
+- `재시작`: 현재 로컬 shell 또는 SSH 연결 재시작
+- `지우기`: 출력 화면만 비우기
+
+예를 들어 shell에 Docker completion이 설정되어 있다면 아래 입력 뒤 Tab을 눌렀을 때 shell 자체의 completion이 동작합니다.
+
+```bash
+docker logs -f my_<Tab>
+```
+
+SSH 연결 후 원격 서버에서도 동일한 키 전달 방식을 사용합니다.
+
+```bash
+docker logs -f my_service
+```
+
+같은 streaming 명령은 `Ctrl+C`로 중단한 뒤 같은 SSH 세션을 계속 사용할 수 있습니다.
+
+터미널 프로필은 `terminal-sessions.json`에 저장됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
+
+터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다. 현재 출력 위젯은 ANSI 커서 이동을 완전히 구현한 xterm 수준의 렌더러는 아니므로 `vim`, `top`, `htop` 같은 전체 화면 프로그램은 표시가 제한될 수 있습니다.
 
 ## 전체 검색
 
