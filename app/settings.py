@@ -20,6 +20,7 @@ DEFAULT_PLANNED_REPORT_TITLE = "예정 업무"
 INPUT_METHOD_SYSTEM = "system"
 INPUT_METHOD_CROSTINI_IBUS = "crostini_ibus"
 DEFAULT_INPUT_METHOD_MODE = INPUT_METHOD_SYSTEM
+DEFAULT_WORKSPACE_TAB_ORDER = ["work", "memo", "terminal"]
 SETTINGS_FILE_NAME = "settings.json"
 
 
@@ -132,6 +133,29 @@ class AppSettings:
         self._save()
 
     @property
+    def workspace_tab_order(self) -> list[str]:
+        value = self._data.get("workspace_tab_order")
+        if (
+            isinstance(value, list)
+            and len(value) == len(DEFAULT_WORKSPACE_TAB_ORDER)
+            and set(value) == set(DEFAULT_WORKSPACE_TAB_ORDER)
+            and all(isinstance(item, str) for item in value)
+        ):
+            return list(value)
+        return list(DEFAULT_WORKSPACE_TAB_ORDER)
+
+    @workspace_tab_order.setter
+    def workspace_tab_order(self, value: list[str]) -> None:
+        if (
+            len(value) == len(DEFAULT_WORKSPACE_TAB_ORDER)
+            and set(value) == set(DEFAULT_WORKSPACE_TAB_ORDER)
+        ):
+            self._data["workspace_tab_order"] = list(value)
+        else:
+            self._data["workspace_tab_order"] = list(DEFAULT_WORKSPACE_TAB_ORDER)
+        self._save()
+
+    @property
     def theme(self) -> str:
         value = self._data.get("theme")
         return value if isinstance(value, str) and value.strip() else DEFAULT_THEME
@@ -151,6 +175,7 @@ class AppSettings:
             "progress_report_title": DEFAULT_PROGRESS_REPORT_TITLE,
             "planned_report_title": DEFAULT_PLANNED_REPORT_TITLE,
             "input_method_mode": DEFAULT_INPUT_METHOD_MODE,
+            "workspace_tab_order": list(DEFAULT_WORKSPACE_TAB_ORDER),
         }
 
         if not self.path.exists():
@@ -198,6 +223,10 @@ class AppSettings:
             "input_method_mode": payload.get(
                 "input_method_mode",
                 DEFAULT_INPUT_METHOD_MODE,
+            ),
+            "workspace_tab_order": payload.get(
+                "workspace_tab_order",
+                list(DEFAULT_WORKSPACE_TAB_ORDER),
             ),
         }
 
