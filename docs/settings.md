@@ -126,3 +126,18 @@ reports/settings.json
 파일이 없으면 앱 시작 시 자동으로 생성됩니다.
 
 `previous_section_title`과 `today_section_title`은 기존 일일 Markdown 호환용 내부 설정으로 유지되며 현재 일일보고 설정 화면에서는 변경하지 않습니다.
+
+
+## 워크스페이스 탭 순서
+
+왼쪽 `업무 / 메모 / 터미널` 탭을 드래그해 변경한 순서는 `workspace_tab_order`에 저장됩니다.
+
+기본값:
+
+```json
+{
+  "workspace_tab_order": ["work", "memo", "terminal"]
+}
+```
+
+가능한 값은 `work`, `memo`, `terminal` 세 항목이며 중복 없이 모두 포함해야 합니다. 값이 잘못되면 기본 순서로 복구합니다.
