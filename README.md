@@ -214,29 +214,49 @@ python -m pytest
 
 ## 터미널
 
-왼쪽의 `터미널` 탭에서 여러 shell 세션을 열 수 있습니다.
+왼쪽의 `터미널` 탭에서 로컬 shell과 저장형 SSH 연결을 함께 관리할 수 있습니다.
 
-- Windows: `cmd.exe`
-- macOS/Linux/Crostini: `$SHELL` 사용, 없으면 bash/sh
-- `+ 새 터미널`: 새 세션 생성
-- `이름 변경`: 터미널 이름 변경
-- `삭제`: 세션 종료 및 목록 삭제
-- 세션을 전환해도 실행 중 shell 프로세스는 유지
-- 위/아래 방향키로 해당 세션의 명령 히스토리 이동
-- `재시작`: 해당 shell 프로세스 재시작
-- `지우기`: 출력 화면 비우기
+- `+ 로컬`: 로컬 터미널 생성
+- `+ SSH`: SSH 프로필 생성
+- `편집`: 로컬 이름 또는 SSH 접속 정보 수정
+- `삭제`: 세션 종료 및 프로필 삭제
+- 앱 실행 중 다른 탭/터미널로 이동해도 실행 중 프로세스 유지
+- 저장된 세션은 앱 재실행 시 목록만 복원되고 선택할 때 연결
 
-터미널 이름과 시작 경로는 `terminal-sessions.json`에 저장되어 앱을 다시 실행해도 목록이 복원됩니다. 앱을 종료하면 실제 shell 프로세스는 종료되고 다음 실행 시 새 프로세스로 시작합니다.
-
-터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다.
+터미널 화면 자체가 키 입력을 받습니다. 별도 명령 입력창은 사용하지 않습니다.
 
 ```bash
-docker logs -f <container>
+docker logs -f my_<Tab>
 ```
 
-처럼 계속 출력되는 명령을 실행할 수 있고 `Ctrl+C` 또는 `중지` 버튼으로 현재 foreground 명령에 interrupt를 보낼 수 있습니다. 출력 복사는 터미널 관례에 맞춰 `Ctrl+Shift+C`를 사용합니다.
+처럼 shell의 원래 Tab completion을 사용할 수 있고, `Ctrl+C`, `Ctrl+D`, 방향키 등도 PTY/ConPTY로 직접 전달됩니다. `Ctrl+Shift+C`는 선택한 터미널 텍스트 복사, `Ctrl+Shift+V`는 붙여넣기입니다.
 
-PTY 입력과 스트리밍 출력은 지원하지만 화면 자체는 완전한 ANSI 터미널 에뮬레이터가 아닙니다. 따라서 `vim`, `top`, `htop`처럼 커서 이동/전체 화면 렌더링에 강하게 의존하는 프로그램은 표시가 제한될 수 있습니다.
+### SSH
+
+SSH 프로필에는 다음 정보만 저장합니다.
+
+```text
+이름
+Host
+Port
+User
+```
+
+비밀번호와 key passphrase는 저장하지 않습니다. 프로필을 선택하면 시스템 `ssh` 명령을 PTY에서 실행하고 다음과 같은 실제 SSH prompt에 직접 입력합니다.
+
+```text
+ubuntu@10.0.1.20's password:
+```
+
+비밀번호 입력은 SSH의 terminal echo 설정을 따르므로 화면에 표시되지 않습니다. 최초 접속의 host-key 확인 prompt와 원격 `sudo` password prompt도 같은 터미널에서 직접 처리합니다.
+
+SSH 연결에는 운영체제의 `ssh` 실행 파일이 필요합니다. Linux/macOS/Crostini는 일반적으로 OpenSSH client가 설치되어 있으며, Windows는 OpenSSH Client 기능이 필요할 수 있습니다.
+
+### 렌더링
+
+터미널 화면은 네이티브 Qt VT/XTerm 렌더러(`termqt`)를 사용하고, Linux/macOS/Crostini는 PTY, Windows는 ConPTY를 사용합니다. ANSI 색상, 커서 이동, alternate screen 등 일반적인 terminal sequence를 처리하므로 기존 단순 출력창보다 `vim`, `top`, 대화형 SSH 같은 프로그램과의 호환성이 크게 높아집니다.
+
+터미널/SSH 프로필은 `terminal-sessions.json`에 저장됩니다. 앱 종료 시 실제 shell/SSH 프로세스는 종료되며 다음 실행에서는 프로필 목록만 복원됩니다.
 
 ## 전체 검색
 
