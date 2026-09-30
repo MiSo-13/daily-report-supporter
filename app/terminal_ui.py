@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 import re
 import shutil
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QFontDatabase,
     QInputMethodEvent,
@@ -117,6 +118,14 @@ class SshProfileDialog(QDialog):
 class TerminalDisplay(QPlainTextEdit):
     input_ready = pyqtSignal(str)
 
+    MAX_BLOCKS = 1800
+    MAX_DOCUMENT_CHARS = 800_000
+    TRIM_TO_CHARS = 600_000
+    MAX_PENDING_CHARS = 512_000
+    MAX_HIDDEN_PENDING_CHARS = 128_000
+    MAX_FLUSH_CHARS = 64_000
+    FLUSH_INTERVAL_MS = 50
+
     KEY_SEQUENCES = {
         Qt.Key.Key_Up: "\x1b[A",
         Qt.Key.Key_Down: "\x1b[B",
@@ -136,12 +145,21 @@ class TerminalDisplay(QPlainTextEdit):
         self.setFont(
             QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         )
-        self.document().setMaximumBlockCount(5000)
+        self.document().setMaximumBlockCount(self.MAX_BLOCKS)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
+
+        self._pending_output: deque[str] = deque()
+        self._pending_chars = 0
+        self._dropped_output = False
+
+        self._flush_timer = QTimer(self)
+        self._flush_timer.setInterval(self.FLUSH_INTERVAL_MS)
+        self._flush_timer.timeout.connect(self._flush_pending)
+        self._flush_timer.start()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         modifiers = event.modifiers()
@@ -224,10 +242,93 @@ class TerminalDisplay(QPlainTextEdit):
         event.accept()
 
     def append_terminal_text(self, raw_text: str) -> None:
+        if not raw_text:
+            return
+
+        self._pending_output.append(raw_text)
+        self._pending_chars += len(raw_text)
+
+        limit = (
+            self.MAX_PENDING_CHARS
+            if self.isVisible()
+            else self.MAX_HIDDEN_PENDING_CHARS
+        )
+        while self._pending_chars > limit and self._pending_output:
+            dropped = self._pending_output.popleft()
+            self._pending_chars -= len(dropped)
+            self._dropped_output = True
+
+    def flush_pending(self) -> None:
+        self._flush_pending(force=True)
+
+    def clear_terminal(self) -> None:
+        self._pending_output.clear()
+        self._pending_chars = 0
+        self._dropped_output = False
+        self.clear()
+
+    def _flush_pending(self, force: bool = False) -> None:
+        if not self._pending_output:
+            return
+        if not force and not self.isVisible():
+            return
+
+        budget = (
+            self.MAX_HIDDEN_PENDING_CHARS
+            if force
+            else self.MAX_FLUSH_CHARS
+        )
+        parts: list[str] = []
+        used = 0
+
+        while self._pending_output and used < budget:
+            chunk = self._pending_output.popleft()
+            remaining = budget - used
+            if len(chunk) <= remaining:
+                parts.append(chunk)
+                used += len(chunk)
+                self._pending_chars -= len(chunk)
+                continue
+
+            parts.append(chunk[:remaining])
+            self._pending_output.appendleft(chunk[remaining:])
+            self._pending_chars -= remaining
+            used += remaining
+            break
+
+        if self._dropped_output:
+            parts.insert(
+                0,
+                "\n[출력량이 많아 오래된 터미널 로그 일부를 생략했습니다.]\n",
+            )
+            self._dropped_output = False
+
+        if parts:
+            self._render_terminal_text("".join(parts))
+
+    def _render_terminal_text(self, raw_text: str) -> None:
         text = ANSI_ESCAPE_RE.sub("", raw_text).replace("\x07", "")
+        text = text.replace("\r\n", "\n")
+
+        scrollbar = self.verticalScrollBar()
+        follow_tail = scrollbar.value() >= scrollbar.maximum() - 4
+
+        if "\r" not in text and "\b" not in text:
+            cursor = self.textCursor()
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+            cursor.insertText(text)
+            self.setTextCursor(cursor)
+        else:
+            self._render_control_text(text)
+
+        self._trim_document_chars()
+
+        if follow_tail:
+            scrollbar.setValue(scrollbar.maximum())
+
+    def _render_control_text(self, text: str) -> None:
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
-
         buffer: list[str] = []
 
         def flush() -> None:
@@ -252,7 +353,22 @@ class TerminalDisplay(QPlainTextEdit):
 
         flush()
         self.setTextCursor(cursor)
-        self.ensureCursorVisible()
+
+    def _trim_document_chars(self) -> None:
+        document = self.document()
+        char_count = document.characterCount()
+        if char_count <= self.MAX_DOCUMENT_CHARS:
+            return
+
+        remove_count = max(char_count - self.TRIM_TO_CHARS, 0)
+        cursor = QTextCursor(document)
+        cursor.setPosition(0)
+        cursor.setPosition(
+            remove_count,
+            QTextCursor.MoveMode.KeepAnchor,
+        )
+        cursor.removeSelectedText()
+        cursor.insertText("[오래된 터미널 출력 생략]\n")
 
     def _paste_to_terminal(self) -> None:
         text = QApplication.clipboard().text()
@@ -268,6 +384,7 @@ class TerminalSessionWidget(QWidget):
 
         self.name_label = QLabel(f"<b>{profile.name}</b>")
         self.target_label = QLabel(profile.target_label)
+        self.target_label.setObjectName("terminalTarget")
         self.target_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
@@ -303,7 +420,7 @@ class TerminalSessionWidget(QWidget):
 
         self.interrupt_button.clicked.connect(self.interrupt)
         self.restart_button.clicked.connect(self.restart)
-        self.clear_button.clicked.connect(self.output.clear)
+        self.clear_button.clicked.connect(self.output.clear_terminal)
 
     def set_profile(
         self,
@@ -366,6 +483,7 @@ class TerminalSessionWidget(QWidget):
 
     def focus_terminal(self) -> None:
         self.start()
+        self.output.flush_pending()
         self.output.setFocus()
 
     def _command_for_profile(self) -> list[str] | None:
