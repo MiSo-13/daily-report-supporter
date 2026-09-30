@@ -268,7 +268,7 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 ## CPU / RAM 표시
 
-앱 하단 상태바 오른쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
+앱 하단 상태바 왼쪽에는 Daily Report Supporter 프로세스 자체의 CPU / RAM 사용량이 표시됩니다.
 
 ```text
 CPU 3.2% · RAM 148 MB
