@@ -291,7 +291,6 @@ class MemoEditor(QWidget):
 
         self.preview = RichMarkdownEdit()
         self.preview.setAcceptRichText(True)
-        self.preview.document().setIndentWidth(24)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.markdown_input, "편집")
@@ -324,9 +323,17 @@ class MemoEditor(QWidget):
         self.apply_font_settings()
 
     def apply_font_settings(self) -> None:
-        metrics = QFontMetricsF(self.markdown_input.font())
-        tab_width = metrics.horizontalAdvance(" ") * 4
-        self.markdown_input.setTabStopDistance(max(tab_width, 1.0))
+        markdown_metrics = QFontMetricsF(self.markdown_input.font())
+        markdown_tab_width = markdown_metrics.horizontalAdvance(" ") * 4
+        self.markdown_input.setTabStopDistance(
+            max(markdown_tab_width, 1.0)
+        )
+
+        preview_metrics = QFontMetricsF(self.preview.font())
+        preview_tab_width = preview_metrics.horizontalAdvance(" ") * 4
+        preview_tab_width = max(preview_tab_width, 1.0)
+        self.preview.setTabStopDistance(preview_tab_width)
+        self.preview.document().setIndentWidth(preview_tab_width)
 
     def load(self, title: str, content: str) -> None:
         self._loading = True
