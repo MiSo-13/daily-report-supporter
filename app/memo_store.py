@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 import uuid
 
 MEMO_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+MEMO_ORDER_FILE_NAME = ".order.json"
 
 
 @dataclass(slots=True, frozen=True)
@@ -26,6 +28,7 @@ class MemoStore:
     def __init__(self, root: Path | str) -> None:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
+        self.order_path = self.root / MEMO_ORDER_FILE_NAME
 
     def list_memos(self) -> list[MemoDocument]:
         memos: list[MemoDocument] = []
@@ -34,11 +37,31 @@ class MemoStore:
                 memos.append(self._read_path(path))
             except OSError:
                 continue
-        return sorted(memos, key=lambda memo: memo.title.casefold())
+
+        by_id = {memo.memo_id: memo for memo in memos}
+        ordered: list[MemoDocument] = []
+        seen: set[str] = set()
+
+        for memo_id in self._load_order():
+            memo = by_id.get(memo_id)
+            if memo is None or memo_id in seen:
+                continue
+            ordered.append(memo)
+            seen.add(memo_id)
+
+        remaining = sorted(
+            (memo for memo in memos if memo.memo_id not in seen),
+            key=lambda memo: memo.title.casefold(),
+        )
+        ordered.extend(remaining)
+        return ordered
 
     def create(self, title: str, content: str = "") -> MemoDocument:
+        current_order = [memo.memo_id for memo in self.list_memos()]
         memo_id = uuid.uuid4().hex
-        return self.save(memo_id, title, content)
+        memo = self.save(memo_id, title, content)
+        self._save_order([*current_order, memo.memo_id])
+        return memo
 
     def load(self, memo_id: str) -> MemoDocument:
         return self._read_path(self.path_for(memo_id))
@@ -54,6 +77,26 @@ class MemoStore:
         path = self.path_for(memo_id)
         if path.exists():
             path.unlink()
+
+        order = [
+            value
+            for value in self._load_order()
+            if value != memo_id
+        ]
+        if order:
+            self._save_order(order)
+        elif self.order_path.exists():
+            self.order_path.unlink()
+
+    def reorder(self, memo_ids: list[str]) -> None:
+        existing = {path.stem for path in self.root.glob("*.md")}
+        if (
+            len(memo_ids) != len(existing)
+            or len(set(memo_ids)) != len(memo_ids)
+            or set(memo_ids) != existing
+        ):
+            raise ValueError("memo order must contain every memo exactly once")
+        self._save_order(memo_ids)
 
     def search(self, query: str) -> list[MemoSearchResult]:
         keyword = query.strip().casefold()
@@ -112,6 +155,33 @@ class MemoStore:
     def _read_path(self, path: Path) -> MemoDocument:
         text = path.read_text(encoding="utf-8")
         return self.parse(path.stem, text)
+
+    def _load_order(self) -> list[str]:
+        if not self.order_path.exists():
+            return []
+
+        try:
+            payload = json.loads(self.order_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+
+        if not isinstance(payload, list):
+            return []
+
+        return [
+            value
+            for value in payload
+            if isinstance(value, str) and MEMO_ID_RE.fullmatch(value)
+        ]
+
+    def _save_order(self, memo_ids: list[str]) -> None:
+        self.order_path.parent.mkdir(parents=True, exist_ok=True)
+        temp = self.order_path.with_suffix(".json.tmp")
+        temp.write_text(
+            json.dumps(memo_ids, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temp.replace(self.order_path)
 
     @staticmethod
     def _matching_line(content: str, keyword: str) -> str:
