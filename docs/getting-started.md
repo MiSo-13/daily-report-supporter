@@ -4,11 +4,11 @@
 
 Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-13/daily-report-supporter/releases/latest)에서 운영체제에 맞는 파일을 받습니다.
 
-- Windows: `DailyReportSupporter.exe`
-- macOS: `DailyReportSupporter-macos-*.zip`
-- ChromeOS/Crostini: `DailyReportSupporter-linux-*`
+- Windows: `WorKing.exe`
+- macOS: `WorKing-macos-*.zip`
+- ChromeOS/Crostini: `WorKing-linux-*`
 
-배포 실행파일의 업무 데이터는 `~/DailyReportSupporter/reports/`, 메모는 `~/DailyReportSupporter/memos/`에 저장됩니다.
+WorKing 이름으로 배포되지만 기존 데이터 호환을 위해 업무 데이터는 `~/DailyReportSupporter/reports/`, 메모는 `~/DailyReportSupporter/memos/`에 저장됩니다.
 
 ## 1. 소스 실행 준비
 
