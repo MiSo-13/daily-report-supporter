@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-import locale
-import os
 from pathlib import Path
 import re
-import shutil
-import sys
 
-from PyQt6.QtCore import QProcess, QProcessEnvironment, Qt
-from PyQt6.QtGui import QFontDatabase, QKeyEvent, QTextCursor
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import (
+    QFontDatabase,
+    QKeyEvent,
+    QKeySequence,
+    QShortcut,
+    QTextCursor,
+)
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -23,25 +25,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.terminal_backend import create_terminal_backend, resolve_shell
 from app.terminal_store import TerminalProfile
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-
-
-def resolve_shell() -> tuple[str, list[str]]:
-    if sys.platform == "win32":
-        return os.environ.get("COMSPEC") or "cmd.exe", ["/Q"]
-
-    configured = os.environ.get("SHELL")
-    if configured and Path(configured).exists():
-        return configured, []
-
-    bash = shutil.which("bash")
-    if bash:
-        return bash, []
-
-    return shutil.which("sh") or "/bin/sh", []
 
 
 class CommandLineEdit(QLineEdit):
@@ -65,7 +53,10 @@ class CommandLineEdit(QLineEdit):
             return
 
         if event.key() == Qt.Key.Key_Down and self._history:
-            self._history_index = min(len(self._history), self._history_index + 1)
+            self._history_index = min(
+                len(self._history),
+                self._history_index + 1,
+            )
             if self._history_index == len(self._history):
                 self.clear()
             else:
@@ -80,8 +71,8 @@ class TerminalSessionWidget(QWidget):
     def __init__(self, profile: TerminalProfile) -> None:
         super().__init__()
         self.profile = profile
-        self.program, self.arguments = resolve_shell()
-        self.encoding = locale.getpreferredencoding(False) or "utf-8"
+        self.program, _arguments = resolve_shell()
+        self.backend = None
 
         self.name_label = QLabel(f"<b>{profile.name}</b>")
         self.cwd_label = QLabel(profile.cwd)
@@ -89,6 +80,9 @@ class TerminalSessionWidget(QWidget):
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
 
+        self.interrupt_button = QPushButton("중지")
+        self.interrupt_button.setToolTip("Ctrl+C")
+        self.interrupt_button.setObjectName("dangerButton")
         self.restart_button = QPushButton("재시작")
         self.clear_button = QPushButton("지우기")
 
@@ -96,6 +90,7 @@ class TerminalSessionWidget(QWidget):
         header.setSpacing(8)
         header.addWidget(self.name_label)
         header.addWidget(self.cwd_label, 1)
+        header.addWidget(self.interrupt_button)
         header.addWidget(self.clear_button)
         header.addWidget(self.restart_button)
 
@@ -124,19 +119,29 @@ class TerminalSessionWidget(QWidget):
         layout.addWidget(self.output, 1)
         layout.addLayout(command_row)
 
-        self.process = QProcess(self)
-        self.process.setProcessChannelMode(
-            QProcess.ProcessChannelMode.MergedChannels
-        )
-        self.process.readyReadStandardOutput.connect(self._read_output)
-        self.process.started.connect(self._started)
-        self.process.finished.connect(self._finished)
-        self.process.errorOccurred.connect(self._process_error)
-
         self.command_input.returnPressed.connect(self.run_command)
         self.run_button.clicked.connect(self.run_command)
+        self.interrupt_button.clicked.connect(self.interrupt)
         self.restart_button.clicked.connect(self.restart)
         self.clear_button.clicked.connect(self.output.clear)
+
+        self.interrupt_shortcut = QShortcut(
+            QKeySequence("Ctrl+C"),
+            self,
+        )
+        self.interrupt_shortcut.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut
+        )
+        self.interrupt_shortcut.activated.connect(self.interrupt)
+
+        self.copy_shortcut = QShortcut(
+            QKeySequence("Ctrl+Shift+C"),
+            self,
+        )
+        self.copy_shortcut.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut
+        )
+        self.copy_shortcut.activated.connect(self.output.copy)
 
         self.start()
 
@@ -146,19 +151,23 @@ class TerminalSessionWidget(QWidget):
         self.cwd_label.setText(profile.cwd)
 
     def start(self) -> None:
-        if self.process.state() != QProcess.ProcessState.NotRunning:
+        if self.backend is not None and self.backend.is_running():
             return
 
-        cwd = Path(self.profile.cwd).expanduser()
-        if not cwd.is_dir():
-            cwd = Path.home()
+        if self.backend is not None:
+            self.backend.close()
 
-        environment = QProcessEnvironment.systemEnvironment()
-        if sys.platform != "win32":
-            environment.insert("TERM", "dumb")
-        self.process.setProcessEnvironment(environment)
-        self.process.setWorkingDirectory(str(cwd))
-        self.process.start(self.program, self.arguments)
+        self.backend = create_terminal_backend(self.profile.cwd)
+        self.backend.output.connect(self._read_output)
+        self.backend.exited.connect(self._finished)
+        self.backend.failed.connect(self._process_error)
+        self.backend.start()
+
+        if self.backend.is_running():
+            shell_name = Path(self.program).name
+            self._append_text(
+                f"{shell_name} · {self.profile.cwd}\n"
+            )
 
     def restart(self) -> None:
         self._stop_process()
@@ -168,44 +177,35 @@ class TerminalSessionWidget(QWidget):
     def shutdown(self) -> None:
         self._stop_process()
 
+    def interrupt(self) -> None:
+        if self.backend is None or not self.backend.is_running():
+            return
+        self.backend.interrupt()
+
     def run_command(self) -> None:
         command = self.command_input.text()
         if not command.strip():
             return
 
-        if self.process.state() == QProcess.ProcessState.NotRunning:
+        if self.backend is None or not self.backend.is_running():
             self.start()
-            if not self.process.waitForStarted(1000):
-                return
+        if self.backend is None or not self.backend.is_running():
+            return
 
         self.command_input.add_history(command)
-        self._append_text(f"> {command}\n")
-        self.process.write((command + os.linesep).encode(self.encoding, errors="replace"))
+        self.backend.write_line(command)
         self.command_input.clear()
 
-    def _started(self) -> None:
-        shell_name = Path(self.program).name
-        self._append_text(f"{shell_name} · {self.process.workingDirectory()}\n")
-
-    def _read_output(self) -> None:
-        raw = bytes(self.process.readAllStandardOutput())
-        if not raw:
-            return
-        text = raw.decode(self.encoding, errors="replace")
-        text = ANSI_ESCAPE_RE.sub("", text)
+    def _read_output(self, raw_text: str) -> None:
+        text = ANSI_ESCAPE_RE.sub("", raw_text)
         text = text.replace("\r\n", "\n").replace("\r", "\n")
         self._append_text(text)
 
-    def _finished(
-        self,
-        _exit_code: int,
-        _status: QProcess.ExitStatus,
-    ) -> None:
+    def _finished(self) -> None:
         self._append_text("\n[종료]\n")
 
-    def _process_error(self, error: QProcess.ProcessError) -> None:
-        if error == QProcess.ProcessError.FailedToStart:
-            self._append_text(f"[실행 실패] {self.program}\n")
+    def _process_error(self, message: str) -> None:
+        self._append_text(f"[실행 실패] {message}\n")
 
     def _append_text(self, text: str) -> None:
         cursor = self.output.textCursor()
@@ -215,12 +215,10 @@ class TerminalSessionWidget(QWidget):
         self.output.ensureCursorVisible()
 
     def _stop_process(self) -> None:
-        if self.process.state() == QProcess.ProcessState.NotRunning:
+        if self.backend is None:
             return
-        self.process.terminate()
-        if not self.process.waitForFinished(500):
-            self.process.kill()
-            self.process.waitForFinished(500)
+        self.backend.close()
+        self.backend = None
 
 
 class TerminalSidebar(QWidget):
