@@ -235,16 +235,8 @@ class MainWindow(QMainWindow):
         )
         self.resource_monitor = ProcessResourceMonitor(self)
         self.resource_monitor.updated.connect(self.resource_label.setText)
-        self.resource_label.setVisible(self.settings.show_resource_usage)
-        if self.settings.show_resource_usage:
-            self.resource_monitor.start()
-
-        self._build_shortcuts()
-        self._build_menu()
-        self._apply_theme_now(self.settings.theme, persist=False)
 
         self.brand_label = QLabel("made by MiSo")
-
         self.status_info = QWidget()
         status_info_layout = QHBoxLayout(self.status_info)
         status_info_layout.setContentsMargins(0, 0, 0, 0)
@@ -252,8 +244,15 @@ class MainWindow(QMainWindow):
         status_info_layout.addWidget(self.resource_label)
         status_info_layout.addStretch(1)
         status_info_layout.addWidget(self.brand_label)
-
         self.statusBar().addPermanentWidget(self.status_info, 1)
+
+        self.resource_label.setVisible(self.settings.show_resource_usage)
+        if self.settings.show_resource_usage:
+            self.resource_monitor.start()
+
+        self._build_shortcuts()
+        self._build_menu()
+        self._apply_theme_now(self.settings.theme, persist=False)
 
         self.open_today()
 
