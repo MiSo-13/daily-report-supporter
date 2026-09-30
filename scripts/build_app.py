@@ -21,6 +21,8 @@ def build() -> None:
         APP_NAME,
         "--add-data",
         f"{CROSTINI_SETUP}:scripts",
+        "--collect-all",
+        "termqt",
     ]
 
     if sys.platform == "darwin":
