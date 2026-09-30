@@ -21,7 +21,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
@@ -31,6 +30,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.reorderable_list import ReorderableListWidget
 from app.terminal_backend import create_terminal_backend, resolve_shell
 from app.terminal_store import (
     TERMINAL_LOCAL,
@@ -571,12 +571,15 @@ class TerminalSidebar(QWidget):
         on_new_ssh: Callable[[], None],
         on_edit: Callable[[], None],
         on_delete: Callable[[], None],
+        on_reorder: Callable[[list[str]], None],
     ) -> None:
         super().__init__()
         self.on_select = on_select
+        self.on_reorder = on_reorder
 
-        self.list_widget = QListWidget()
+        self.list_widget = ReorderableListWidget()
         self.list_widget.itemClicked.connect(self._selected)
+        self.list_widget.order_changed.connect(self._persist_order)
 
         self.new_local_button = QPushButton("+ 로컬")
         self.new_local_button.setObjectName("primaryButton")
@@ -646,6 +649,15 @@ class TerminalSidebar(QWidget):
             if item.data(Qt.ItemDataRole.UserRole) == terminal_id:
                 self.list_widget.setCurrentItem(item)
                 return
+
+    def _persist_order(self) -> None:
+        terminal_ids: list[str] = []
+        for index in range(self.list_widget.count()):
+            value = self.list_widget.item(index).data(Qt.ItemDataRole.UserRole)
+            if value:
+                terminal_ids.append(str(value))
+        if terminal_ids:
+            self.on_reorder(terminal_ids)
 
     def _selected(self, item: QListWidgetItem) -> None:
         value = item.data(Qt.ItemDataRole.UserRole)
