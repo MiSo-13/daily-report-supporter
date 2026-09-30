@@ -8,6 +8,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - [사용 가이드](./docs/user-guide.md)
 - [설정 가이드](./docs/settings.md)
 - [빌드/배포](./docs/building.md)
+- [코드 구조](./docs/architecture.md)
 - [문서 목록](./docs/README.md)
 
 ## 주요 기능
