@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sys
 
+from PyQt6.QtCore import QObject
+
 from app import terminal_backend
 
 
@@ -41,3 +43,8 @@ def test_unix_shell_prefers_shell_environment(monkeypatch, tmp_path) -> None:
 
     assert program == str(shell)
     assert arguments == []
+
+
+
+def test_terminal_backend_is_qobject_compatible() -> None:
+    assert issubclass(terminal_backend.TerminalBackend, QObject)

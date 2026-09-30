@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import locale
 import os
 from pathlib import Path
@@ -27,7 +26,7 @@ def resolve_shell() -> tuple[str, list[str]]:
     return shutil.which("sh") or "/bin/sh", []
 
 
-class TerminalBackend(QObject, ABC):
+class TerminalBackend(QObject):
     output = pyqtSignal(str)
     exited = pyqtSignal()
     failed = pyqtSignal(str)
@@ -40,15 +39,12 @@ class TerminalBackend(QObject, ABC):
         self.program, self.arguments = resolve_shell()
         self.encoding = locale.getpreferredencoding(False) or "utf-8"
 
-    @abstractmethod
     def start(self) -> None:
         raise NotImplementedError
 
-    @abstractmethod
     def is_running(self) -> bool:
         raise NotImplementedError
 
-    @abstractmethod
     def write(self, text: str) -> None:
         raise NotImplementedError
 
@@ -59,7 +55,6 @@ class TerminalBackend(QObject, ABC):
     def interrupt(self) -> None:
         self.write("\x03")
 
-    @abstractmethod
     def close(self) -> None:
         raise NotImplementedError
 
