@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QListWidgetItem,
     QPushButton,
     QVBoxLayout,
@@ -15,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.memo_store import MemoStore
+from app.reorderable_list import ReorderableListWidget
 
 
 class MemoSidebar(QWidget):
@@ -48,8 +48,9 @@ class MemoSidebar(QWidget):
         actions.addWidget(self.delete_button)
 
         self.count_label = QLabel("")
-        self.list_widget = QListWidget()
+        self.list_widget = ReorderableListWidget()
         self.list_widget.itemClicked.connect(self._selected)
+        self.list_widget.order_changed.connect(self._persist_order)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -66,6 +67,8 @@ class MemoSidebar(QWidget):
 
         self.list_widget.blockSignals(True)
         self.list_widget.clear()
+
+        self.list_widget.set_reordering_enabled(not bool(query))
 
         if query:
             results = self.store.search(query)
@@ -107,6 +110,16 @@ class MemoSidebar(QWidget):
             return None
         value = self.list_widget.item(0).data(Qt.ItemDataRole.UserRole)
         return str(value) if value else None
+
+    def _persist_order(self) -> None:
+        memo_ids: list[str] = []
+        for index in range(self.list_widget.count()):
+            value = self.list_widget.item(index).data(Qt.ItemDataRole.UserRole)
+            if value:
+                memo_ids.append(str(value))
+
+        if memo_ids:
+            self.store.reorder(memo_ids)
 
     def _selected(self, item: QListWidgetItem) -> None:
         value = item.data(Qt.ItemDataRole.UserRole)
