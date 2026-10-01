@@ -4,7 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
-from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QMessageBox, QWidget
+from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QWidget
 
 from app.database_dialogs import DatabaseProfileDialog
 from app.database_models import DatabaseProfile
@@ -162,6 +162,12 @@ class DatabaseWorkspace:
         password = self._password_for(profile)
         if password is None:
             return
+
+        if self._current_profile_id != profile_id:
+            self._current_schema = None
+            self._current_table = None
+            self._generation += 1
+            self.panel.clear()
 
         self._current_profile_id = profile_id
         self.panel.set_connection_context(profile)
@@ -329,7 +335,8 @@ class DatabaseWorkspace:
         if not isinstance(result, dict):
             return
         self.sidebar.set_catalog(profile.connection_id, result)
-        self.panel.set_connection_context(profile)
+        if self._current_profile_id == profile.connection_id:
+            self.panel.set_connection_context(profile)
         table_count = sum(len(tables) for tables in result.values())
         self._show_status(
             f"{profile.name} 연결 완료 · {table_count}개 테이블/뷰",
