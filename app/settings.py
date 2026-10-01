@@ -31,8 +31,8 @@ SETTINGS_FILE_NAME = "settings.json"
 
 
 class AppSettings:
-    def __init__(self, reports_root: Path | str = "reports") -> None:
-        self.path = Path(reports_root) / SETTINGS_FILE_NAME
+    def __init__(self, config_root: Path | str = "config") -> None:
+        self.path = Path(config_root) / SETTINGS_FILE_NAME
         self._data, needs_write = self._load()
 
         if needs_write:
