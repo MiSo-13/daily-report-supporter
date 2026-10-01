@@ -64,6 +64,8 @@ class TerminalDisplay(QPlainTextEdit):
         self._pending_chars = 0
         self._overloaded = False
         self._drop_notice_pending = False
+        self._terminal_cursor = QTextCursor(self.document())
+        self._terminal_cursor.movePosition(QTextCursor.MoveOperation.End)
 
         self._flush_timer = QTimer(self)
         self._flush_timer.setSingleShot(True)
@@ -202,6 +204,12 @@ class TerminalDisplay(QPlainTextEdit):
         self._overloaded = False
         self._drop_notice_pending = False
         self.clear()
+        self._reset_terminal_cursor()
+
+    def _reset_terminal_cursor(self) -> None:
+        self._terminal_cursor = QTextCursor(self.document())
+        self._terminal_cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.setTextCursor(self._terminal_cursor)
 
     def _flush_pending(self, force: bool = False) -> None:
         if not self._pending_output:
@@ -259,19 +267,23 @@ class TerminalDisplay(QPlainTextEdit):
 
         if clear_index >= 0:
             self.clear()
+            self._reset_terminal_cursor()
             raw_text = raw_text[clear_index + clear_length:]
 
-        text = ANSI_ESCAPE_RE.sub("", raw_text).replace("\x07", "")
+        text = raw_text.replace("\x07", "")
         text = text.replace("\r\n", "\n")
 
         scrollbar = self.verticalScrollBar()
         follow_tail = scrollbar.value() >= scrollbar.maximum() - 4
 
-        if "\r" not in text and "\b" not in text:
-            cursor = self.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.End)
-            cursor.insertText(text)
-            self.setTextCursor(cursor)
+        if (
+            "\r" not in text
+            and "\b" not in text
+            and "\x1b" not in text
+            and self._terminal_cursor.atEnd()
+        ):
+            self._terminal_cursor.insertText(text)
+            self.setTextCursor(self._terminal_cursor)
         else:
             self._render_control_text(text)
 
@@ -281,16 +293,28 @@ class TerminalDisplay(QPlainTextEdit):
             scrollbar.setValue(scrollbar.maximum())
 
     def _render_control_text(self, text: str) -> None:
-        cursor = self.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor = QTextCursor(self._terminal_cursor)
         buffer: list[str] = []
 
         def flush() -> None:
             if buffer:
-                cursor.insertText("".join(buffer))
+                self._write_printable(cursor, "".join(buffer))
                 buffer.clear()
 
-        for char in text:
+        index = 0
+        while index < len(text):
+            char = text[index]
+
+            if char == "\x1b":
+                flush()
+                match = ANSI_ESCAPE_RE.match(text, index)
+                if match is not None:
+                    self._handle_escape_sequence(cursor, match.group(0))
+                    index = match.end()
+                    continue
+                index += 1
+                continue
+
             if char == "\r":
                 flush()
                 cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock)
@@ -301,12 +325,175 @@ class TerminalDisplay(QPlainTextEdit):
             elif char == "\b":
                 flush()
                 if cursor.positionInBlock() > 0:
-                    cursor.deletePreviousChar()
+                    cursor.movePosition(
+                        QTextCursor.MoveOperation.PreviousCharacter
+                    )
             else:
                 buffer.append(char)
 
+            index += 1
+
         flush()
-        self.setTextCursor(cursor)
+        self._terminal_cursor = cursor
+        self.setTextCursor(self._terminal_cursor)
+
+    def _write_printable(self, cursor: QTextCursor, text: str) -> None:
+        if not text:
+            return
+
+        block_text = cursor.block().text()
+        remaining = max(len(block_text) - cursor.positionInBlock(), 0)
+        overwrite_count = min(len(text), remaining)
+
+        if overwrite_count:
+            start = cursor.position()
+            cursor.setPosition(
+                start + overwrite_count,
+                QTextCursor.MoveMode.KeepAnchor,
+            )
+            cursor.insertText(text[:overwrite_count])
+
+        if overwrite_count < len(text):
+            cursor.insertText(text[overwrite_count:])
+
+    def _handle_escape_sequence(
+        self,
+        cursor: QTextCursor,
+        sequence: str,
+    ) -> None:
+        if not sequence.startswith("\x1b[") or len(sequence) < 3:
+            return
+
+        final = sequence[-1]
+        raw_params = sequence[2:-1]
+        if raw_params and any(
+            char not in "0123456789;" for char in raw_params
+        ):
+            return
+
+        params = [
+            int(part) if part else 0
+            for part in raw_params.split(";")
+        ] if raw_params else []
+        first = params[0] if params else 0
+        count = first if first > 0 else 1
+
+        if final == "D":
+            steps = min(count, cursor.positionInBlock())
+            if steps:
+                cursor.movePosition(
+                    QTextCursor.MoveOperation.PreviousCharacter,
+                    QTextCursor.MoveMode.MoveAnchor,
+                    steps,
+                )
+            return
+
+        if final == "C":
+            remaining = max(
+                len(cursor.block().text()) - cursor.positionInBlock(),
+                0,
+            )
+            steps = min(count, remaining)
+            if steps:
+                cursor.movePosition(
+                    QTextCursor.MoveOperation.NextCharacter,
+                    QTextCursor.MoveMode.MoveAnchor,
+                    steps,
+                )
+            return
+
+        if final == "G":
+            column = max(count - 1, 0)
+            block = cursor.block()
+            cursor.setPosition(
+                block.position() + min(column, len(block.text()))
+            )
+            return
+
+        if final == "@":
+            position = cursor.position()
+            cursor.insertText(" " * count)
+            cursor.setPosition(position)
+            return
+
+        if final == "P":
+            self._delete_characters(cursor, count)
+            return
+
+        if final == "X":
+            self._erase_characters(cursor, count)
+            return
+
+        if final == "K":
+            self._erase_in_line(cursor, first)
+
+    @staticmethod
+    def _delete_characters(cursor: QTextCursor, count: int) -> None:
+        available = max(
+            len(cursor.block().text()) - cursor.positionInBlock(),
+            0,
+        )
+        delete_count = min(count, available)
+        if not delete_count:
+            return
+
+        start = cursor.position()
+        cursor.setPosition(
+            start + delete_count,
+            QTextCursor.MoveMode.KeepAnchor,
+        )
+        cursor.removeSelectedText()
+
+    @staticmethod
+    def _erase_characters(cursor: QTextCursor, count: int) -> None:
+        available = max(
+            len(cursor.block().text()) - cursor.positionInBlock(),
+            0,
+        )
+        erase_count = min(count, available)
+        if not erase_count:
+            return
+
+        start = cursor.position()
+        cursor.setPosition(
+            start + erase_count,
+            QTextCursor.MoveMode.KeepAnchor,
+        )
+        cursor.insertText(" " * erase_count)
+        cursor.setPosition(start)
+
+    @staticmethod
+    def _erase_in_line(cursor: QTextCursor, mode: int) -> None:
+        block = cursor.block()
+        block_start = block.position()
+        block_end = block_start + len(block.text())
+        position = cursor.position()
+
+        if mode == 0:
+            start, end = position, block_end
+        elif mode == 1:
+            start, end = block_start, min(position + 1, block_end)
+        elif mode == 2:
+            start, end = block_start, block_end
+        else:
+            return
+
+        if end <= start:
+            return
+
+        if mode == 0:
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            cursor.removeSelectedText()
+            return
+
+        width = end - start
+        original_position = position
+        cursor.setPosition(start)
+        cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+        cursor.insertText(" " * width)
+        cursor.setPosition(
+            min(original_position, cursor.block().position() + len(cursor.block().text()))
+        )
 
     def _trim_document_chars(self) -> None:
         document = self.document()
