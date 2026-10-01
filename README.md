@@ -266,7 +266,7 @@ docker logs -f my_service
 
 같은 streaming 명령은 `Ctrl+C`로 중단한 뒤 같은 SSH 세션을 계속 사용할 수 있습니다.
 
-터미널 프로필은 `terminal-sessions.json`에 저장됩니다. 터미널 목록 항목을 드래그하면 배열 순서도 함께 저장되어 다음 실행에 유지됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
+터미널 프로필은 `~/WorKing/config/terminal-sessions.json`에 저장됩니다. 터미널 목록 항목을 드래그하면 배열 순서도 함께 저장되어 다음 실행에 유지됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
 
 터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다.
 
