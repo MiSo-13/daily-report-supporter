@@ -8,7 +8,7 @@ Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-1
 - macOS: `WorKing-macos-*.zip`
 - ChromeOS/Crostini: `WorKing-linux-*`
 
-WorKing 이름으로 배포되지만 기존 데이터 호환을 위해 업무 데이터는 `~/DailyReportSupporter/reports/`, 메모는 `~/DailyReportSupporter/memos/`에 저장됩니다.
+소스 실행과 배포 실행파일 모두 사용자 홈의 `~/WorKing/` 아래에 업무/메모/설정 데이터를 저장합니다. 기존 `~/DailyReportSupporter/` 데이터는 첫 실행 시 자동으로 새 위치에 복사됩니다.
 
 ## 1. 소스 실행 준비
 
@@ -55,17 +55,23 @@ bash scripts/setup_crostini.sh
 
 ## 2. 첫 실행
 
-앱을 실행하면 프로젝트의 `reports/` 폴더를 사용합니다.
+앱을 실행하면 사용자 홈에 통합 데이터 폴더를 준비합니다.
 
-오늘 날짜가 2026-09-23이라면 다음 파일이 생성됩니다.
+오늘 날짜가 2026-09-23이라면 주요 파일은 다음 위치에 생성됩니다.
 
 ```text
-reports/
-├─ settings.json
-└─ 2026/
-   └─ 09/
-      └─ 260923.md
+~/WorKing/
+├─ config/
+│  ├─ settings.json
+│  └─ migration-v1.json
+├─ reports/
+│  └─ 2026/
+│     └─ 09/
+│        └─ 260923.md
+└─ memos/
 ```
+
+기존 버전을 사용한 적이 있으면 첫 실행 전에 `~/DailyReportSupporter/` 또는 소스 저장소의 기존 데이터를 확인해 새 구조로 복사합니다. 새 위치의 파일은 덮어쓰지 않으며 기존 폴더도 삭제하지 않습니다.
 
 ## 3. 첫 업무 추가
 
