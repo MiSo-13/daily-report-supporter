@@ -5,9 +5,12 @@ import re
 
 from PyQt6.QtCore import QEvent, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import (
+    QColor,
+    QFont,
     QFontDatabase,
     QInputMethodEvent,
     QKeyEvent,
+    QTextCharFormat,
     QTextCursor,
 )
 from PyQt6.QtWidgets import QApplication, QPlainTextEdit
@@ -32,6 +35,26 @@ class TerminalDisplay(QPlainTextEdit):
     MAX_HIDDEN_PENDING_CHARS = 128_000
     MAX_FLUSH_CHARS = 64_000
     FLUSH_INTERVAL_MS = 50
+
+    ANSI_COLORS = (
+        "#000000",
+        "#cd0000",
+        "#00cd00",
+        "#cdcd00",
+        "#0000ee",
+        "#cd00cd",
+        "#00cdcd",
+        "#e5e5e5",
+        "#7f7f7f",
+        "#ff0000",
+        "#00ff00",
+        "#ffff00",
+        "#5c5cff",
+        "#ff00ff",
+        "#00ffff",
+        "#ffffff",
+    )
+    COLOR_CUBE_LEVELS = (0, 95, 135, 175, 215, 255)
 
     KEY_SEQUENCES = {
         Qt.Key.Key_Up: "\x1b[A",
@@ -66,6 +89,8 @@ class TerminalDisplay(QPlainTextEdit):
         self._drop_notice_pending = False
         self._terminal_cursor = QTextCursor(self.document())
         self._terminal_cursor.movePosition(QTextCursor.MoveOperation.End)
+        self._escape_buffer = ""
+        self._reset_ansi_style()
 
         self._flush_timer = QTimer(self)
         self._flush_timer.setSingleShot(True)
@@ -203,8 +228,17 @@ class TerminalDisplay(QPlainTextEdit):
         self._pending_chars = 0
         self._overloaded = False
         self._drop_notice_pending = False
+        self._escape_buffer = ""
+        self._reset_ansi_style()
         self.clear()
         self._reset_terminal_cursor()
+
+    def _reset_ansi_style(self) -> None:
+        self._ansi_foreground: QColor | None = None
+        self._ansi_background: QColor | None = None
+        self._ansi_bold = False
+        self._ansi_underline = False
+        self._ansi_italic = False
 
     def _reset_terminal_cursor(self) -> None:
         self._terminal_cursor = QTextCursor(self.document())
@@ -257,21 +291,28 @@ class TerminalDisplay(QPlainTextEdit):
             self._flush_timer.start()
 
     def _render_terminal_text(self, raw_text: str) -> None:
+        if self._escape_buffer:
+            raw_text = self._escape_buffer + raw_text
+            self._escape_buffer = ""
+
         clear_index = -1
         clear_length = 0
+        clear_marker = ""
         for marker in CLEAR_SCREEN_MARKERS:
             index = raw_text.rfind(marker)
             if index > clear_index:
                 clear_index = index
                 clear_length = len(marker)
+                clear_marker = marker
 
         if clear_index >= 0:
             self.clear()
             self._reset_terminal_cursor()
+            if clear_marker == "\x1bc":
+                self._reset_ansi_style()
             raw_text = raw_text[clear_index + clear_length:]
 
-        text = raw_text.replace("\x07", "")
-        text = text.replace("\r\n", "\n")
+        text = raw_text.replace("\r\n", "\n")
 
         scrollbar = self.verticalScrollBar()
         follow_tail = scrollbar.value() >= scrollbar.maximum() - 4
@@ -280,9 +321,10 @@ class TerminalDisplay(QPlainTextEdit):
             "\r" not in text
             and "\b" not in text
             and "\x1b" not in text
+            and "\x07" not in text
             and self._terminal_cursor.atEnd()
         ):
-            self._terminal_cursor.insertText(text)
+            self._write_printable(self._terminal_cursor, text)
             self.setTextCursor(self._terminal_cursor)
         else:
             self._render_control_text(text)
@@ -307,12 +349,15 @@ class TerminalDisplay(QPlainTextEdit):
 
             if char == "\x1b":
                 flush()
-                match = ANSI_ESCAPE_RE.match(text, index)
-                if match is not None:
-                    self._handle_escape_sequence(cursor, match.group(0))
-                    index = match.end()
-                    continue
-                index += 1
+                next_index = self._consume_escape_sequence(
+                    cursor,
+                    text,
+                    index,
+                )
+                if next_index is None:
+                    self._escape_buffer = text[index:]
+                    break
+                index = next_index
                 continue
 
             if char == "\r":
@@ -328,6 +373,8 @@ class TerminalDisplay(QPlainTextEdit):
                     cursor.movePosition(
                         QTextCursor.MoveOperation.PreviousCharacter
                     )
+            elif char == "\x07":
+                flush()
             else:
                 buffer.append(char)
 
@@ -337,10 +384,60 @@ class TerminalDisplay(QPlainTextEdit):
         self._terminal_cursor = cursor
         self.setTextCursor(self._terminal_cursor)
 
+    def _consume_escape_sequence(
+        self,
+        cursor: QTextCursor,
+        text: str,
+        index: int,
+    ) -> int | None:
+        if index + 1 >= len(text):
+            return None
+
+        marker = text[index + 1]
+        if marker == "[":
+            match = ANSI_ESCAPE_RE.match(text, index)
+            if match is None:
+                return None
+            self._handle_escape_sequence(cursor, match.group(0))
+            return match.end()
+
+        if marker == "]":
+            bel_index = text.find("\x07", index + 2)
+            st_index = text.find("\x1b\\", index + 2)
+            endings = [
+                value
+                for value in (bel_index, st_index)
+                if value >= 0
+            ]
+            if not endings:
+                return None
+            end = min(endings)
+            return end + (2 if end == st_index else 1)
+
+        return min(index + 2, len(text))
+
+    def _current_char_format(self) -> QTextCharFormat:
+        char_format = QTextCharFormat()
+        char_format.setFontWeight(
+            QFont.Weight.Bold
+            if self._ansi_bold
+            else QFont.Weight.Normal
+        )
+        char_format.setFontUnderline(self._ansi_underline)
+        char_format.setFontItalic(self._ansi_italic)
+
+        if self._ansi_foreground is not None:
+            char_format.setForeground(self._ansi_foreground)
+        if self._ansi_background is not None:
+            char_format.setBackground(self._ansi_background)
+
+        return char_format
+
     def _write_printable(self, cursor: QTextCursor, text: str) -> None:
         if not text:
             return
 
+        char_format = self._current_char_format()
         block_text = cursor.block().text()
         remaining = max(len(block_text) - cursor.positionInBlock(), 0)
         overwrite_count = min(len(text), remaining)
@@ -351,10 +448,10 @@ class TerminalDisplay(QPlainTextEdit):
                 start + overwrite_count,
                 QTextCursor.MoveMode.KeepAnchor,
             )
-            cursor.insertText(text[:overwrite_count])
+            cursor.insertText(text[:overwrite_count], char_format)
 
         if overwrite_count < len(text):
-            cursor.insertText(text[overwrite_count:])
+            cursor.insertText(text[overwrite_count:], char_format)
 
     def _handle_escape_sequence(
         self,
@@ -366,6 +463,11 @@ class TerminalDisplay(QPlainTextEdit):
 
         final = sequence[-1]
         raw_params = sequence[2:-1]
+
+        if final == "m":
+            self._apply_sgr(raw_params)
+            return
+
         if raw_params and any(
             char not in "0123456789;" for char in raw_params
         ):
@@ -412,7 +514,10 @@ class TerminalDisplay(QPlainTextEdit):
 
         if final == "@":
             position = cursor.position()
-            cursor.insertText(" " * count)
+            cursor.insertText(
+                " " * count,
+                self._current_char_format(),
+            )
             cursor.setPosition(position)
             return
 
@@ -426,6 +531,104 @@ class TerminalDisplay(QPlainTextEdit):
 
         if final == "K":
             self._erase_in_line(cursor, first)
+
+    def _apply_sgr(self, raw_params: str) -> None:
+        if not raw_params:
+            self._reset_ansi_style()
+            return
+
+        if any(char not in "0123456789;" for char in raw_params):
+            return
+
+        params = [
+            int(part) if part else 0
+            for part in raw_params.split(";")
+        ]
+        index = 0
+
+        while index < len(params):
+            code = params[index]
+
+            if code == 0:
+                self._reset_ansi_style()
+            elif code == 1:
+                self._ansi_bold = True
+            elif code == 3:
+                self._ansi_italic = True
+            elif code == 4:
+                self._ansi_underline = True
+            elif code == 22:
+                self._ansi_bold = False
+            elif code == 23:
+                self._ansi_italic = False
+            elif code == 24:
+                self._ansi_underline = False
+            elif 30 <= code <= 37:
+                self._ansi_foreground = self._ansi_color(code - 30)
+            elif code == 39:
+                self._ansi_foreground = None
+            elif 40 <= code <= 47:
+                self._ansi_background = self._ansi_color(code - 40)
+            elif code == 49:
+                self._ansi_background = None
+            elif 90 <= code <= 97:
+                self._ansi_foreground = self._ansi_color(code - 90 + 8)
+            elif 100 <= code <= 107:
+                self._ansi_background = self._ansi_color(code - 100 + 8)
+            elif code in (38, 48):
+                color, consumed = self._extended_color(params, index + 1)
+                if color is not None:
+                    if code == 38:
+                        self._ansi_foreground = color
+                    else:
+                        self._ansi_background = color
+                index += consumed
+
+            index += 1
+
+    def _extended_color(
+        self,
+        params: list[int],
+        start: int,
+    ) -> tuple[QColor | None, int]:
+        if start >= len(params):
+            return None, 0
+
+        mode = params[start]
+        if mode == 5 and start + 1 < len(params):
+            color_index = params[start + 1]
+            if 0 <= color_index <= 255:
+                return self._ansi_color(color_index), 2
+            return None, 2
+
+        if mode == 2 and start + 3 < len(params):
+            red, green, blue = params[start + 1:start + 4]
+            if all(0 <= value <= 255 for value in (red, green, blue)):
+                return QColor(red, green, blue), 4
+            return None, 4
+
+        return None, 0
+
+    def _ansi_color(self, index: int) -> QColor:
+        if 0 <= index < 16:
+            return QColor(self.ANSI_COLORS[index])
+
+        if 16 <= index <= 231:
+            cube = index - 16
+            red_index = cube // 36
+            green_index = (cube % 36) // 6
+            blue_index = cube % 6
+            return QColor(
+                self.COLOR_CUBE_LEVELS[red_index],
+                self.COLOR_CUBE_LEVELS[green_index],
+                self.COLOR_CUBE_LEVELS[blue_index],
+            )
+
+        if 232 <= index <= 255:
+            level = 8 + (index - 232) * 10
+            return QColor(level, level, level)
+
+        return QColor()
 
     @staticmethod
     def _delete_characters(cursor: QTextCursor, count: int) -> None:
@@ -444,8 +647,7 @@ class TerminalDisplay(QPlainTextEdit):
         )
         cursor.removeSelectedText()
 
-    @staticmethod
-    def _erase_characters(cursor: QTextCursor, count: int) -> None:
+    def _erase_characters(self, cursor: QTextCursor, count: int) -> None:
         available = max(
             len(cursor.block().text()) - cursor.positionInBlock(),
             0,
@@ -459,11 +661,13 @@ class TerminalDisplay(QPlainTextEdit):
             start + erase_count,
             QTextCursor.MoveMode.KeepAnchor,
         )
-        cursor.insertText(" " * erase_count)
+        cursor.insertText(
+            " " * erase_count,
+            self._current_char_format(),
+        )
         cursor.setPosition(start)
 
-    @staticmethod
-    def _erase_in_line(cursor: QTextCursor, mode: int) -> None:
+    def _erase_in_line(self, cursor: QTextCursor, mode: int) -> None:
         block = cursor.block()
         block_start = block.position()
         block_end = block_start + len(block.text())
@@ -490,9 +694,15 @@ class TerminalDisplay(QPlainTextEdit):
         original_position = position
         cursor.setPosition(start)
         cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-        cursor.insertText(" " * width)
+        cursor.insertText(
+            " " * width,
+            self._current_char_format(),
+        )
         cursor.setPosition(
-            min(original_position, cursor.block().position() + len(cursor.block().text()))
+            min(
+                original_position,
+                cursor.block().position() + len(cursor.block().text()),
+            )
         )
 
     def _trim_document_chars(self) -> None:

@@ -152,6 +152,10 @@ QPlainTextEdit#terminalOutput:focus {{
 QLabel#terminalHint, QLabel#terminalTarget {{
     color: {terminal_muted};
 }}
+QLabel#terminalLimitHint {{
+    color: #d75f5f;
+    font-weight: 600;
+}}
 QSplitter::handle {{
     background-color: {border};
 }}

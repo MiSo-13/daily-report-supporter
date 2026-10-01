@@ -56,12 +56,28 @@ class TerminalSessionWidget(QWidget):
         )
         hint.setObjectName("terminalHint")
 
+        limit_hint = QLabel("⚠ 전체화면 TUI 미지원")
+        limit_hint.setObjectName("terminalLimitHint")
+        limit_hint.setToolTip(
+            "WorKing 터미널은 로그 확인과 일반 CLI 명령에 최적화되어 있습니다.\n"
+            "지원: grep, tail/tail -f, cat, sed, awk, git, journalctl 등\n"
+            "제한: vim/vi, nano, top/htop, less/more, watch, fzf 등 "
+            "화면 전체를 직접 제어하는 TUI\n"
+            "제한 명령은 실행을 막지는 않지만 화면이 정상적으로 표시되지 않을 수 있습니다."
+        )
+
+        hint_row = QHBoxLayout()
+        hint_row.setSpacing(8)
+        hint_row.addWidget(hint)
+        hint_row.addStretch(1)
+        hint_row.addWidget(limit_hint)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
         layout.addLayout(header)
         layout.addWidget(self.output, 1)
-        layout.addWidget(hint)
+        layout.addLayout(hint_row)
 
         self.interrupt_button.clicked.connect(self.interrupt)
         self.restart_button.clicked.connect(self.restart)

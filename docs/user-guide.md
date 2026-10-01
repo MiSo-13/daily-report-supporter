@@ -224,6 +224,19 @@ tail -f application.log
 
 같은 명령의 출력도 계속 받을 수 있습니다. `Ctrl+C`를 누르면 foreground 명령만 중단하고 로컬 shell 또는 SSH 세션은 계속 사용합니다.
 
+### ANSI 색상 출력
+
+로그와 일반 CLI 명령에서 사용하는 ANSI SGR 서식을 화면에 반영합니다.
+
+- 기본 16색 및 밝은 16색
+- 256색 팔레트
+- 24-bit True Color
+- foreground/background 색상
+- 굵게, 밑줄, 기울임
+- ANSI reset과 출력 청크 사이에 이어지는 색상 상태
+
+따라서 `grep --color=auto`, `ls --color=auto`, `git status`/diff, 컬러 로그처럼 PTY에 ANSI 색상을 출력하는 명령은 색상을 유지해 표시합니다. 출력 도중 ANSI escape sequence가 나뉘어 전달되어도 다음 청크와 이어서 처리합니다.
+
 ### 터미널 목록 순서
 
 로컬/SSH 터미널 항목을 목록 안에서 드래그해 순서를 변경할 수 있습니다. 변경 순서는 `terminal-sessions.json`의 세션 배열 순서로 저장되어 다음 실행에도 유지됩니다.
@@ -264,7 +277,7 @@ SSH 프로필에 저장되는 정보는 이름/Host/Port/User뿐이며 비밀번
 
 Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
-키 입력과 streaming I/O는 실제 pseudo-terminal로 처리하지만 현재 출력 화면은 ANSI cursor/screen 명령을 완전히 구현한 terminal emulator는 아닙니다. `vim`, `top`, `htop` 같은 전체 화면 프로그램은 표시가 제한될 수 있습니다.
+키 입력과 streaming I/O는 실제 pseudo-terminal로 처리하고 로그용 ANSI 색상/서식은 지원하지만, ANSI cursor/screen 명령 전체를 구현한 terminal emulator는 아닙니다. `vim`/`vi`, `nano`, `top`/`htop`, `less`/`more`, `watch`, `fzf` 같은 전체 화면 TUI는 표시가 제한될 수 있습니다. 터미널 하단의 `⚠ 전체화면 TUI 미지원` 안내에 마우스를 올리면 같은 제한 범위를 확인할 수 있습니다.
 
 ## 폰트 설정
 
