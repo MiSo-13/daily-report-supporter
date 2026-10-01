@@ -61,6 +61,22 @@ QListWidget::item:selected, QTreeWidget::item:selected {{
     background-color: {selection};
     color: {text};
 }}
+QTableView {{
+    background-color: {surface};
+    alternate-background-color: {surface_alt};
+    color: {text};
+    gridline-color: {border};
+    selection-background-color: {selection};
+    selection-color: {text};
+}}
+QTableView::item {{
+    color: {text};
+    padding: 4px;
+}}
+QTableView::item:selected {{
+    background-color: {selection};
+    color: {text};
+}}
 QPushButton {{
     background-color: {surface_alt};
     color: {text};
@@ -166,6 +182,12 @@ QHeaderView::section {{
     border-right: 1px solid {border};
     border-bottom: 1px solid {border};
     padding: 6px;
+}}
+QTableCornerButton::section {{
+    background-color: {surface_alt};
+    border: 0;
+    border-right: 1px solid {border};
+    border-bottom: 1px solid {border};
 }}
 QSplitter::handle {{
     background-color: {border};
