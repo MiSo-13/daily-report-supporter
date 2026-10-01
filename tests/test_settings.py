@@ -19,7 +19,7 @@ from app.settings import (
 )
 
 
-def test_settings_are_saved_under_reports(tmp_path) -> None:
+def test_settings_are_saved_under_config_directory(tmp_path) -> None:
     settings = AppSettings(tmp_path)
     settings.theme = "Nord"
     settings.greeting = "YY.MM.DD 업무 공유드립니다."
