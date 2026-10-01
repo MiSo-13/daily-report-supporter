@@ -54,17 +54,23 @@ class DatabaseWorkspace:
         self._current_schema: str | None = None
         self._current_table: str | None = None
         self._generation = 0
+        self._connection_generation = 0
+        self._search_generation = 0
 
         self.sidebar.new_requested.connect(self.create)
         self.sidebar.edit_requested.connect(self.edit)
         self.sidebar.delete_requested.connect(self.delete)
         self.sidebar.connect_requested.connect(self.connect_profile)
+        self.sidebar.schema_expand_requested.connect(self.load_schema)
+        self.sidebar.table_search_requested.connect(self.search_tables)
         self.sidebar.table_selected.connect(self.select_table)
 
         self.panel.refresh_requested.connect(self.refresh_table)
         self.panel.page_requested.connect(self.load_page)
         self.panel.filter_requested.connect(self.apply_filter)
         self.panel.sql_requested.connect(self.execute_sql)
+        self.panel.sort_requested.connect(self.apply_sort)
+        self.panel.quick_filter_requested.connect(self.apply_quick_filter)
 
         self._reload_profiles()
 
@@ -78,7 +84,7 @@ class DatabaseWorkspace:
     def create(self) -> None:
         dialog = DatabaseProfileDialog(
             self.parent,
-            test_connection=self.service.test_connection,
+            test_connection=self._run_connection_test,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -108,7 +114,7 @@ class DatabaseWorkspace:
         dialog = DatabaseProfileDialog(
             self.parent,
             profile=profile,
-            test_connection=self.service.test_connection,
+            test_connection=self._run_connection_test,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -172,12 +178,93 @@ class DatabaseWorkspace:
         self._current_profile_id = profile_id
         self.panel.set_connection_context(profile)
         self.sidebar.set_loading(profile_id)
+        self._connection_generation += 1
+        generation = self._connection_generation
         self._show_status(f"{profile.name} 연결 중...", 1800)
 
         self._run(
-            lambda: self.service.load_catalog(profile, password),
-            lambda result: self._catalog_loaded(profile, result),
-            lambda message: self._catalog_failed(profile, message),
+            lambda: self.service.load_schemas(profile, password),
+            lambda result: self._schemas_loaded(
+                profile,
+                generation,
+                result,
+            ),
+            lambda message: self._schemas_failed(
+                profile,
+                generation,
+                message,
+            ),
+        )
+
+    def load_schema(self, profile_id: str, schema: str) -> None:
+        try:
+            profile = self.store.get(profile_id)
+        except KeyError:
+            return
+
+        password = self._password_for(profile)
+        if password is None:
+            self.sidebar.set_schema_error(
+                profile_id,
+                schema,
+                "비밀번호 입력이 취소되었습니다.",
+            )
+            return
+
+        self.sidebar.set_schema_loading(profile_id, schema)
+        self._run(
+            lambda: self.service.load_tables(
+                profile,
+                password,
+                schema,
+            ),
+            lambda result: self.sidebar.set_schema_tables(
+                profile_id,
+                schema,
+                result,
+            ),
+            lambda message: self.sidebar.set_schema_error(
+                profile_id,
+                schema,
+                message,
+            ),
+        )
+
+    def search_tables(self, profile_id: str, query: str) -> None:
+        self._search_generation += 1
+        generation = self._search_generation
+
+        if not query.strip():
+            self.sidebar.clear_search_results(profile_id)
+            return
+
+        try:
+            profile = self.store.get(profile_id)
+        except KeyError:
+            return
+
+        password = self._password_for(profile)
+        if password is None:
+            return
+
+        self._run(
+            lambda: self.service.search_tables(
+                profile,
+                password,
+                query,
+            ),
+            lambda result: self._search_loaded(
+                profile_id,
+                query,
+                generation,
+                result,
+            ),
+            lambda message: self._search_failed(
+                profile_id,
+                query,
+                generation,
+                message,
+            ),
         )
 
     def select_table(
@@ -185,6 +272,7 @@ class DatabaseWorkspace:
         profile_id: str,
         schema: str,
         table: str,
+        kind: str = "TABLE",
     ) -> None:
         if not profile_id or not schema or not table:
             return
@@ -196,6 +284,17 @@ class DatabaseWorkspace:
         password = self._password_for(profile)
         if password is None:
             return
+
+        self.store.touch_recent_table(
+            profile_id,
+            schema,
+            table,
+            kind,
+        )
+        self.sidebar.set_recent_tables(
+            profile_id,
+            self.store.list_recent_tables(profile_id),
+        )
 
         self._current_profile_id = profile_id
         self._current_schema = schema
@@ -230,9 +329,8 @@ class DatabaseWorkspace:
         )
 
     def refresh_table(self) -> None:
-        if not self._has_table():
-            return
-        self._load_table_snapshot(page=0)
+        if self._has_table():
+            self._load_table_snapshot(page=0)
 
     def load_page(self, page: int) -> None:
         if not self._has_table():
@@ -247,6 +345,7 @@ class DatabaseWorkspace:
         table = str(self._current_table)
         self._generation += 1
         generation = self._generation
+        target_page = max(page, 0)
         self.panel.set_loading()
 
         self._run(
@@ -255,14 +354,16 @@ class DatabaseWorkspace:
                 password,
                 schema,
                 table,
-                page=max(page, 0),
+                page=target_page,
                 page_size=self.panel.page_size,
                 where_clause=self.panel.where_clause,
+                order_by=self.panel.sort_column,
+                order_direction=self.panel.sort_direction,
             ),
             lambda result: self._page_loaded(
                 generation,
                 result,
-                max(page, 0),
+                target_page,
             ),
             lambda message: self._table_failed(generation, message),
         )
@@ -270,6 +371,35 @@ class DatabaseWorkspace:
     def apply_filter(self, _where_clause: str) -> None:
         if self._has_table():
             self.load_page(0)
+
+    def apply_sort(self, _column: str, _direction: str) -> None:
+        if self._has_table():
+            self.load_page(0)
+
+    def apply_quick_filter(
+        self,
+        column: str,
+        value: object,
+        mode: str,
+    ) -> None:
+        profile_id = self._current_profile_id
+        if not profile_id or not self._has_table():
+            return
+
+        try:
+            profile = self.store.get(profile_id)
+            clause = self.service.build_quick_filter(
+                profile,
+                column,
+                value,
+                mode,
+            )
+        except (KeyError, ValueError) as exc:
+            self.panel.set_error(str(exc))
+            return
+
+        self.panel.set_filter_clause(clause)
+        self.load_page(0)
 
     def execute_sql(self, sql: str) -> None:
         profile_id = self._current_profile_id
@@ -318,6 +448,8 @@ class DatabaseWorkspace:
                 page=page,
                 page_size=self.panel.page_size,
                 where_clause=self.panel.where_clause,
+                order_by=self.panel.sort_column,
+                order_direction=self.panel.sort_direction,
             ),
             lambda result: self._table_loaded(
                 generation,
@@ -327,29 +459,59 @@ class DatabaseWorkspace:
             lambda message: self._table_failed(generation, message),
         )
 
-    def _catalog_loaded(
+    def _schemas_loaded(
         self,
         profile: DatabaseProfile,
+        generation: int,
         result: object,
     ) -> None:
-        if not isinstance(result, dict):
+        if generation != self._connection_generation:
             return
-        self.sidebar.set_catalog(profile.connection_id, result)
+        if not isinstance(result, list):
+            return
+        self.sidebar.set_schemas(profile.connection_id, result)
         if self._current_profile_id == profile.connection_id:
             self.panel.set_connection_context(profile)
-        table_count = sum(len(tables) for tables in result.values())
         self._show_status(
-            f"{profile.name} 연결 완료 · {table_count}개 테이블/뷰",
+            f"{profile.name} 연결 완료 · {len(result)}개 schema",
             3000,
         )
 
-    def _catalog_failed(
+    def _schemas_failed(
         self,
         profile: DatabaseProfile,
+        generation: int,
         message: str,
     ) -> None:
+        if generation != self._connection_generation:
+            return
         self.sidebar.set_error(profile.connection_id, message)
         self._show_status(f"{profile.name} 연결 실패", 3000)
+
+    def _search_loaded(
+        self,
+        profile_id: str,
+        query: str,
+        generation: int,
+        result: object,
+    ) -> None:
+        if generation != self._search_generation:
+            return
+        if not isinstance(result, list):
+            return
+        self.sidebar.set_search_results(profile_id, query, result)
+
+    def _search_failed(
+        self,
+        profile_id: str,
+        query: str,
+        generation: int,
+        message: str,
+    ) -> None:
+        if generation != self._search_generation:
+            return
+        self.sidebar.set_search_results(profile_id, query, [])
+        self._show_status(f"테이블 검색 실패: {message}", 3000)
 
     def _table_loaded(
         self,
@@ -389,6 +551,19 @@ class DatabaseWorkspace:
         self.panel.sql_button.setEnabled(True)
         self.panel.sql_status.setText(f"오류: {message}")
 
+    def _run_connection_test(
+        self,
+        profile: DatabaseProfile,
+        password: str,
+        success: Callable[[], None],
+        failure: Callable[[str], None],
+    ) -> None:
+        self._run(
+            lambda: self.service.test_connection(profile, password),
+            lambda _result: success(),
+            failure,
+        )
+
     def _password_for(self, profile: DatabaseProfile) -> str | None:
         if profile.connection_id in self._passwords:
             return self._passwords[profile.connection_id]
@@ -405,8 +580,16 @@ class DatabaseWorkspace:
         return password
 
     def _reload_profiles(self, *, select_id: str | None = None) -> None:
+        profiles = self.store.list_profiles()
+        recent_tables = {
+            profile.connection_id: self.store.list_recent_tables(
+                profile.connection_id
+            )
+            for profile in profiles
+        }
         self.sidebar.set_profiles(
-            self.store.list_profiles(),
+            profiles,
+            recent_tables=recent_tables,
             select_id=select_id or self._current_profile_id,
         )
 
@@ -415,6 +598,8 @@ class DatabaseWorkspace:
         self._current_schema = None
         self._current_table = None
         self._generation += 1
+        self._connection_generation += 1
+        self._search_generation += 1
         self.panel.clear()
 
     def _has_table(self) -> bool:
