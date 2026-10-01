@@ -3,7 +3,11 @@ from __future__ import annotations
 import sys
 
 from app.data_migration import migrate_legacy_data
-from app.paths import default_config_root
+from app.paths import (
+    default_config_root,
+    default_data_root,
+    ensure_data_root_writable,
+)
 from app.qt_platform import (
     CrostiniDependencyError,
     configure_input_method,
@@ -13,6 +17,7 @@ from app.qt_platform import (
 from app.settings import AppSettings
 
 
+DATA_ROOT = default_data_root()
 CONFIG_ROOT = default_config_root()
 
 
@@ -51,8 +56,36 @@ def _configure_platform_with_auto_setup() -> bool:
             return False
 
 
+def _show_data_root_error(message: str) -> int:
+    print(message, file=sys.stderr)
+
+    if not _configure_platform_with_auto_setup():
+        return 3
+
+    from PyQt6.QtWidgets import QApplication, QMessageBox
+
+    app = QApplication([])
+    QMessageBox.critical(
+        None,
+        "WorKing 데이터 폴더 오류",
+        message,
+    )
+    app.quit()
+    return 3
+
+
 def main() -> int:
-    migration = migrate_legacy_data()
+    try:
+        ensure_data_root_writable(DATA_ROOT)
+    except OSError as exc:
+        return _show_data_root_error(
+            "WorKing은 실행 위치의 data 폴더에만 사용자 데이터를 저장합니다.\n\n"
+            f"저장 경로: {DATA_ROOT}\n"
+            f"오류: {exc}\n\n"
+            "WorKing을 쓰기 가능한 폴더로 옮긴 뒤 다시 실행하세요."
+        )
+
+    migration = migrate_legacy_data(data_root=DATA_ROOT)
     if migration.errors:
         for error in migration.errors:
             print(f"데이터 마이그레이션 실패: {error}", file=sys.stderr)
