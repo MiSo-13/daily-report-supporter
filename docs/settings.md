@@ -143,7 +143,7 @@ family 값이 빈 문자열이면 운영체제 기본 폰트를 사용합니다.
 설정은 아래 파일에 저장됩니다.
 
 ```text
-~/WorKing/config/settings.json
+<app-root>/data/config/settings.json
 ```
 
 예:
