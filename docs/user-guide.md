@@ -139,7 +139,7 @@ URL만 입력하면 URL 자체가 링크 이름으로 사용됩니다.
 저장 위치:
 
 ```text
-~/WorKing/memos/<memo-id>.md
+<app-root>/data/memos/<memo-id>.md
 ```
 
 ## 터미널
@@ -233,11 +233,11 @@ tail -f application.log
 
 ### 터미널 목록 순서
 
-로컬/SSH 터미널 항목을 목록 안에서 드래그해 순서를 변경할 수 있습니다. 변경 순서는 `~/WorKing/config/terminal-sessions.json`의 세션 배열 순서로 저장되어 다음 실행에도 유지됩니다.
+로컬/SSH 터미널 항목을 목록 안에서 드래그해 순서를 변경할 수 있습니다. 변경 순서는 `<app-root>/data/config/terminal-sessions.json`의 세션 배열 순서로 저장되어 다음 실행에도 유지됩니다.
 
 ### 프로필 유지
 
-로컬/SSH 프로필은 `~/WorKing/config/terminal-sessions.json`에 저장됩니다.
+로컬/SSH 프로필은 `<app-root>/data/config/terminal-sessions.json`에 저장됩니다.
 
 SSH 프로필에 저장되는 정보는 이름/Host/Port/User뿐이며 비밀번호는 저장하지 않습니다.
 
@@ -288,7 +288,7 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 - User
 - Password
 
-연결 프로필에는 비밀번호를 저장하지 않습니다. `~/WorKing/config/database-connections.json`에는 이름/DB 종류/Host/Port/Database/User만 저장되며, 입력한 비밀번호는 앱 실행 중 메모리에만 유지됩니다. 앱을 다시 실행하면 연결 시 비밀번호를 다시 입력합니다.
+연결 프로필에는 비밀번호를 저장하지 않습니다. `<app-root>/data/config/database-connections.json`에는 이름/DB 종류/Host/Port/Database/User만 저장되며, 입력한 비밀번호는 앱 실행 중 메모리에만 유지됩니다. 앱을 다시 실행하면 연결 시 비밀번호를 다시 입력합니다.
 
 `연결 테스트`로 저장 전에 접속 여부를 확인할 수 있습니다. 연결 테스트도 백그라운드에서 실행하므로 응답이 느린 DB 때문에 편집 창 전체가 멈추지 않습니다.
 
@@ -375,7 +375,7 @@ CPU 3.2% · RAM 148 MB
 
 약 1.5초 간격으로 갱신합니다. 시스템 전체 CPU/RAM 사용량이 아니라 이 앱 프로세스가 현재 사용하는 양입니다.
 
-`설정 → CPU / RAM 표시`에서 표시 여부를 변경할 수 있습니다. 끄면 라벨을 숨기고 리소스 측정 타이머도 중지합니다. 설정값은 `~/WorKing/config/settings.json`에 저장됩니다.
+`설정 → CPU / RAM 표시`에서 표시 여부를 변경할 수 있습니다. 끄면 라벨을 숨기고 리소스 측정 타이머도 중지합니다. 설정값은 `<app-root>/data/config/settings.json`에 저장됩니다.
 
 ## 전체 검색
 
@@ -398,13 +398,13 @@ CPU 3.2% · RAM 148 MB
 ## Markdown 파일 위치
 
 ```text
-~/WorKing/reports/YYYY/MM/YYMMDD.md
+<app-root>/data/reports/YYYY/MM/YYMMDD.md
 ```
 
 예:
 
 ```text
-~/WorKing/reports/2026/09/260923.md
+<app-root>/data/reports/2026/09/260923.md
 ```
 
 ## 일일보고

@@ -147,27 +147,52 @@ bash scripts/setup_crostini.sh
 
 ## 사용자 데이터 구조
 
-소스 실행과 배포 실행파일 모두 사용자 홈의 `~/WorKing/` 아래에 데이터를 저장합니다.
+WorKing은 **프로젝트/실행파일이 있는 폴더의 `data/`만 사용자 데이터 저장 위치로 사용**합니다. 홈 디렉터리나 AppData로 자동 fallback하지 않습니다.
+
+소스 실행:
 
 ```text
-~/WorKing/
-├─ config/
-│  ├─ settings.json
-│  ├─ terminal-sessions.json
-│  ├─ database-connections.json
-│  └─ migration-v1.json
-├─ reports/
-│  └─ 2026/
-│     └─ 09/
-│        ├─ 260922.md
-│        └─ 260923.md
-└─ memos/
-   ├─ <memo-id>.md
-   ├─ <memo-id>.md
-   └─ .order.json
+daily-report-supporter/
+├─ main.py
+├─ app/
+└─ data/
+   ├─ config/
+   │  ├─ settings.json
+   │  ├─ terminal-sessions.json
+   │  ├─ database-connections.json
+   │  └─ migration-v1.json
+   ├─ reports/
+   └─ memos/
 ```
 
-기존 버전의 `~/DailyReportSupporter/` 또는 소스 실행 시 저장소 루트에 있던 `reports/`, `memos/`, 터미널/DB 설정은 첫 실행 시 새 위치로 자동 복사됩니다. 기존 데이터는 삭제하지 않으며 새 위치에 이미 같은 파일이 있으면 덮어쓰지 않습니다.
+Windows/Linux 배포:
+
+```text
+WorKing/
+├─ WorKing.exe      # Windows
+# 또는 WorKing      # Linux
+└─ data/
+   ├─ config/
+   ├─ reports/
+   └─ memos/
+```
+
+macOS 배포:
+
+```text
+WorKing/
+├─ WorKing.app
+└─ data/
+   ├─ config/
+   ├─ reports/
+   └─ memos/
+```
+
+기존 버전의 `~/DailyReportSupporter/`, 전환 버전의 `~/WorKing/`, 또는 소스 실행 시 저장소 루트에 있던 기존 `reports/`, `memos/`, 터미널/DB 설정은 첫 실행 시 현재 앱 옆 `data/`로 자동 복사합니다.
+
+마이그레이션은 기존 데이터를 삭제하거나 수정하지 않습니다. 새 `data/`에 이미 같은 파일이 있으면 덮어쓰지 않습니다.
+
+실행 위치에 `data/`를 만들거나 쓸 권한이 없으면 다른 경로로 우회하지 않고 오류를 표시합니다. 따라서 Windows의 `Program Files`처럼 일반 사용자 쓰기가 제한된 위치보다 사용자가 쓸 수 있는 전용 폴더에 WorKing을 두는 것을 권장합니다.
 
 DB 비밀번호는 연결 파일에 저장하지 않습니다.
 
@@ -266,7 +291,7 @@ docker logs -f my_service
 
 같은 streaming 명령은 `Ctrl+C`로 중단한 뒤 같은 SSH 세션을 계속 사용할 수 있습니다.
 
-터미널 프로필은 `~/WorKing/config/terminal-sessions.json`에 저장됩니다. 터미널 목록 항목을 드래그하면 배열 순서도 함께 저장되어 다음 실행에 유지됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
+터미널 프로필은 `<app-root>/data/config/terminal-sessions.json`에 저장됩니다. 터미널 목록 항목을 드래그하면 배열 순서도 함께 저장되어 다음 실행에 유지됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
 
 터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다.
 
@@ -324,7 +349,7 @@ CPU 3.2% · RAM 148 MB
 - **폰트**: 앱 전체 폰트/크기, 터미널 고정폭 폰트/크기
 - **CPU / RAM 표시**: 하단 리소스 사용량 표시 여부
 - **테마**: Light, Dark, Purple, Nord, Solarized Light, Solarized Dark, Sepia
-- 설정은 `~/WorKing/config/settings.json`에 저장됩니다.
+- 설정은 `<app-root>/data/config/settings.json`에 저장됩니다.
 
 
 
@@ -333,13 +358,14 @@ CPU 3.2% · RAM 148 MB
 테마, 상단 문구, 꼬리말은 아래 파일에 저장됩니다.
 
 ```text
-~/WorKing/
-├─ config/
-│  └─ settings.json
-└─ reports/
-   └─ YYYY/
-      └─ MM/
-         └─ YYMMDD.md
+<app-root>/
+└─ data/
+   ├─ config/
+   │  └─ settings.json
+   └─ reports/
+      └─ YYYY/
+         └─ MM/
+            └─ YYMMDD.md
 ```
 
 예시:
@@ -362,7 +388,7 @@ CPU 3.2% · RAM 148 MB
 }
 ```
 
-앱 실행 시 `~/WorKing/config/settings.json`이 없으면 Light 테마와 기본 상단 문구로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
+앱 실행 시 `<app-root>/data/config/settings.json`이 없으면 Light 테마와 기본 상단 문구로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
 ### ChromeOS / Crostini
 
