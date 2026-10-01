@@ -272,7 +272,7 @@ def test_migration_writes_nothing_to_legacy_home_directories(
     )
 
     assert after_legacy == [
-        item.removeprefix("DailyReportSupporter/")
+        item
         for item in before_legacy
         if item != "DailyReportSupporter"
     ]
