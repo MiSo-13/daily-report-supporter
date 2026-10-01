@@ -120,6 +120,13 @@ class DatabaseWorkspace:
             return
 
         preview = dialog.build_profile()
+        target_changed = (
+            profile.db_type != preview.db_type
+            or profile.host != preview.host
+            or profile.port != preview.port
+            or profile.database != preview.database
+            or profile.user != preview.user
+        )
         updated = self.store.update(
             profile_id,
             name=preview.name,
@@ -131,6 +138,8 @@ class DatabaseWorkspace:
         )
         if dialog.password:
             self._passwords[profile_id] = dialog.password
+        elif target_changed:
+            self._passwords.pop(profile_id, None)
 
         self._reload_profiles(select_id=profile_id)
         if self._current_profile_id == profile_id:
