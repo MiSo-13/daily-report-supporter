@@ -56,9 +56,15 @@ class DatabaseSidebar(QWidget):
         self.delete_button.setObjectName("dangerButton")
         self.connect_button = QPushButton("연결 / 새로고침")
 
-        self.new_button.clicked.connect(self.new_requested)
-        self.edit_button.clicked.connect(self.edit_requested)
-        self.delete_button.clicked.connect(self.delete_requested)
+        self.new_button.clicked.connect(
+            lambda _checked=False: self.new_requested.emit()
+        )
+        self.edit_button.clicked.connect(
+            lambda _checked=False: self.edit_requested.emit()
+        )
+        self.delete_button.clicked.connect(
+            lambda _checked=False: self.delete_requested.emit()
+        )
         self.connect_button.clicked.connect(self._connect_selected)
 
         profile_actions = QHBoxLayout()
@@ -176,7 +182,11 @@ class DatabaseSidebar(QWidget):
         if profile_id:
             self.connect_requested.emit(profile_id)
 
-    def _item_clicked(self, item: QTreeWidgetItem) -> None:
+    def _item_clicked(
+        self,
+        item: QTreeWidgetItem,
+        _column: int = 0,
+    ) -> None:
         if item.data(0, ROLE_KIND) != KIND_TABLE:
             return
         payload = item.data(0, ROLE_PAYLOAD)
@@ -188,7 +198,11 @@ class DatabaseSidebar(QWidget):
             str(payload.get("table") or ""),
         )
 
-    def _item_double_clicked(self, item: QTreeWidgetItem) -> None:
+    def _item_double_clicked(
+        self,
+        item: QTreeWidgetItem,
+        _column: int = 0,
+    ) -> None:
         kind = item.data(0, ROLE_KIND)
         if kind == KIND_PROFILE:
             payload = item.data(0, ROLE_PAYLOAD)
@@ -223,7 +237,9 @@ class DatabasePanel(QWidget):
         self.connection_label = QLabel("<b>DB 연결을 선택하세요.</b>")
         self.table_label = QLabel("")
         self.refresh_button = QPushButton("새로고침")
-        self.refresh_button.clicked.connect(self.refresh_requested)
+        self.refresh_button.clicked.connect(
+            lambda _checked=False: self.refresh_requested.emit()
+        )
         self.refresh_button.setEnabled(False)
 
         header = QHBoxLayout()
@@ -354,10 +370,12 @@ class DatabasePanel(QWidget):
         self.prev_button.setEnabled(False)
         self.next_button.setEnabled(False)
         self.prev_button.clicked.connect(
-            lambda: self.page_requested.emit(max(self._page - 1, 0))
+            lambda _checked=False: self.page_requested.emit(
+                max(self._page - 1, 0)
+            )
         )
         self.next_button.clicked.connect(
-            lambda: self.page_requested.emit(self._page + 1)
+            lambda _checked=False: self.page_requested.emit(self._page + 1)
         )
 
         self.page_size_combo = QComboBox()
@@ -365,7 +383,7 @@ class DatabasePanel(QWidget):
             self.page_size_combo.addItem(f"{size}행", size)
         self.page_size_combo.setCurrentIndex(1)
         self.page_size_combo.currentIndexChanged.connect(
-            lambda: self.page_requested.emit(0)
+            lambda _index: self.page_requested.emit(0)
         )
 
         self.data_status = QLabel("")
@@ -406,7 +424,7 @@ class DatabasePanel(QWidget):
         self.sql_button = QPushButton("SQL 실행")
         self.sql_button.setObjectName("primaryButton")
         self.sql_button.clicked.connect(
-            lambda: self.sql_requested.emit(
+            lambda _checked=False: self.sql_requested.emit(
                 self.sql_editor.toPlainText()
             )
         )
