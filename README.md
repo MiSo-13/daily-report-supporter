@@ -25,6 +25,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
 - 다중 터미널: 로컬 PTY/ConPTY 세션 + 저장형 SSH 프로필, 직접 키 입력, Tab/Ctrl+C
+- DB Viewer: MySQL/PostgreSQL 다중 연결, schema/table 탐색, 페이지 데이터/컬럼/Read Only SQL 조회
 - 앱 하단 왼쪽 CPU / RAM 사용량 표시 및 표시 여부 설정
 - 메모/터미널 목록 항목 드래그 순서 변경 및 저장
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리
@@ -161,6 +162,7 @@ memos/
 └─ .order.json
 
 terminal-sessions.json
+database-connections.json
 ```
 
 배포 실행파일에서는 아래 위치를 사용합니다.
@@ -168,11 +170,12 @@ terminal-sessions.json
 ```text
 ~/DailyReportSupporter/reports/
 ~/DailyReportSupporter/memos/
+~/DailyReportSupporter/database-connections.json
 ```
 
 WorKing으로 이름이 변경되어도 기존 사용자 데이터 호환을 위해 저장 디렉터리 이름은 `DailyReportSupporter`를 유지합니다.
 
-`reports/`, `memos/`, `terminal-sessions.json`은 기본적으로 `.gitignore`에 포함됩니다.
+`reports/`, `memos/`, `terminal-sessions.json`, `database-connections.json`은 기본적으로 `.gitignore`에 포함됩니다. DB 비밀번호는 연결 파일에 저장하지 않습니다.
 
 ## 테스트
 
