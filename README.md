@@ -145,37 +145,31 @@ bash scripts/setup_crostini.sh
 - **진행 업무**: 진행중 + 완료
 - **예정 업무**: 진행중 + 예정
 
-## 파일 구조
+## 사용자 데이터 구조
 
-소스 실행 시:
-
-```text
-reports/
-└─ 2026/
-   └─ 09/
-      ├─ 260922.md
-      └─ 260923.md
-
-memos/
-├─ <memo-id>.md
-├─ <memo-id>.md
-└─ .order.json
-
-terminal-sessions.json
-database-connections.json
-```
-
-배포 실행파일에서는 아래 위치를 사용합니다.
+소스 실행과 배포 실행파일 모두 사용자 홈의 `~/WorKing/` 아래에 데이터를 저장합니다.
 
 ```text
-~/DailyReportSupporter/reports/
-~/DailyReportSupporter/memos/
-~/DailyReportSupporter/database-connections.json
+~/WorKing/
+├─ config/
+│  ├─ settings.json
+│  ├─ terminal-sessions.json
+│  ├─ database-connections.json
+│  └─ migration-v1.json
+├─ reports/
+│  └─ 2026/
+│     └─ 09/
+│        ├─ 260922.md
+│        └─ 260923.md
+└─ memos/
+   ├─ <memo-id>.md
+   ├─ <memo-id>.md
+   └─ .order.json
 ```
 
-WorKing으로 이름이 변경되어도 기존 사용자 데이터 호환을 위해 저장 디렉터리 이름은 `DailyReportSupporter`를 유지합니다.
+기존 버전의 `~/DailyReportSupporter/` 또는 소스 실행 시 저장소 루트에 있던 `reports/`, `memos/`, 터미널/DB 설정은 첫 실행 시 새 위치로 자동 복사됩니다. 기존 데이터는 삭제하지 않으며 새 위치에 이미 같은 파일이 있으면 덮어쓰지 않습니다.
 
-`reports/`, `memos/`, `terminal-sessions.json`, `database-connections.json`은 기본적으로 `.gitignore`에 포함됩니다. DB 비밀번호는 연결 파일에 저장하지 않습니다.
+DB 비밀번호는 연결 파일에 저장하지 않습니다.
 
 ## 테스트
 
@@ -330,7 +324,7 @@ CPU 3.2% · RAM 148 MB
 - **폰트**: 앱 전체 폰트/크기, 터미널 고정폭 폰트/크기
 - **CPU / RAM 표시**: 하단 리소스 사용량 표시 여부
 - **테마**: Light, Dark, Purple, Nord, Solarized Light, Solarized Dark, Sepia
-- 설정은 `reports/settings.json`에 저장됩니다.
+- 설정은 `~/WorKing/config/settings.json`에 저장됩니다.
 
 
 
@@ -339,11 +333,13 @@ CPU 3.2% · RAM 148 MB
 테마, 상단 문구, 꼬리말은 아래 파일에 저장됩니다.
 
 ```text
-reports/
-├─ settings.json
-└─ YYYY/
-   └─ MM/
-      └─ YYMMDD.md
+~/WorKing/
+├─ config/
+│  └─ settings.json
+└─ reports/
+   └─ YYYY/
+      └─ MM/
+         └─ YYMMDD.md
 ```
 
 예시:
@@ -366,7 +362,7 @@ reports/
 }
 ```
 
-앱 실행 시 `reports/settings.json`이 없으면 Light 테마와 기본 상단 문구로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
+앱 실행 시 `~/WorKing/config/settings.json`이 없으면 Light 테마와 기본 상단 문구로 즉시 생성합니다. JSON이 손상되어 읽을 수 없는 경우에도 기본값으로 복구해 다시 저장합니다.
 
 ### ChromeOS / Crostini
 
