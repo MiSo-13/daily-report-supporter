@@ -53,7 +53,6 @@ def test_read_only_sql_accepts_query_statements(sql: str) -> None:
         "WITH changed AS (DELETE FROM users RETURNING *) SELECT * FROM changed",
         "SELECT * FROM users; DELETE FROM users",
         "SELECT * FROM users -- comment",
-        "SELECT * FROM users # comment",
         "SELECT * FROM users INTO OUTFILE '/tmp/users.txt'",
     ],
 )
@@ -86,12 +85,17 @@ def test_where_clause_ignores_keywords_inside_string() -> None:
     assert validate_where_clause(clause) == clause
 
 
+def test_postgresql_json_operator_is_not_treated_as_comment() -> None:
+    sql = "SELECT payload #>> '{user,name}' FROM events"
+
+    assert validate_read_only_sql(sql) == sql
+
+
 @pytest.mark.parametrize(
     "where_clause",
     [
         "1 = 1; DELETE FROM users",
         "id > 1 -- bypass",
-        "id > 1 # bypass",
         "id IN (SELECT id FROM x);",
         "UPDATE users SET x = 1",
     ],
