@@ -233,11 +233,11 @@ tail -f application.log
 
 ### 터미널 목록 순서
 
-로컬/SSH 터미널 항목을 목록 안에서 드래그해 순서를 변경할 수 있습니다. 변경 순서는 `terminal-sessions.json`의 세션 배열 순서로 저장되어 다음 실행에도 유지됩니다.
+로컬/SSH 터미널 항목을 목록 안에서 드래그해 순서를 변경할 수 있습니다. 변경 순서는 `~/WorKing/config/terminal-sessions.json`의 세션 배열 순서로 저장되어 다음 실행에도 유지됩니다.
 
 ### 프로필 유지
 
-로컬/SSH 프로필은 `terminal-sessions.json`에 저장됩니다.
+로컬/SSH 프로필은 `~/WorKing/config/terminal-sessions.json`에 저장됩니다.
 
 SSH 프로필에 저장되는 정보는 이름/Host/Port/User뿐이며 비밀번호는 저장하지 않습니다.
 
@@ -398,13 +398,13 @@ CPU 3.2% · RAM 148 MB
 ## Markdown 파일 위치
 
 ```text
-reports/YYYY/MM/YYMMDD.md
+~/WorKing/reports/YYYY/MM/YYMMDD.md
 ```
 
 예:
 
 ```text
-reports/2026/09/260923.md
+~/WorKing/reports/2026/09/260923.md
 ```
 
 ## 일일보고
