@@ -60,6 +60,20 @@ def test_frozen_build_uses_home_terminal_state(tmp_path) -> None:
     )
 
 
+def test_source_build_uses_repository_database_state() -> None:
+    assert (
+        paths.default_database_state_path(frozen=False)
+        == paths.source_root() / "database-connections.json"
+    )
+
+
+def test_frozen_build_uses_home_database_state(tmp_path) -> None:
+    assert (
+        paths.default_database_state_path(frozen=True, home=tmp_path)
+        == tmp_path / "DailyReportSupporter" / "database-connections.json"
+    )
+
+
 def test_source_terminal_starts_in_repository() -> None:
     assert paths.default_terminal_cwd(frozen=False) == paths.source_root()
 
@@ -79,6 +93,10 @@ def test_runtime_paths_derive_sibling_data_from_explicit_reports_root(
     assert resolved.reports_root == reports_root
     assert resolved.memos_root == tmp_path / "memos"
     assert resolved.terminal_state_path == tmp_path / "terminal-sessions.json"
+    assert (
+        resolved.database_state_path
+        == tmp_path / "database-connections.json"
+    )
     assert resolved.terminal_cwd == tmp_path
 
 
@@ -87,12 +105,14 @@ def test_runtime_paths_respect_explicit_overrides(tmp_path) -> None:
         reports_root=tmp_path / "custom-reports",
         memos_root=tmp_path / "custom-memos",
         terminal_state_path=tmp_path / "custom-terminal.json",
+        database_state_path=tmp_path / "custom-database.json",
         terminal_cwd=tmp_path / "workspace",
     )
 
     assert resolved.reports_root == tmp_path / "custom-reports"
     assert resolved.memos_root == tmp_path / "custom-memos"
     assert resolved.terminal_state_path == tmp_path / "custom-terminal.json"
+    assert resolved.database_state_path == tmp_path / "custom-database.json"
     assert resolved.terminal_cwd == tmp_path / "workspace"
 
 
