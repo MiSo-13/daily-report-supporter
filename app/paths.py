@@ -59,6 +59,18 @@ def default_terminal_state_path(
     return source_root() / "terminal-sessions.json"
 
 
+def default_database_state_path(
+    *,
+    frozen: bool | None = None,
+    home: Path | None = None,
+) -> Path:
+    is_frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    if is_frozen:
+        home_dir = Path.home() if home is None else home
+        return home_dir / APP_DIR_NAME / "database-connections.json"
+    return source_root() / "database-connections.json"
+
+
 def default_terminal_cwd(
     *,
     frozen: bool | None = None,

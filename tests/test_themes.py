@@ -5,6 +5,7 @@ def test_builtin_themes_are_available() -> None:
     assert theme_names() == [
         "Light",
         "Dark",
+        "Purple",
         "Nord",
         "Solarized Light",
         "Solarized Dark",

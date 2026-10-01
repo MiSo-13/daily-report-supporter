@@ -29,6 +29,7 @@ from app.dialogs import (
     ReportDialog,
 )
 from app.app_meta import APP_NAME, ORGANIZATION_NAME
+from app.database_workspace import DatabaseWorkspace
 from app.markdown_store import MarkdownStore
 from app.memo_workspace import MemoWorkspace
 from app.models import DailyDocument, Task, TaskStatus
@@ -50,6 +51,7 @@ class MainWindow(QMainWindow):
         reports_root: Path | str | None = None,
         memos_root: Path | str | None = None,
         terminal_state_path: Path | str | None = None,
+        database_state_path: Path | str | None = None,
         terminal_cwd: Path | str | None = None,
     ) -> None:
         super().__init__()
@@ -61,12 +63,14 @@ class MainWindow(QMainWindow):
             reports_root=reports_root,
             memos_root=memos_root,
             terminal_state_path=terminal_state_path,
+            database_state_path=database_state_path,
             terminal_cwd=terminal_cwd,
         )
         self._initialize_state(paths)
         self._build_work_workspace()
         self._build_memo_workspace()
         self._build_terminal_workspace()
+        self._build_database_workspace()
         self._build_workspace_shell()
         self._build_status_area()
 
@@ -181,17 +185,28 @@ class MainWindow(QMainWindow):
         self.terminal_panel = self.terminal_workspace.panel
         self.terminal_sidebar = self.terminal_workspace.sidebar
 
+    def _build_database_workspace(self) -> None:
+        self.database_workspace = DatabaseWorkspace(
+            self.paths.database_state_path,
+            self,
+            self.statusBar().showMessage,
+        )
+        self.database_panel = self.database_workspace.panel
+        self.database_sidebar = self.database_workspace.sidebar
+
     def _build_workspace_shell(self) -> None:
         self.workspace_tabs = QTabWidget()
         self.workspace_tabs.addTab(self.work_nav, "업무")
         self.workspace_tabs.addTab(self.memo_sidebar, "메모")
         self.workspace_tabs.addTab(self.terminal_sidebar, "터미널")
+        self.workspace_tabs.addTab(self.database_sidebar, "DB")
         self.workspace_tabs.currentChanged.connect(self._workspace_changed)
 
         self.content_stack = QStackedWidget()
         self.content_stack.addWidget(self.work_content)
         self.content_stack.addWidget(self.memo_editor)
         self.content_stack.addWidget(self.terminal_panel)
+        self.content_stack.addWidget(self.database_panel)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(6)
@@ -226,7 +241,7 @@ class MainWindow(QMainWindow):
         if workspace_index == 1:
             self.memo_workspace.save_current()
             return
-        if workspace_index == 2:
+        if workspace_index in (2, 3):
             return
 
         self.today_editor.save_current()
@@ -242,11 +257,14 @@ class MainWindow(QMainWindow):
             self.memo_workspace.activate()
         elif index == 2:
             self.terminal_workspace.activate()
+        elif index == 3:
+            self.database_workspace.activate()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.status_info.shutdown()
         self.memo_workspace.save_if_dirty()
         self.terminal_workspace.shutdown()
+        self.database_workspace.shutdown()
         super().closeEvent(event)
 
     def _build_menu(self) -> None:

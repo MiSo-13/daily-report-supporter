@@ -8,6 +8,7 @@ venv/
 reports/
 memos/
 terminal-sessions.json
+database-connections.json
 
 build/
 dist/

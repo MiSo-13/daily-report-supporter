@@ -42,7 +42,7 @@ QMainWindow, QDialog {{
 QLabel {{
     background: transparent;
 }}
-QLineEdit, QTextEdit, QPlainTextEdit, QTextBrowser, QComboBox, QSpinBox, QListWidget, QDateEdit {{
+QLineEdit, QTextEdit, QPlainTextEdit, QTextBrowser, QComboBox, QSpinBox, QListWidget, QTreeWidget, QTableView, QDateEdit {{
     background-color: {surface};
     color: {text};
     border: 1px solid {border};
@@ -50,14 +50,14 @@ QLineEdit, QTextEdit, QPlainTextEdit, QTextBrowser, QComboBox, QSpinBox, QListWi
     padding: 6px;
     selection-background-color: {selection};
 }}
-QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QTextBrowser:focus, QComboBox:focus, QSpinBox:focus, QListWidget:focus, QDateEdit:focus {{
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QTextBrowser:focus, QComboBox:focus, QSpinBox:focus, QListWidget:focus, QTreeWidget:focus, QTableView:focus, QDateEdit:focus {{
     border: 1px solid {accent};
 }}
-QListWidget::item {{
+QListWidget::item, QTreeWidget::item {{
     padding: 7px 5px;
     border-radius: 4px;
 }}
-QListWidget::item:selected {{
+QListWidget::item:selected, QTreeWidget::item:selected {{
     background-color: {selection};
     color: {text};
 }}
@@ -152,9 +152,20 @@ QPlainTextEdit#terminalOutput:focus {{
 QLabel#terminalHint, QLabel#terminalTarget {{
     color: {terminal_muted};
 }}
+QLabel#databaseHint {{
+    color: {muted};
+}}
 QLabel#terminalLimitHint {{
     color: #d75f5f;
     font-weight: 600;
+}}
+QHeaderView::section {{
+    background-color: {surface_alt};
+    color: {text};
+    border: 0;
+    border-right: 1px solid {border};
+    border-bottom: 1px solid {border};
+    padding: 6px;
 }}
 QSplitter::handle {{
     background-color: {border};
