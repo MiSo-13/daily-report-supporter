@@ -32,7 +32,7 @@ FILE_WRITE_RE = re.compile(
     r"\binto\s+(outfile|dumpfile)\b",
     re.IGNORECASE,
 )
-COMMENT_RE = re.compile(r"--|/\*|\*/|#")
+COMMENT_RE = re.compile(r"--|/\\*|\\*/")
 
 
 def _mask_quoted_sql(sql: str) -> str:
