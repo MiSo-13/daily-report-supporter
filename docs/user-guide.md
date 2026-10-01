@@ -296,15 +296,17 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 연결 프로필에는 비밀번호를 저장하지 않습니다. `database-connections.json`에는 이름/DB 종류/Host/Port/Database/User만 저장되며, 입력한 비밀번호는 앱 실행 중 메모리에만 유지됩니다. 앱을 다시 실행하면 연결 시 비밀번호를 다시 입력합니다.
 
-`연결 테스트`로 저장 전에 접속 여부를 확인할 수 있습니다.
+`연결 테스트`로 저장 전에 접속 여부를 확인할 수 있습니다. 연결 테스트도 백그라운드에서 실행하므로 응답이 느린 DB 때문에 편집 창 전체가 멈추지 않습니다.
 
 ### Schema / Table 탐색
 
-프로필을 선택하고 `연결 / 새로고침`을 누르거나 프로필을 더블클릭하면 접근 가능한 schema/database와 table/view 목록을 불러옵니다.
+프로필을 선택하고 `연결 / 새로고침`을 누르거나 프로필을 더블클릭하면 먼저 접근 가능한 schema/database 목록만 불러옵니다. schema를 펼칠 때 해당 table/view 목록을 조회하므로 테이블이 많은 DB에서도 초기 연결 대기 시간을 줄입니다.
 
 - MySQL: 시스템 schema를 제외한 database/schema 목록
 - PostgreSQL: `information_schema`, `pg_*`를 제외한 schema 목록
 - table과 view 모두 표시
+- 왼쪽 `테이블 검색`: 현재 연결의 메타데이터를 서버에서 검색
+- `최근 테이블`: 연결별 최근 10개 테이블/뷰 저장
 
 테이블을 선택하면 오른쪽에서 다음 탭을 사용할 수 있습니다.
 
@@ -318,8 +320,11 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 - 페이지 크기: 50 / 100 / 200행
 - 이전/다음 페이지 이동
-- 현재 페이지 컬럼 정렬
+- 컬럼 헤더 클릭 시 DB 서버의 `ORDER BY`로 전체 결과 정렬
 - 간단한 WHERE 조건 적용
+- 셀 우클릭으로 `이 값으로 필터`, `이 값 제외`, `NULL만 보기`
+- 선택 셀 TSV 복사 및 헤더 포함 복사
+- 현재 페이지 CSV 저장
 
 WHERE 입력란에는 `WHERE` 키워드 없이 조건만 입력합니다.
 
@@ -327,7 +332,7 @@ WHERE 입력란에는 `WHERE` 키워드 없이 조건만 입력합니다.
 status = 'ERROR' AND id > 100
 ```
 
-세미콜론, SQL 주석, 변경 SQL 키워드는 WHERE 조건에서 차단합니다.
+세미콜론, SQL 주석, 변경 SQL 키워드는 WHERE 조건에서 차단합니다. 문자열 안에 들어 있는 `update`, `delete` 같은 일반 텍스트는 변경 SQL로 오인하지 않도록 구분해서 검사합니다.
 
 ### Read Only SQL
 
@@ -350,7 +355,7 @@ SQL 탭은 조회 목적 전용입니다.
 - MySQL: PyMySQL
 - PostgreSQL: psycopg 3
 
-원격 DB 조회는 UI가 멈추지 않도록 백그라운드 작업으로 처리하며, 기본 연결 timeout은 5초, statement/read timeout은 약 30초로 제한합니다.
+원격 DB 조회와 연결 테스트는 UI가 멈추지 않도록 백그라운드 작업으로 처리하며, 기본 연결 timeout은 5초, statement/read timeout은 약 30초로 제한합니다.
 
 ## 폰트 설정
 
