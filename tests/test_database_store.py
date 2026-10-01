@@ -138,3 +138,28 @@ def test_deleting_profile_removes_recent_tables(tmp_path) -> None:
     store.delete(profile.connection_id)
 
     assert store.list_recent_tables(profile.connection_id) == []
+
+
+def test_changing_connection_target_clears_recent_tables(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+    store.touch_recent_table(profile.connection_id, "app", "users")
+
+    store.update(
+        profile.connection_id,
+        name="DEV",
+        db_type=DB_POSTGRESQL,
+        host="postgres.internal",
+        port=5432,
+        database="service",
+        user="readonly",
+    )
+
+    assert store.list_recent_tables(profile.connection_id) == []
