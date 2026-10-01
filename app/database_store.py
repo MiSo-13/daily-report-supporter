@@ -9,15 +9,17 @@ from app.database_models import (
     DEFAULT_PORTS,
     DatabaseProfile,
     SUPPORTED_DATABASES,
+    TableInfo,
 )
 
 
 class DatabaseStore:
-    VERSION = 1
+    VERSION = 2
+    RECENT_LIMIT = 10
 
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
-        self._profiles = self._load()
+        self._profiles, self._recent_tables = self._load()
 
     def list_profiles(self) -> list[DatabaseProfile]:
         return list(self._profiles)
@@ -27,6 +29,25 @@ class DatabaseStore:
             if profile.connection_id == connection_id:
                 return profile
         raise KeyError(connection_id)
+
+    def list_recent_tables(self, connection_id: str) -> list[TableInfo]:
+        return list(self._recent_tables.get(connection_id, []))
+
+    def touch_recent_table(
+        self,
+        connection_id: str,
+        schema: str,
+        table: str,
+        kind: str = "TABLE",
+    ) -> None:
+        recent = [
+            item
+            for item in self._recent_tables.get(connection_id, [])
+            if not (item.schema == schema and item.name == table)
+        ]
+        recent.insert(0, TableInfo(schema=schema, name=table, kind=kind))
+        self._recent_tables[connection_id] = recent[: self.RECENT_LIMIT]
+        self._save()
 
     def create(
         self,
@@ -87,6 +108,7 @@ class DatabaseStore:
         ]
         if len(self._profiles) == before:
             raise KeyError(connection_id)
+        self._recent_tables.pop(connection_id, None)
         self._save()
 
     def _build_profile(
@@ -120,18 +142,20 @@ class DatabaseStore:
             user=normalized_user,
         )
 
-    def _load(self) -> list[DatabaseProfile]:
+    def _load(
+        self,
+    ) -> tuple[list[DatabaseProfile], dict[str, list[TableInfo]]]:
         if not self.path.exists():
-            return []
+            return [], {}
 
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return []
+            return [], {}
 
         raw_profiles = payload.get("connections", [])
         if not isinstance(raw_profiles, list):
-            return []
+            raw_profiles = []
 
         profiles: list[DatabaseProfile] = []
         for item in raw_profiles:
@@ -140,7 +164,32 @@ class DatabaseStore:
             profile = DatabaseProfile.from_dict(item)
             if profile.connection_id:
                 profiles.append(profile)
-        return profiles
+
+        recent_tables: dict[str, list[TableInfo]] = {}
+        raw_recent = payload.get("recent_tables", {})
+        if isinstance(raw_recent, dict):
+            for connection_id, raw_items in raw_recent.items():
+                if not isinstance(raw_items, list):
+                    continue
+                items: list[TableInfo] = []
+                for raw_item in raw_items[: self.RECENT_LIMIT]:
+                    if not isinstance(raw_item, dict):
+                        continue
+                    schema = str(raw_item.get("schema") or "").strip()
+                    name = str(raw_item.get("name") or "").strip()
+                    if not schema or not name:
+                        continue
+                    items.append(
+                        TableInfo(
+                            schema=schema,
+                            name=name,
+                            kind=str(raw_item.get("kind") or "TABLE"),
+                        )
+                    )
+                if items:
+                    recent_tables[str(connection_id)] = items
+
+        return profiles, recent_tables
 
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -150,6 +199,18 @@ class DatabaseStore:
                 profile.to_dict()
                 for profile in self._profiles
             ],
+            "recent_tables": {
+                connection_id: [
+                    {
+                        "schema": item.schema,
+                        "name": item.name,
+                        "kind": item.kind,
+                    }
+                    for item in items
+                ]
+                for connection_id, items in self._recent_tables.items()
+                if items
+            },
         }
         temp_path = self.path.with_suffix(self.path.suffix + ".tmp")
         temp_path.write_text(
