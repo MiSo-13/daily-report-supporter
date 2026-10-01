@@ -279,6 +279,79 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
 키 입력과 streaming I/O는 실제 pseudo-terminal로 처리하고 로그용 ANSI 색상/서식은 지원하지만, ANSI cursor/screen 명령 전체를 구현한 terminal emulator는 아닙니다. `vim`/`vi`, `nano`, `top`/`htop`, `less`/`more`, `watch`, `fzf` 같은 전체 화면 TUI는 표시가 제한될 수 있습니다. 터미널 하단의 `⚠ 전체화면 TUI 미지원` 안내에 마우스를 올리면 같은 제한 범위를 확인할 수 있습니다.
 
+## DB Viewer
+
+왼쪽에서 `DB` 탭을 선택하면 MySQL과 PostgreSQL 연결을 여러 개 등록해 테이블을 조회할 수 있습니다.
+
+### 연결 프로필
+
+`+ 연결`에서 다음 값을 입력합니다.
+
+- 이름
+- DB 종류: MySQL / PostgreSQL
+- Host / Port
+- Database
+- User
+- Password
+
+연결 프로필에는 비밀번호를 저장하지 않습니다. `database-connections.json`에는 이름/DB 종류/Host/Port/Database/User만 저장되며, 입력한 비밀번호는 앱 실행 중 메모리에만 유지됩니다. 앱을 다시 실행하면 연결 시 비밀번호를 다시 입력합니다.
+
+`연결 테스트`로 저장 전에 접속 여부를 확인할 수 있습니다.
+
+### Schema / Table 탐색
+
+프로필을 선택하고 `연결 / 새로고침`을 누르거나 프로필을 더블클릭하면 접근 가능한 schema/database와 table/view 목록을 불러옵니다.
+
+- MySQL: 시스템 schema를 제외한 database/schema 목록
+- PostgreSQL: `information_schema`, `pg_*`를 제외한 schema 목록
+- table과 view 모두 표시
+
+테이블을 선택하면 오른쪽에서 다음 탭을 사용할 수 있습니다.
+
+- `데이터`: 실제 row 조회
+- `컬럼`: 컬럼명/타입/NULL/기본값/PK 확인
+- `SQL`: 간단한 Read Only SQL 실행
+
+### 데이터 조회
+
+전체 테이블을 한 번에 읽지 않고 페이지 단위로 조회합니다.
+
+- 페이지 크기: 50 / 100 / 200행
+- 이전/다음 페이지 이동
+- 현재 페이지 컬럼 정렬
+- 간단한 WHERE 조건 적용
+
+WHERE 입력란에는 `WHERE` 키워드 없이 조건만 입력합니다.
+
+```sql
+status = 'ERROR' AND id > 100
+```
+
+세미콜론, SQL 주석, 변경 SQL 키워드는 WHERE 조건에서 차단합니다.
+
+### Read Only SQL
+
+SQL 탭은 조회 목적 전용입니다.
+
+허용 시작 구문:
+
+- `SELECT`
+- `WITH`
+- `SHOW`
+- `DESCRIBE` / `DESC`
+- `EXPLAIN`
+
+`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE` 등 변경 SQL은 앱에서 차단하며, DB 세션에도 Read Only 설정을 적용합니다. SQL 결과는 최대 500행까지 표시합니다.
+
+이 보호 기능은 DB 권한을 대신하지 않습니다. 운영 DB는 DB 계정 자체도 SELECT 권한만 가진 계정을 사용하는 것을 권장합니다.
+
+### DB 드라이버
+
+- MySQL: PyMySQL
+- PostgreSQL: psycopg 3
+
+원격 DB 조회는 UI가 멈추지 않도록 백그라운드 작업으로 처리하며, 기본 연결 timeout은 5초, statement/read timeout은 약 30초로 제한합니다.
+
 ## 폰트 설정
 
 `설정 → 폰트...`에서 앱 UI와 터미널의 폰트를 별도로 설정합니다.
