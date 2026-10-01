@@ -24,6 +24,12 @@ def build() -> None:
         APP_NAME,
         "--add-data",
         f"{CROSTINI_SETUP}:scripts",
+        "--collect-all",
+        "pymysql",
+        "--collect-all",
+        "psycopg",
+        "--collect-all",
+        "psycopg_binary",
     ]
 
     if sys.platform == "darwin":
