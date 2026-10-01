@@ -85,48 +85,49 @@ git push origin v0.1.0
 
 태그 빌드가 모두 성공하면 해당 GitHub Release에 OS별 파일이 자동 첨부됩니다.
 
-앱 이름은 WorKing으로 변경됐지만 기존 설치본과 데이터 호환을 위해 사용자 데이터 디렉터리는 `DailyReportSupporter` 이름을 유지합니다.
+기존 설치본의 `DailyReportSupporter` 데이터는 첫 실행 시 현재 앱 옆 Portable `data/`로 자동 복사합니다.
 
-## 배포판 데이터 위치
+## Portable 데이터 위치
 
-소스에서 실행할 때:
+WorKing은 실행 위치 옆의 `data/`만 사용자 데이터 저장소로 사용합니다.
 
-```text
-<repository>/reports/
-<repository>/memos/
-<repository>/terminal-sessions.json
-```
-
-PyInstaller 실행파일로 실행할 때:
+소스 실행:
 
 ```text
-~/DailyReportSupporter/reports/
-~/DailyReportSupporter/memos/
-~/DailyReportSupporter/terminal-sessions.json
+<repository>/
+├─ main.py
+└─ data/
 ```
 
-Windows 예:
+Windows:
 
 ```text
-C:\Users\<사용자>\DailyReportSupporter\reports
-C:\Users\<사용자>\DailyReportSupporter\memos
+WorKing/
+├─ WorKing.exe
+└─ data/
 ```
 
-macOS 예:
+Linux / ChromeOS Crostini:
 
 ```text
-/Users/<사용자>/DailyReportSupporter/reports
-/Users/<사용자>/DailyReportSupporter/memos
+WorKing/
+├─ WorKing
+└─ data/
 ```
 
-ChromeOS/Crostini 예:
+macOS:
 
 ```text
-/home/<사용자>/DailyReportSupporter/reports
-/home/<사용자>/DailyReportSupporter/memos
+WorKing/
+├─ WorKing.app
+└─ data/
 ```
 
-실행파일을 다른 폴더로 옮겨도 업무 파일, 설정, 메모는 같은 위치를 사용합니다.
+macOS에서는 PyInstaller bundle 내부의 `Contents/MacOS`가 아니라 `WorKing.app`이 놓인 외부 폴더를 기준으로 합니다.
+
+앱을 다른 폴더로 옮길 때 `data/`도 같이 옮기면 업무/메모/설정/터미널/DB 프로필이 함께 이동합니다. 실행 위치에 쓰기 권한이 없으면 다른 사용자 디렉터리로 fallback하지 않고 오류를 표시합니다.
+
+기존 사용자 데이터는 첫 실행 시 `~/DailyReportSupporter/`, 전환 `~/WorKing/`, 또는 소스 저장소의 기존 파일을 읽어 현재 앱 옆 `data/`로 복사합니다. 기존 원본은 그대로 보존합니다.
 
 ## 서명
 
