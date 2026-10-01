@@ -129,13 +129,13 @@ class DatabaseProfileDialog(QDialog):
             return
         super().accept()
 
-    def _type_changed(self) -> None:
+    def _type_changed(self, _index: int = 0) -> None:
         new_default = DEFAULT_PORTS[self.db_type]
         if self.port_spin.value() == self._last_default_port:
             self.port_spin.setValue(new_default)
         self._last_default_port = new_default
 
-    def _test(self) -> None:
+    def _test(self, _checked: bool = False) -> None:
         if self._test_connection is None:
             return
         profile = self.build_profile()
