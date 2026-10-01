@@ -48,6 +48,8 @@ from app.themes import THEMES, stylesheet_for, theme_names
 class MainWindow(QMainWindow):
     def __init__(
         self,
+        data_root: Path | str | None = None,
+        config_root: Path | str | None = None,
         reports_root: Path | str | None = None,
         memos_root: Path | str | None = None,
         terminal_state_path: Path | str | None = None,
@@ -60,6 +62,8 @@ class MainWindow(QMainWindow):
         self._default_application_font = QFont(QApplication.font())
 
         paths = resolve_runtime_paths(
+            data_root=data_root,
+            config_root=config_root,
             reports_root=reports_root,
             memos_root=memos_root,
             terminal_state_path=terminal_state_path,
@@ -80,7 +84,7 @@ class MainWindow(QMainWindow):
         self.open_today()
 
     def _initialize_state(self, paths: AppRuntimePaths) -> None:
-        self.settings = AppSettings(paths.reports_root)
+        self.settings = AppSettings(paths.config_root)
         self._apply_application_font()
 
         self.store = MarkdownStore(
@@ -630,7 +634,7 @@ class MainWindow(QMainWindow):
             self.load_date(date.fromisoformat(raw))
 
 
-def run() -> int:
+def run(startup_message: str = "") -> int:
     app = QApplication([])
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
@@ -638,4 +642,9 @@ def run() -> int:
     app.setStyle("Fusion")
     window = MainWindow()
     window.show()
+    if startup_message:
+        QTimer.singleShot(
+            0,
+            lambda: window.statusBar().showMessage(startup_message, 6000),
+        )
     return app.exec()

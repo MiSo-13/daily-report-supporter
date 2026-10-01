@@ -6,14 +6,15 @@ WorKing은 PyQt6 UI, Markdown 기반 업무 데이터, 독립 메모/터미널 �
 
 - `main.py`: 입력기/Qt platform 사전 설정 후 GUI 실행
 - `app/main_window.py`: 최상위 화면 전환, 업무 검색/일일보고, 설정 메뉴 연결
-- `app/app_meta.py`: 앱 이름, 조직명, bundle identifier, legacy 데이터 디렉터리 이름
+- `app/app_meta.py`: 앱 이름, 조직명, bundle identifier, 현재/legacy 데이터 디렉터리 이름
 
 ## 경로
 
-- `app/paths.py`: source/frozen 환경의 기본 경로
+- `app/paths.py`: `~/WorKing/` 기준 기본 경로와 legacy 경로 정의
 - `app/runtime_paths.py`: MainWindow에 전달된 override와 기본 경로를 하나의 `AppRuntimePaths`로 해석
+- `app/data_migration.py`: 기존 `DailyReportSupporter` 및 소스 실행 데이터를 새 통합 구조로 복사
 
-배포판의 사용자 데이터 디렉터리는 기존 버전 호환을 위해 `DailyReportSupporter` 이름을 유지합니다.
+사용자 데이터는 소스/배포 실행 모두 `~/WorKing/` 아래에 저장합니다. `DailyReportSupporter` 이름은 기존 사용자 데이터 탐색용 legacy 경로로만 유지합니다.
 
 ## 업무
 
@@ -44,12 +45,12 @@ PTY/렌더링 로직과 프로필/워크스페이스 로직을 분리해 대량 
 
 ## 설정과 스타일
 
-- `app/settings.py`: `reports/settings.json` 저장 및 migration
+- `app/settings.py`: `config/settings.json` 저장 및 설정 필드 migration
 - `app/themes.py`: 앱/터미널 palette
 - `app/status_bar.py`: CPU/RAM 표시와 branding
 - `app/resource_monitor.py`: 현재 프로세스 CPU/RSS 측정
 
-CPU/RAM 표시 여부, 테마, 폰트, 입력기, 일일보고 설정은 모두 `reports/settings.json`에 저장합니다.
+CPU/RAM 표시 여부, 테마, 폰트, 입력기, 일일보고 설정은 모두 `~/WorKing/config/settings.json`에 저장합니다.
 
 ## UI 책임 원칙
 

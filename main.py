@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import sys
+
+from app.data_migration import migrate_legacy_data
+from app.paths import default_config_root
 from app.qt_platform import (
     CrostiniDependencyError,
     configure_input_method,
     configure_qt_platform,
     install_crostini_dependencies,
 )
-from app.paths import default_reports_root
 from app.settings import AppSettings
 
-REPORTS_ROOT = default_reports_root()
+
+CONFIG_ROOT = default_config_root()
 
 
 def _configure_input_method_from_settings() -> None:
-    settings = AppSettings(REPORTS_ROOT)
+    settings = AppSettings(CONFIG_ROOT)
     configure_input_method(settings.input_method_mode)
 
 
@@ -49,6 +52,11 @@ def _configure_platform_with_auto_setup() -> bool:
 
 
 def main() -> int:
+    migration = migrate_legacy_data()
+    if migration.errors:
+        for error in migration.errors:
+            print(f"데이터 마이그레이션 실패: {error}", file=sys.stderr)
+
     _configure_input_method_from_settings()
 
     if not _configure_platform_with_auto_setup():
@@ -56,7 +64,7 @@ def main() -> int:
 
     from app.main_window import run
 
-    return run()
+    return run(startup_message=migration.startup_message)
 
 
 if __name__ == "__main__":
