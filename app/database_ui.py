@@ -50,7 +50,7 @@ class DatabaseSidebar(QWidget):
     connect_requested = pyqtSignal(str)
     schema_expand_requested = pyqtSignal(str, str)
     table_search_requested = pyqtSignal(str, str)
-    table_selected = pyqtSignal(str, str, str)
+    table_selected = pyqtSignal(str, str, str, str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -403,6 +403,7 @@ class DatabaseSidebar(QWidget):
             str(payload.get("profile_id") or ""),
             str(payload.get("schema") or ""),
             str(payload.get("table") or ""),
+            str(payload.get("kind") or "TABLE"),
         )
 
     def _item_double_clicked(
