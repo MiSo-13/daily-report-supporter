@@ -71,3 +71,95 @@ def test_database_store_recovers_from_invalid_json(tmp_path) -> None:
     store = DatabaseStore(path)
 
     assert store.list_profiles() == []
+
+
+def test_recent_tables_are_persisted_and_deduplicated(tmp_path) -> None:
+    path = tmp_path / "database-connections.json"
+    store = DatabaseStore(path)
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+
+    store.touch_recent_table(profile.connection_id, "app", "users")
+    store.touch_recent_table(profile.connection_id, "app", "orders")
+    store.touch_recent_table(profile.connection_id, "app", "users")
+
+    reloaded = DatabaseStore(path)
+    recent = reloaded.list_recent_tables(profile.connection_id)
+
+    assert [(item.schema, item.name) for item in recent] == [
+        ("app", "users"),
+        ("app", "orders"),
+    ]
+
+
+def test_recent_tables_keep_only_latest_ten(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+
+    for index in range(12):
+        store.touch_recent_table(
+            profile.connection_id,
+            "app",
+            f"table_{index}",
+        )
+
+    recent = store.list_recent_tables(profile.connection_id)
+
+    assert len(recent) == 10
+    assert recent[0].name == "table_11"
+    assert recent[-1].name == "table_2"
+
+
+def test_deleting_profile_removes_recent_tables(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+    store.touch_recent_table(profile.connection_id, "app", "users")
+
+    store.delete(profile.connection_id)
+
+    assert store.list_recent_tables(profile.connection_id) == []
+
+
+def test_changing_connection_target_clears_recent_tables(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+    store.touch_recent_table(profile.connection_id, "app", "users")
+
+    store.update(
+        profile.connection_id,
+        name="DEV",
+        db_type=DB_POSTGRESQL,
+        host="postgres.internal",
+        port=5432,
+        database="service",
+        user="readonly",
+    )
+
+    assert store.list_recent_tables(profile.connection_id) == []

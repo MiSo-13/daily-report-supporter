@@ -8,6 +8,7 @@ from app.database_models import (
     DatabaseProfile,
 )
 from app.database_service import (
+    DatabaseAdapter,
     MySqlAdapter,
     PostgreSqlAdapter,
     validate_read_only_sql,
@@ -35,6 +36,8 @@ def _profile(db_type: str) -> DatabaseProfile:
         "SHOW TABLES",
         "DESCRIBE users",
         "EXPLAIN SELECT * FROM users",
+        "SELECT 'update delete drop' AS message",
+        'SELECT "update" FROM users',
     ],
 )
 def test_read_only_sql_accepts_query_statements(sql: str) -> None:
@@ -62,11 +65,30 @@ def test_read_only_sql_allows_single_trailing_semicolon() -> None:
     assert validate_read_only_sql("SELECT 1;") == "SELECT 1"
 
 
+def test_read_only_sql_ignores_semicolon_inside_string() -> None:
+    assert (
+        validate_read_only_sql("SELECT ';' AS value;")
+        == "SELECT ';' AS value"
+    )
+
+
 def test_where_clause_accepts_simple_filter() -> None:
     assert (
         validate_where_clause("status = 'ERROR' AND id > 10")
         == "status = 'ERROR' AND id > 10"
     )
+
+
+def test_where_clause_ignores_keywords_inside_string() -> None:
+    clause = "message = 'delete; update' AND status = 'ERROR'"
+
+    assert validate_where_clause(clause) == clause
+
+
+def test_postgresql_json_operator_is_not_treated_as_comment() -> None:
+    sql = "SELECT payload #>> '{user,name}' FROM events"
+
+    assert validate_read_only_sql(sql) == sql
 
 
 @pytest.mark.parametrize(
@@ -95,3 +117,115 @@ def test_postgresql_identifier_quoting() -> None:
 
     assert adapter.quote_identifier("order") == '"order"'
     assert adapter.quote_identifier('a"b') == '"a""b"'
+
+
+def test_quick_filter_quotes_string_and_null() -> None:
+    adapter = MySqlAdapter(_profile(DB_MYSQL), "")
+
+    assert (
+        adapter.build_quick_filter("name", "O'Reilly", "equals")
+        == "`name` = 'O''Reilly'"
+    )
+    assert (
+        adapter.build_quick_filter("deleted_at", None, "equals")
+        == "`deleted_at` IS NULL"
+    )
+    assert (
+        adapter.build_quick_filter("deleted_at", None, "not_equals")
+        == "`deleted_at` IS NOT NULL"
+    )
+
+
+class _FakeCursor:
+    description = (("id",),)
+
+    def __init__(self) -> None:
+        self.sql = ""
+        self.params: object = None
+
+    def execute(self, sql: str, params: object = None) -> None:
+        self.sql = sql
+        self.params = params
+
+    def fetchmany(self, _size: int) -> list[tuple[int]]:
+        return [(3,), (2,)]
+
+    def close(self) -> None:
+        return None
+
+
+class _FakeConnection:
+    def __init__(self) -> None:
+        self.cursor_instance = _FakeCursor()
+
+    def cursor(self) -> _FakeCursor:
+        return self.cursor_instance
+
+    def close(self) -> None:
+        return None
+
+
+class _FakeAdapter(DatabaseAdapter):
+    def __init__(self) -> None:
+        super().__init__(_profile(DB_POSTGRESQL), "")
+        self.fake_connection = _FakeConnection()
+
+    def _connect(self) -> _FakeConnection:
+        return self.fake_connection
+
+    def _configure_read_only(self, connection: object) -> None:
+        return None
+
+    def quote_identifier(self, value: str) -> str:
+        return f'"{value}"'
+
+    def list_schemas(self) -> list[str]:
+        return []
+
+    def list_tables(self, schema: str) -> list[object]:
+        return []
+
+    def search_tables(
+        self,
+        query: str,
+        *,
+        limit: int = 100,
+    ) -> list[object]:
+        return []
+
+    def list_columns(self, schema: str, table: str) -> list[object]:
+        return []
+
+
+def test_fetch_page_uses_server_side_order_by() -> None:
+    adapter = _FakeAdapter()
+
+    adapter.fetch_page(
+        "public",
+        "users",
+        limit=1,
+        offset=20,
+        order_by="id",
+        order_direction="DESC",
+    )
+
+    assert (
+        adapter.fake_connection.cursor_instance.sql
+        == 'SELECT * FROM "public"."users" ORDER BY "id" DESC '
+        "LIMIT %s OFFSET %s"
+    )
+    assert adapter.fake_connection.cursor_instance.params == (2, 20)
+
+
+def test_fetch_page_rejects_invalid_sort_direction() -> None:
+    adapter = _FakeAdapter()
+
+    with pytest.raises(ValueError):
+        adapter.fetch_page(
+            "public",
+            "users",
+            limit=100,
+            offset=0,
+            order_by="id",
+            order_direction="DROP",
+        )

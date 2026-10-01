@@ -24,13 +24,24 @@ from app.database_models import (
 )
 
 
+ConnectionTestRunner = Callable[
+    [
+        DatabaseProfile,
+        str,
+        Callable[[], None],
+        Callable[[str], None],
+    ],
+    None,
+]
+
+
 class DatabaseProfileDialog(QDialog):
     def __init__(
         self,
         parent: QWidget,
         *,
         profile: DatabaseProfile | None = None,
-        test_connection: Callable[[DatabaseProfile, str], None] | None = None,
+        test_connection: ConnectionTestRunner | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("DB 연결 편집" if profile else "새 DB 연결")
@@ -53,7 +64,9 @@ class DatabaseProfileDialog(QDialog):
         self.user_edit = QLineEdit(profile.user if profile else "")
         self.password_edit = QLineEdit()
         self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_edit.setPlaceholderText("저장하지 않음 · 실행 중 메모리에만 유지")
+        self.password_edit.setPlaceholderText(
+            "저장하지 않음 · 실행 중 메모리에만 유지"
+        )
 
         selected_type = profile.db_type if profile else DB_MYSQL
         index = self.type_combo.findData(selected_type)
@@ -81,18 +94,18 @@ class DatabaseProfileDialog(QDialog):
         self.test_button = QPushButton("연결 테스트")
         self.test_button.clicked.connect(self._test)
 
-        buttons = QDialogButtonBox(
+        self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
             | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
         layout.addWidget(note)
         layout.addLayout(form)
         layout.addWidget(self.test_button)
-        layout.addWidget(buttons)
+        layout.addWidget(self.buttons)
 
         self.type_combo.currentIndexChanged.connect(self._type_changed)
 
@@ -138,6 +151,7 @@ class DatabaseProfileDialog(QDialog):
     def _test(self, _checked: bool = False) -> None:
         if self._test_connection is None:
             return
+
         profile = self.build_profile()
         if not profile.database or not profile.user:
             QMessageBox.warning(
@@ -147,22 +161,34 @@ class DatabaseProfileDialog(QDialog):
             )
             return
 
-        self.test_button.setEnabled(False)
-        self.test_button.setText("확인 중...")
+        self._set_test_running(True)
         try:
-            self._test_connection(profile, self.password)
+            self._test_connection(
+                profile,
+                self.password,
+                self._test_succeeded,
+                self._test_failed,
+            )
         except Exception as exc:
-            QMessageBox.critical(
-                self,
-                "연결 실패",
-                str(exc),
-            )
-        else:
-            QMessageBox.information(
-                self,
-                "연결 성공",
-                f"{profile.name} 연결을 확인했습니다.",
-            )
-        finally:
-            self.test_button.setEnabled(True)
-            self.test_button.setText("연결 테스트")
+            self._test_failed(str(exc))
+
+    def _test_succeeded(self) -> None:
+        self._set_test_running(False)
+        QMessageBox.information(
+            self,
+            "연결 성공",
+            f"{self.build_profile().name} 연결을 확인했습니다.",
+        )
+
+    def _test_failed(self, message: str) -> None:
+        self._set_test_running(False)
+        QMessageBox.critical(
+            self,
+            "연결 실패",
+            message,
+        )
+
+    def _set_test_running(self, running: bool) -> None:
+        self.test_button.setEnabled(not running)
+        self.test_button.setText("확인 중..." if running else "연결 테스트")
+        self.buttons.setEnabled(not running)

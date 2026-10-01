@@ -77,6 +77,28 @@ class DatabaseTableModel(QAbstractTableModel):
     def clear(self) -> None:
         self.set_result([], [])
 
+    def headers(self) -> list[str]:
+        return list(self._headers)
+
+    def rows(self) -> list[list[object]]:
+        return [list(row) for row in self._rows]
+
+    def header_name(self, column: int) -> str | None:
+        if 0 <= column < len(self._headers):
+            return self._headers[column]
+        return None
+
+    def raw_value(self, row: int, column: int) -> object | None:
+        if not 0 <= row < len(self._rows):
+            return None
+        if not 0 <= column < len(self._headers):
+            return None
+        return self._rows[row][column]
+
+    @staticmethod
+    def display_value(value: object) -> str:
+        return DatabaseTableModel._display_value(value)
+
     @staticmethod
     def _display_value(value: object) -> str:
         if value is None:
