@@ -94,7 +94,16 @@ class DatabaseStore:
         )
         for index, profile in enumerate(self._profiles):
             if profile.connection_id == connection_id:
+                target_changed = (
+                    profile.db_type != updated.db_type
+                    or profile.host != updated.host
+                    or profile.port != updated.port
+                    or profile.database != updated.database
+                    or profile.user != updated.user
+                )
                 self._profiles[index] = updated
+                if target_changed:
+                    self._recent_tables.pop(connection_id, None)
                 self._save()
                 return updated
         raise KeyError(connection_id)
