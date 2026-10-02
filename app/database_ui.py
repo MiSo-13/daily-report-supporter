@@ -502,6 +502,7 @@ class DatabasePanel(QWidget):
     page_requested = pyqtSignal(int)
     filter_requested = pyqtSignal(str)
     sql_requested = pyqtSignal(str)
+    sql_completion_lookup_requested = pyqtSignal(str)
     sort_requested = pyqtSignal(str, str)
     quick_filter_requested = pyqtSignal(str, object, str)
 
@@ -573,6 +574,13 @@ class DatabasePanel(QWidget):
         identifiers: list[str] | tuple[str, ...],
     ) -> None:
         self.sql_editor.add_identifiers(identifiers)
+
+    def apply_sql_completion_lookup(
+        self,
+        prefix: str,
+        identifiers: list[str] | tuple[str, ...],
+    ) -> None:
+        self.sql_editor.apply_lookup_candidates(prefix, identifiers)
 
     def set_table_context(
         self,
@@ -783,6 +791,9 @@ class DatabasePanel(QWidget):
         )
         self.sql_editor.execute_requested.connect(
             self.sql_requested.emit
+        )
+        self.sql_editor.completion_lookup_requested.connect(
+            self.sql_completion_lookup_requested.emit
         )
 
         self.sql_button = QPushButton("SQL 실행")
