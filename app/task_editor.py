@@ -3,9 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PyQt6.QtCore import QTimer, Qt, QUrl
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QKeyEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QComboBox,
     QDialog,
     QFormLayout,
@@ -23,6 +24,29 @@ from PyQt6.QtWidgets import (
 
 from app.dialogs import DeleteConfirmDialog
 from app.models import Task, TaskStatus
+
+
+class PlainTextPasteEdit(QTextEdit):
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        modifiers = event.modifiers()
+        paste_without_format = (
+            event.key() == Qt.Key.Key_V
+            and bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+            and bool(
+                modifiers
+                & (
+                    Qt.KeyboardModifier.ControlModifier
+                    | Qt.KeyboardModifier.MetaModifier
+                )
+            )
+        )
+
+        if paste_without_format:
+            self.insertPlainText(QApplication.clipboard().text())
+            event.accept()
+            return
+
+        super().keyPressEvent(event)
 
 
 class TaskEditor(QWidget):
@@ -64,8 +88,11 @@ class TaskEditor(QWidget):
         url_layout.addWidget(self.link_url_input, 1)
         url_layout.addWidget(self.open_url_button)
 
-        self.details_input = QTextEdit()
+        self.details_input = PlainTextPasteEdit()
         self.details_input.setPlaceholderText("Markdown으로 입력하세요.")
+        self.details_input.setToolTip(
+            "Ctrl+Shift+V: 서식 없이 붙여넣기"
+        )
 
         self.status_input = QComboBox()
         for status in TaskStatus:
