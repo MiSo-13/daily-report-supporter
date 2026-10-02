@@ -197,8 +197,8 @@ class DatabaseWorkspace:
         if password is None:
             return
 
+        self._flush_sql_draft()
         if self._current_profile_id != profile_id:
-            self._flush_sql_draft()
             self._current_schema = None
             self._current_table = None
             self._generation += 1
@@ -327,8 +327,7 @@ class DatabaseWorkspace:
             self.store.list_recent_tables(profile_id),
         )
 
-        if self._current_profile_id != profile_id:
-            self._flush_sql_draft()
+        self._flush_sql_draft()
 
         self._current_profile_id = profile_id
         self._current_schema = schema
