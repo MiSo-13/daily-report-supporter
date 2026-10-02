@@ -152,3 +152,50 @@ def test_database_panel_runs_only_sql_at_cursor() -> None:
     panel._request_sql_execution()
 
     assert executed == ["SELECT 2"]
+
+
+
+def test_database_result_tables_use_bounded_interactive_widths() -> None:
+    panel = DatabasePanel()
+
+    data_header = panel.data_table.horizontalHeader()
+    sql_header = panel.sql_table.horizontalHeader()
+
+    assert data_header.maximumSectionSize() == 360
+    assert sql_header.maximumSectionSize() == 360
+    assert data_header.defaultSectionSize() == 160
+    assert sql_header.defaultSectionSize() == 160
+
+
+def test_large_database_value_is_reported_as_preview() -> None:
+    panel = DatabasePanel()
+    panel.set_data(
+        PageResult(
+            columns=("id", "payload"),
+            rows=((1, "x" * 200_000),),
+            has_next=False,
+        ),
+        page=0,
+    )
+
+    assert "큰 값 1개 미리보기" in panel.data_status.text()
+    assert panel.data_model.truncated_value_count == 1
+
+
+def test_copy_selection_uses_stored_preview_not_full_large_value() -> None:
+    panel = DatabasePanel()
+    panel.set_data(
+        PageResult(
+            columns=("payload",),
+            rows=(("x" * 200_000,),),
+            has_next=False,
+        ),
+        page=0,
+    )
+    panel.data_table.selectAll()
+
+    panel._copy_selection(panel.data_table)
+
+    copied = QApplication.clipboard().text()
+    assert len(copied) <= 4096
+    assert "원본 200,000자" in copied
