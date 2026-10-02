@@ -384,6 +384,7 @@ class SqlSyntaxHighlighter(QSyntaxHighlighter):
 
 class SqlEditor(QPlainTextEdit):
     execute_requested = pyqtSignal(str)
+    completion_lookup_requested = pyqtSignal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -425,6 +426,22 @@ class SqlEditor(QPlainTextEdit):
 
     def completion_candidates(self) -> list[str]:
         return self._completion_model.stringList()
+
+    def apply_lookup_candidates(
+        self,
+        prefix: str,
+        values: Iterable[str],
+    ) -> None:
+        self.add_identifiers(values)
+        current_prefix = self._completion_prefix()
+        if current_prefix.casefold() != prefix.casefold():
+            return
+
+        matches = self._matches(current_prefix)
+        if len(matches) == 1:
+            self._insert_completion(matches[0])
+        elif matches:
+            self._show_completion()
 
     def statement_to_execute(self) -> str:
         cursor = self.textCursor()
@@ -474,9 +491,12 @@ class SqlEditor(QPlainTextEdit):
 
     def changeEvent(self, event: QEvent) -> None:
         super().changeEvent(event)
-        if event.type() in (
-            QEvent.Type.PaletteChange,
-            QEvent.Type.StyleChange,
+        if (
+            hasattr(self, "highlighter")
+            and event.type() in (
+                QEvent.Type.PaletteChange,
+                QEvent.Type.StyleChange,
+            )
         ):
             self.highlighter.refresh_palette()
 
@@ -497,6 +517,9 @@ class SqlEditor(QPlainTextEdit):
 
         matches = self._matches(prefix)
         if not matches:
+            if len(prefix) >= 2:
+                self.completion_lookup_requested.emit(prefix)
+                return True
             return False
 
         if len(matches) == 1:
