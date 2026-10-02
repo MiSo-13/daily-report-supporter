@@ -90,3 +90,20 @@ def test_database_panel_copy_selection_uses_tsv() -> None:
     panel._copy_selection(panel.data_table, include_headers=True)
 
     assert QApplication.clipboard().text() == "id\tname\n1\tAlpha"
+
+
+def test_database_panel_runs_only_sql_at_cursor() -> None:
+    panel = DatabasePanel()
+    panel.sql_editor.setPlainText("SELECT 1;\nSELECT 2;")
+    cursor = panel.sql_editor.textCursor()
+    cursor.setPosition(
+        panel.sql_editor.toPlainText().index("SELECT 2") + 3
+    )
+    panel.sql_editor.setTextCursor(cursor)
+
+    executed: list[str] = []
+    panel.sql_requested.connect(executed.append)
+
+    panel._request_sql_execution()
+
+    assert executed == ["SELECT 2"]
