@@ -14,12 +14,16 @@ from app.database_models import (
 
 
 class DatabaseStore:
-    VERSION = 2
+    VERSION = 3
     RECENT_LIMIT = 10
 
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
-        self._profiles, self._recent_tables = self._load()
+        (
+            self._profiles,
+            self._recent_tables,
+            self._sql_drafts,
+        ) = self._load()
 
     def list_profiles(self) -> list[DatabaseProfile]:
         return list(self._profiles)
@@ -29,6 +33,38 @@ class DatabaseStore:
             if profile.connection_id == connection_id:
                 return profile
         raise KeyError(connection_id)
+
+    def reorder(self, connection_ids: list[str]) -> None:
+        existing = [
+            profile.connection_id
+            for profile in self._profiles
+        ]
+        if (
+            len(connection_ids) != len(existing)
+            or len(set(connection_ids)) != len(connection_ids)
+            or set(connection_ids) != set(existing)
+        ):
+            raise ValueError(
+                "DB 연결 순서에는 모든 연결이 한 번씩 포함되어야 합니다."
+            )
+
+        by_id = {
+            profile.connection_id: profile
+            for profile in self._profiles
+        }
+        self._profiles = [
+            by_id[connection_id]
+            for connection_id in connection_ids
+        ]
+        self._save()
+
+    def get_sql_draft(self, connection_id: str) -> str | None:
+        return self._sql_drafts.get(connection_id)
+
+    def set_sql_draft(self, connection_id: str, sql: str) -> None:
+        self.get(connection_id)
+        self._sql_drafts[connection_id] = sql
+        self._save()
 
     def list_recent_tables(self, connection_id: str) -> list[TableInfo]:
         return list(self._recent_tables.get(connection_id, []))
@@ -104,6 +140,7 @@ class DatabaseStore:
                 self._profiles[index] = updated
                 if target_changed:
                     self._recent_tables.pop(connection_id, None)
+                    self._sql_drafts.pop(connection_id, None)
                 self._save()
                 return updated
         raise KeyError(connection_id)
@@ -118,6 +155,7 @@ class DatabaseStore:
         if len(self._profiles) == before:
             raise KeyError(connection_id)
         self._recent_tables.pop(connection_id, None)
+        self._sql_drafts.pop(connection_id, None)
         self._save()
 
     def _build_profile(
@@ -153,14 +191,18 @@ class DatabaseStore:
 
     def _load(
         self,
-    ) -> tuple[list[DatabaseProfile], dict[str, list[TableInfo]]]:
+    ) -> tuple[
+        list[DatabaseProfile],
+        dict[str, list[TableInfo]],
+        dict[str, str],
+    ]:
         if not self.path.exists():
-            return [], {}
+            return [], {}, {}
 
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return [], {}
+            return [], {}, {}
 
         raw_profiles = payload.get("connections", [])
         if not isinstance(raw_profiles, list):
@@ -174,11 +216,19 @@ class DatabaseStore:
             if profile.connection_id:
                 profiles.append(profile)
 
+        valid_ids = {
+            profile.connection_id
+            for profile in profiles
+        }
+
         recent_tables: dict[str, list[TableInfo]] = {}
         raw_recent = payload.get("recent_tables", {})
         if isinstance(raw_recent, dict):
             for connection_id, raw_items in raw_recent.items():
-                if not isinstance(raw_items, list):
+                if (
+                    connection_id not in valid_ids
+                    or not isinstance(raw_items, list)
+                ):
                     continue
                 items: list[TableInfo] = []
                 for raw_item in raw_items[: self.RECENT_LIMIT]:
@@ -198,7 +248,14 @@ class DatabaseStore:
                 if items:
                     recent_tables[str(connection_id)] = items
 
-        return profiles, recent_tables
+        sql_drafts: dict[str, str] = {}
+        raw_drafts = payload.get("sql_drafts", {})
+        if isinstance(raw_drafts, dict):
+            for connection_id, sql in raw_drafts.items():
+                if connection_id in valid_ids and isinstance(sql, str):
+                    sql_drafts[str(connection_id)] = sql
+
+        return profiles, recent_tables, sql_drafts
 
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -220,6 +277,7 @@ class DatabaseStore:
                 for connection_id, items in self._recent_tables.items()
                 if items
             },
+            "sql_drafts": dict(self._sql_drafts),
         }
         temp_path = self.path.with_suffix(self.path.suffix + ".tmp")
         temp_path.write_text(
