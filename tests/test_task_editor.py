@@ -5,6 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtCore import QMimeData, Qt
+from PyQt6.QtGui import QTextCursor
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
@@ -47,7 +48,10 @@ def test_plain_text_paste_replaces_selected_text() -> None:
     cursor = editor.textCursor()
     start = editor.toPlainText().index("기존")
     cursor.setPosition(start)
-    cursor.setPosition(start + len("기존"), cursor.MoveMode.KeepAnchor)
+    cursor.setPosition(
+        start + len("기존"),
+        QTextCursor.MoveMode.KeepAnchor,
+    )
     editor.setTextCursor(cursor)
     _rich_clipboard("새 내용", "<b>새 내용</b>")
 
