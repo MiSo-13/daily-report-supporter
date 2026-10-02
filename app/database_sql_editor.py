@@ -325,8 +325,8 @@ class SqlSyntaxHighlighter(QSyntaxHighlighter):
 
         string_pattern = (
             r"'(?:''|\\.|[^'])*'"
-            r'e"|"(?:""|\\.|[^"])*"'
-            r|"(`(?:``|[^`])*`)"
+            r'|"(?:""|\\.|[^"])*"'
+            r"|`(?:``|[^`])*`"
         )
         for match in re.finditer(string_pattern, text):
             self.setFormat(
