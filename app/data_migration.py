@@ -8,10 +8,10 @@ import shutil
 import sys
 
 from app.paths import (
-    default_config_root,
     default_data_root,
     legacy_data_root,
     source_root,
+    transitional_data_root,
 )
 
 
@@ -45,13 +45,24 @@ class MigrationResult:
 
 def migrate_legacy_data(
     *,
+    data_root: Path | str | None = None,
     home: Path | None = None,
     legacy_source_root: Path | None = None,
     frozen: bool | None = None,
+    executable: Path | str | None = None,
+    platform: str | None = None,
 ) -> MigrationResult:
-    """구버전 데이터를 새 WorKing 데이터 디렉터리로 안전하게 복사한다."""
-    data_root = default_data_root(home=home)
-    config_root = default_config_root(home=home)
+    """구버전 데이터를 현재 앱 옆 Portable data 디렉터리로 복사한다."""
+    resolved_data_root = (
+        default_data_root(
+            frozen=frozen,
+            executable=executable,
+            platform=platform,
+        )
+        if data_root is None
+        else Path(data_root)
+    )
+    config_root = resolved_data_root / "config"
     marker_path = config_root / MIGRATION_MARKER_NAME
 
     if marker_path.exists():
@@ -65,16 +76,26 @@ def migrate_legacy_data(
         )
 
     is_frozen = getattr(sys, "frozen", False) if frozen is None else frozen
-    candidates: list[Path] = [legacy_data_root(home=home)]
 
+    candidates: list[Path] = []
     if not is_frozen:
         source_candidate = (
             source_root()
             if legacy_source_root is None
             else Path(legacy_source_root)
         )
-        if source_candidate not in candidates and source_candidate != data_root:
+        if source_candidate != resolved_data_root:
             candidates.append(source_candidate)
+
+    for candidate in (
+        legacy_data_root(home=home),
+        transitional_data_root(home=home),
+    ):
+        if (
+            candidate != resolved_data_root
+            and candidate not in candidates
+        ):
+            candidates.append(candidate)
 
     existing_sources = tuple(
         candidate
@@ -89,7 +110,7 @@ def migrate_legacy_data(
     for legacy_root in existing_sources:
         report_result = _copy_tree_missing(
             legacy_root / "reports",
-            data_root / "reports",
+            resolved_data_root / "reports",
             skip_relative={Path("settings.json")},
         )
         copied += report_result[0]
@@ -98,7 +119,7 @@ def migrate_legacy_data(
 
         memo_result = _copy_tree_missing(
             legacy_root / "memos",
-            data_root / "memos",
+            resolved_data_root / "memos",
         )
         copied += memo_result[0]
         skipped += memo_result[1]
@@ -110,11 +131,23 @@ def migrate_legacy_data(
                 config_root / "settings.json",
             ),
             (
+                legacy_root / "config" / "settings.json",
+                config_root / "settings.json",
+            ),
+            (
                 legacy_root / "terminal-sessions.json",
                 config_root / "terminal-sessions.json",
             ),
             (
+                legacy_root / "config" / "terminal-sessions.json",
+                config_root / "terminal-sessions.json",
+            ),
+            (
                 legacy_root / "database-connections.json",
+                config_root / "database-connections.json",
+            ),
+            (
+                legacy_root / "config" / "database-connections.json",
                 config_root / "database-connections.json",
             ),
         ):
@@ -151,6 +184,7 @@ def _has_legacy_data(root: Path) -> bool:
         for path in (
             root / "reports",
             root / "memos",
+            root / "config",
             root / "terminal-sessions.json",
             root / "database-connections.json",
         )

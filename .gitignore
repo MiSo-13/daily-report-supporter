@@ -5,6 +5,7 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+data/
 reports/
 memos/
 terminal-sessions.json

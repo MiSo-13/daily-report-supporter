@@ -75,3 +75,35 @@ def test_input_method_setting_is_applied_from_config(tmp_path, monkeypatch) -> N
     main._configure_input_method_from_settings()
 
     assert received["mode"] == INPUT_METHOD_CROSTINI_IBUS
+
+
+
+def test_main_stops_without_fallback_when_data_root_is_not_writable(
+    monkeypatch,
+) -> None:
+    def fail_writable_check(_path) -> None:
+        raise PermissionError("쓰기 권한 없음")
+
+    received = {"message": ""}
+
+    monkeypatch.setattr(
+        main,
+        "ensure_data_root_writable",
+        fail_writable_check,
+    )
+    monkeypatch.setattr(
+        main,
+        "_show_data_root_error",
+        lambda message: received.update(message=message) or 3,
+    )
+    monkeypatch.setattr(
+        main,
+        "migrate_legacy_data",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("마이그레이션이 실행되면 안 됩니다.")
+        ),
+    )
+
+    assert main.main() == 3
+    assert "data 폴더에만" in received["message"]
+    assert str(main.DATA_ROOT) in received["message"]

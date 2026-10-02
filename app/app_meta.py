@@ -4,5 +4,6 @@ APP_NAME = "WorKing"
 ORGANIZATION_NAME = "MiSo"
 BUNDLE_IDENTIFIER = "com.miso.working"
 
-DATA_DIR_NAME = "WorKing"
+PORTABLE_DATA_DIR_NAME = "data"
 LEGACY_DATA_DIR_NAME = "DailyReportSupporter"
+TRANSITIONAL_DATA_DIR_NAME = "WorKing"

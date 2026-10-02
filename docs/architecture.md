@@ -10,11 +10,11 @@ WorKing은 PyQt6 UI, Markdown 기반 업무 데이터, 독립 메모/터미널 �
 
 ## 경로
 
-- `app/paths.py`: `~/WorKing/` 기준 기본 경로와 legacy 경로 정의
+- `app/paths.py`: 프로젝트/실행파일 옆 `data/` 기준 Portable 경로와 legacy 경로 정의
 - `app/runtime_paths.py`: MainWindow에 전달된 override와 기본 경로를 하나의 `AppRuntimePaths`로 해석
-- `app/data_migration.py`: 기존 `DailyReportSupporter` 및 소스 실행 데이터를 새 통합 구조로 복사
+- `app/data_migration.py`: 기존 `DailyReportSupporter`, 전환 `WorKing`, 소스 실행 데이터를 현재 앱 옆 `data/`로 복사
 
-사용자 데이터는 소스/배포 실행 모두 `~/WorKing/` 아래에 저장합니다. `DailyReportSupporter` 이름은 기존 사용자 데이터 탐색용 legacy 경로로만 유지합니다.
+사용자 데이터는 소스/배포 실행 모두 `<app-root>/data/` 아래에만 저장합니다. 홈 디렉터리의 `DailyReportSupporter`/`WorKing` 경로는 기존 사용자 데이터 탐색용 migration source로만 읽습니다.
 
 ## 업무
 
@@ -50,7 +50,7 @@ PTY/렌더링 로직과 프로필/워크스페이스 로직을 분리해 대량 
 - `app/status_bar.py`: CPU/RAM 표시와 branding
 - `app/resource_monitor.py`: 현재 프로세스 CPU/RSS 측정
 
-CPU/RAM 표시 여부, 테마, 폰트, 입력기, 일일보고 설정은 모두 `~/WorKing/config/settings.json`에 저장합니다.
+CPU/RAM 표시 여부, 테마, 폰트, 입력기, 일일보고 설정은 모두 `<app-root>/data/config/settings.json`에 저장합니다.
 
 ## UI 책임 원칙
 
