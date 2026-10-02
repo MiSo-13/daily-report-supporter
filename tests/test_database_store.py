@@ -163,3 +163,141 @@ def test_changing_connection_target_clears_recent_tables(tmp_path) -> None:
     )
 
     assert store.list_recent_tables(profile.connection_id) == []
+
+
+def test_database_connection_order_is_persisted(tmp_path) -> None:
+    path = tmp_path / "database-connections.json"
+    store = DatabaseStore(path)
+    first = store.create(
+        name="첫 번째",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="first",
+        user="viewer",
+    )
+    second = store.create(
+        name="두 번째",
+        db_type=DB_POSTGRESQL,
+        host="localhost",
+        port=5432,
+        database="second",
+        user="viewer",
+    )
+
+    store.reorder([second.connection_id, first.connection_id])
+
+    reloaded = DatabaseStore(path)
+    assert [
+        profile.connection_id
+        for profile in reloaded.list_profiles()
+    ] == [second.connection_id, first.connection_id]
+
+
+def test_database_connection_order_requires_all_profiles(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    first = store.create(
+        name="첫 번째",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="first",
+        user="viewer",
+    )
+    store.create(
+        name="두 번째",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="second",
+        user="viewer",
+    )
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        store.reorder([first.connection_id])
+
+
+def test_sql_draft_is_persisted_per_connection(tmp_path) -> None:
+    path = tmp_path / "database-connections.json"
+    store = DatabaseStore(path)
+    first = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+    second = store.create(
+        name="STG",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="stage",
+        user="viewer",
+    )
+
+    store.set_sql_draft(
+        first.connection_id,
+        "SELECT * FROM users WHERE id = 1;",
+    )
+    store.set_sql_draft(second.connection_id, "")
+
+    reloaded = DatabaseStore(path)
+    assert reloaded.get_sql_draft(first.connection_id) == (
+        "SELECT * FROM users WHERE id = 1;"
+    )
+    assert reloaded.get_sql_draft(second.connection_id) == ""
+    assert reloaded.get_sql_draft("missing") is None
+
+
+def test_changing_connection_target_clears_sql_draft(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+    store.set_sql_draft(profile.connection_id, "SELECT * FROM users;")
+
+    store.update(
+        profile.connection_id,
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="db.internal",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+
+    assert store.get_sql_draft(profile.connection_id) is None
+
+
+def test_renaming_connection_keeps_sql_draft(tmp_path) -> None:
+    store = DatabaseStore(tmp_path / "database-connections.json")
+    profile = store.create(
+        name="DEV",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+    store.set_sql_draft(profile.connection_id, "SELECT 1;")
+
+    store.update(
+        profile.connection_id,
+        name="개발 DB",
+        db_type=DB_MYSQL,
+        host="localhost",
+        port=3306,
+        database="app",
+        user="viewer",
+    )
+
+    assert store.get_sql_draft(profile.connection_id) == "SELECT 1;"

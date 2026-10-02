@@ -4,8 +4,9 @@ import csv
 from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QDropEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QComboBox,
     QFileDialog,
@@ -44,6 +45,66 @@ KIND_SEARCH_GROUP = "search_group"
 KIND_STATUS = "status"
 
 
+class ReorderableDatabaseTree(QTreeWidget):
+    order_changed = pyqtSignal()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.viewport().setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+
+    def startDrag(self, supported_actions: Qt.DropAction) -> None:
+        item = self.currentItem()
+        if (
+            item is None
+            or item.parent() is not None
+            or item.data(0, ROLE_KIND) != KIND_PROFILE
+        ):
+            return
+        super().startDrag(supported_actions)
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        dragged = self.currentItem()
+        if (
+            dragged is None
+            or dragged.parent() is not None
+            or dragged.data(0, ROLE_KIND) != KIND_PROFILE
+        ):
+            event.ignore()
+            return
+
+        target = self.itemAt(event.position().toPoint())
+        position = self.dropIndicatorPosition()
+        if target is not None:
+            if target.parent() is not None:
+                event.ignore()
+                return
+            if position == QAbstractItemView.DropIndicatorPosition.OnItem:
+                event.ignore()
+                return
+
+        before = self.profile_order()
+        super().dropEvent(event)
+        if event.isAccepted() and self.profile_order() != before:
+            self.order_changed.emit()
+
+    def profile_order(self) -> list[str]:
+        connection_ids: list[str] = []
+        for index in range(self.topLevelItemCount()):
+            item = self.topLevelItem(index)
+            payload = item.data(0, ROLE_PAYLOAD)
+            if not isinstance(payload, dict):
+                continue
+            connection_id = payload.get("profile_id")
+            if connection_id:
+                connection_ids.append(str(connection_id))
+        return connection_ids
+
+
 class DatabaseSidebar(QWidget):
     new_requested = pyqtSignal()
     edit_requested = pyqtSignal()
@@ -52,6 +113,7 @@ class DatabaseSidebar(QWidget):
     schema_expand_requested = pyqtSignal(str, str)
     table_search_requested = pyqtSignal(str, str)
     table_selected = pyqtSignal(str, str, str, str)
+    profile_reorder_requested = pyqtSignal(list)
 
     def __init__(self) -> None:
         super().__init__()
@@ -69,13 +131,14 @@ class DatabaseSidebar(QWidget):
         self.search_input.returnPressed.connect(self._emit_search)
         self._search_timer.timeout.connect(self._emit_search)
 
-        self.tree = QTreeWidget()
+        self.tree = ReorderableDatabaseTree()
         self.tree.setHeaderHidden(True)
         self.tree.setObjectName("databaseTree")
         self.tree.itemClicked.connect(self._item_clicked)
         self.tree.itemDoubleClicked.connect(self._item_double_clicked)
         self.tree.itemExpanded.connect(self._item_expanded)
         self.tree.currentItemChanged.connect(self._current_item_changed)
+        self.tree.order_changed.connect(self._persist_profile_order)
 
         self.new_button = QPushButton("+ 연결")
         self.new_button.setObjectName("primaryButton")
@@ -455,6 +518,11 @@ class DatabaseSidebar(QWidget):
             self.clear_search_results(profile_id)
         self.table_search_requested.emit(profile_id, query)
 
+    def _persist_profile_order(self) -> None:
+        connection_ids = self.tree.profile_order()
+        if connection_ids:
+            self.profile_reorder_requested.emit(connection_ids)
+
     def _profile_item(self, profile_id: str) -> QTreeWidgetItem | None:
         for index in range(self.tree.topLevelItemCount()):
             item = self.tree.topLevelItem(index)
@@ -502,6 +570,7 @@ class DatabasePanel(QWidget):
     page_requested = pyqtSignal(int)
     filter_requested = pyqtSignal(str)
     sql_requested = pyqtSignal(str)
+    sql_draft_changed = pyqtSignal(str)
     sql_completion_lookup_requested = pyqtSignal(str)
     sort_requested = pyqtSignal(str, str)
     quick_filter_requested = pyqtSignal(str, object, str)
@@ -587,12 +656,12 @@ class DatabasePanel(QWidget):
         profile: DatabaseProfile,
         schema: str,
         table: str,
-        sql_template: str,
+        sql_text: str,
     ) -> None:
         self.set_connection_context(profile)
         self.table_label.setText(f"· {schema}.{table}")
         self.refresh_button.setEnabled(True)
-        self.sql_editor.setPlainText(sql_template)
+        self.set_sql_text(sql_text)
         self._page = 0
         self.filter_input.clear()
         self._sort_column = ""
@@ -652,6 +721,15 @@ class DatabasePanel(QWidget):
     def set_filter_clause(self, clause: str) -> None:
         self.filter_input.setText(clause)
 
+    def set_sql_text(self, sql: str) -> None:
+        self.sql_editor.blockSignals(True)
+        self.sql_editor.setPlainText(sql)
+        self.sql_editor.blockSignals(False)
+
+    @property
+    def sql_text(self) -> str:
+        return self.sql_editor.toPlainText()
+
     def set_error(self, message: str) -> None:
         self.refresh_button.setEnabled(True)
         self.data_status.setText(f"오류: {message}")
@@ -665,7 +743,7 @@ class DatabasePanel(QWidget):
         self.query_model.clear()
         self.data_status.clear()
         self.sql_status.clear()
-        self.sql_editor.clear()
+        self.set_sql_text("")
         self.filter_input.clear()
         self.prev_button.setEnabled(False)
         self.next_button.setEnabled(False)
@@ -788,6 +866,11 @@ class DatabasePanel(QWidget):
         self.sql_editor.setToolTip(
             "Tab: 자동완성 · Ctrl+Space: 자동완성 목록 · "
             "Ctrl+Enter: 현재 쿼리 실행"
+        )
+        self.sql_editor.textChanged.connect(
+            lambda: self.sql_draft_changed.emit(
+                self.sql_editor.toPlainText()
+            )
         )
         self.sql_editor.execute_requested.connect(
             self.sql_requested.emit

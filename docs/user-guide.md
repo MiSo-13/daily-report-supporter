@@ -288,11 +288,13 @@ Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 - User
 - Password
 
-연결 프로필에는 비밀번호를 저장하지 않습니다. `<app-root>/data/config/database-connections.json`에는 이름/DB 종류/Host/Port/Database/User만 저장되며, 입력한 비밀번호는 앱 실행 중 메모리에만 유지됩니다. 앱을 다시 실행하면 연결 시 비밀번호를 다시 입력합니다.
+연결 프로필에는 비밀번호를 저장하지 않습니다. `<app-root>/data/config/database-connections.json`에는 연결 정보, 연결 표시 순서, 최근 테이블, 연결별 마지막 SQL 작성 내용이 저장됩니다. 입력한 DB 비밀번호는 앱 실행 중 메모리에만 유지되며 앱을 다시 실행하면 연결 시 다시 입력합니다.
 
 `연결 테스트`로 저장 전에 접속 여부를 확인할 수 있습니다. 연결 테스트도 백그라운드에서 실행하므로 응답이 느린 DB 때문에 편집 창 전체가 멈추지 않습니다.
 
 ### Schema / Table 탐색
+
+DB 연결 항목은 다른 목록과 동일하게 드래그해서 순서를 변경할 수 있습니다. 변경된 순서는 다음 실행에도 유지됩니다.
 
 프로필을 선택하고 `연결 / 새로고침`을 누르거나 프로필을 더블클릭하면 먼저 접근 가능한 schema/database 목록만 불러옵니다. schema를 펼칠 때 해당 table/view 목록을 조회하므로 테이블이 많은 DB에서도 초기 연결 대기 시간을 줄입니다.
 
@@ -330,9 +332,11 @@ status = 'ERROR' AND id > 100
 
 ### Read Only SQL
 
-SQL 탭은 조회 목적 전용입니다.
+SQL 탭은 조회 목적 전용입니다. SQL 입력 내용은 연결별로 자동 저장되며 앱을 종료했다가 다시 실행해도 마지막으로 작성한 내용이 복원됩니다. 별도의 SQL 히스토리나 즐겨찾기 목록은 생성하지 않습니다.
 
-SQL 입력기는 다음 편집 기능을 지원합니다.
+SQL을 한 번도 작성하지 않은 연결에서 테이블을 선택하면 해당 테이블의 기본 `SELECT * ... LIMIT 100` 템플릿을 표시합니다. 사용자가 SQL을 작성한 이후에는 다른 테이블을 선택해도 저장된 SQL을 유지합니다.
+
+SQL 편집기는 일반 DB Viewer처럼 다음 기능을 지원합니다.
 
 - SQL keyword/function/string/number/comment syntax highlighting
 - `Tab`: 현재 단어 기준 자동완성
