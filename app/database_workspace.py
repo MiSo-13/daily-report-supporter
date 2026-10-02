@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QWidget
 
 from app.database_dialogs import DatabaseProfileDialog
@@ -56,6 +56,11 @@ class DatabaseWorkspace:
         self._generation = 0
         self._connection_generation = 0
         self._search_generation = 0
+        self._pending_sql_draft: tuple[str, str] | None = None
+        self._sql_save_timer = QTimer(parent)
+        self._sql_save_timer.setSingleShot(True)
+        self._sql_save_timer.setInterval(500)
+        self._sql_save_timer.timeout.connect(self._flush_sql_draft)
 
         self.sidebar.new_requested.connect(self.create)
         self.sidebar.edit_requested.connect(self.edit)
@@ -64,11 +69,13 @@ class DatabaseWorkspace:
         self.sidebar.schema_expand_requested.connect(self.load_schema)
         self.sidebar.table_search_requested.connect(self.search_tables)
         self.sidebar.table_selected.connect(self.select_table)
+        self.sidebar.profile_reorder_requested.connect(self.reorder_profiles)
 
         self.panel.refresh_requested.connect(self.refresh_table)
         self.panel.page_requested.connect(self.load_page)
         self.panel.filter_requested.connect(self.apply_filter)
         self.panel.sql_requested.connect(self.execute_sql)
+        self.panel.sql_draft_changed.connect(self.schedule_sql_draft_save)
         self.panel.sort_requested.connect(self.apply_sort)
         self.panel.quick_filter_requested.connect(self.apply_quick_filter)
 
@@ -79,6 +86,7 @@ class DatabaseWorkspace:
             self.panel.clear()
 
     def shutdown(self) -> None:
+        self._flush_sql_draft()
         self._passwords.clear()
 
     def create(self) -> None:
@@ -144,6 +152,10 @@ class DatabaseWorkspace:
         self._reload_profiles(select_id=profile_id)
         if self._current_profile_id == profile_id:
             self.panel.set_connection_context(updated)
+            if target_changed:
+                self._pending_sql_draft = None
+                self._sql_save_timer.stop()
+                self.panel.set_sql_text("")
 
     def delete(self) -> None:
         profile_id = self.sidebar.selected_profile_id()
@@ -162,6 +174,13 @@ class DatabaseWorkspace:
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
+        if (
+            self._pending_sql_draft is not None
+            and self._pending_sql_draft[0] == profile_id
+        ):
+            self._pending_sql_draft = None
+            self._sql_save_timer.stop()
+
         self.store.delete(profile_id)
         self._passwords.pop(profile_id, None)
         if self._current_profile_id == profile_id:
@@ -179,6 +198,7 @@ class DatabaseWorkspace:
             return
 
         if self._current_profile_id != profile_id:
+            self._flush_sql_draft()
             self._current_schema = None
             self._current_table = None
             self._generation += 1
@@ -186,6 +206,8 @@ class DatabaseWorkspace:
 
         self._current_profile_id = profile_id
         self.panel.set_connection_context(profile)
+        draft = self.store.get_sql_draft(profile_id)
+        self.panel.set_sql_text(draft if draft is not None else "")
         self.sidebar.set_loading(profile_id)
         self._connection_generation += 1
         generation = self._connection_generation
@@ -305,17 +327,26 @@ class DatabaseWorkspace:
             self.store.list_recent_tables(profile_id),
         )
 
+        if self._current_profile_id != profile_id:
+            self._flush_sql_draft()
+
         self._current_profile_id = profile_id
         self._current_schema = schema
         self._current_table = table
         self._generation += 1
         generation = self._generation
 
+        draft = self.store.get_sql_draft(profile_id)
+        sql_text = (
+            draft
+            if draft is not None
+            else self.service.select_template(profile, schema, table)
+        )
         self.panel.set_table_context(
             profile,
             schema,
             table,
-            self.service.select_template(profile, schema, table),
+            sql_text,
         )
         self.panel.set_loading()
 
@@ -410,7 +441,34 @@ class DatabaseWorkspace:
         self.panel.set_filter_clause(clause)
         self.load_page(0)
 
+    def reorder_profiles(self, connection_ids: list[str]) -> None:
+        try:
+            self.store.reorder(connection_ids)
+        except ValueError:
+            self._reload_profiles(select_id=self._current_profile_id)
+
+    def schedule_sql_draft_save(self, sql: str) -> None:
+        profile_id = self._current_profile_id
+        if not profile_id:
+            return
+        self._pending_sql_draft = (profile_id, sql)
+        self._sql_save_timer.start()
+
+    def _flush_sql_draft(self) -> None:
+        pending = self._pending_sql_draft
+        self._pending_sql_draft = None
+        self._sql_save_timer.stop()
+        if pending is None:
+            return
+
+        profile_id, sql = pending
+        try:
+            self.store.set_sql_draft(profile_id, sql)
+        except KeyError:
+            return
+
     def execute_sql(self, sql: str) -> None:
+        self._flush_sql_draft()
         profile_id = self._current_profile_id
         if not profile_id:
             self.panel.sql_status.setText("DB 연결을 먼저 선택하세요.")
