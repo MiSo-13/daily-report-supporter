@@ -3,6 +3,7 @@ from __future__ import annotations
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from app.database_value_preview import (
+    MAX_BINARY_BYTES,
     MAX_DISPLAY_CHARS,
     MAX_STORED_TEXT_CHARS,
     MAX_TOOLTIP_CHARS,
