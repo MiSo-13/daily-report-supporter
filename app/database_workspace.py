@@ -56,6 +56,7 @@ class DatabaseWorkspace:
         self._generation = 0
         self._connection_generation = 0
         self._search_generation = 0
+        self._completion_generation = 0
 
         self.sidebar.new_requested.connect(self.create)
         self.sidebar.edit_requested.connect(self.edit)
@@ -69,6 +70,9 @@ class DatabaseWorkspace:
         self.panel.page_requested.connect(self.load_page)
         self.panel.filter_requested.connect(self.apply_filter)
         self.panel.sql_requested.connect(self.execute_sql)
+        self.panel.sql_completion_lookup_requested.connect(
+            self.lookup_sql_completion
+        )
         self.panel.sort_requested.connect(self.apply_sort)
         self.panel.quick_filter_requested.connect(self.apply_quick_filter)
 
@@ -321,6 +325,9 @@ class DatabaseWorkspace:
             table,
             self.service.select_template(profile, schema, table),
         )
+        self.panel.add_sql_completion_identifiers(
+            (schema, table, f"{schema}.{table}")
+        )
         self.panel.set_loading()
 
         self._run(
@@ -388,6 +395,40 @@ class DatabaseWorkspace:
     def apply_sort(self, _column: str, _direction: str) -> None:
         if self._has_table():
             self.load_page(0)
+
+    def lookup_sql_completion(self, prefix: str) -> None:
+        profile_id = self._current_profile_id
+        if not profile_id or len(prefix.strip()) < 2:
+            return
+
+        try:
+            profile = self.store.get(profile_id)
+        except KeyError:
+            return
+
+        password = self._passwords.get(profile_id)
+        if password is None:
+            return
+
+        self._completion_generation += 1
+        generation = self._completion_generation
+        normalized = prefix.strip()
+
+        self._run(
+            lambda: self.service.search_tables(
+                profile,
+                password,
+                normalized,
+                limit=50,
+            ),
+            lambda result: self._sql_completion_loaded(
+                profile_id,
+                normalized,
+                generation,
+                result,
+            ),
+            lambda _message: None,
+        )
 
     def apply_quick_filter(
         self,
@@ -493,6 +534,32 @@ class DatabaseWorkspace:
             identifiers.append(f"{schema}.{item.name}")
 
         self.panel.add_sql_completion_identifiers(tuple(identifiers))
+
+    def _sql_completion_loaded(
+        self,
+        profile_id: str,
+        prefix: str,
+        generation: int,
+        result: object,
+    ) -> None:
+        if (
+            generation != self._completion_generation
+            or self._current_profile_id != profile_id
+            or not isinstance(result, list)
+        ):
+            return
+
+        identifiers: list[str] = []
+        for item in result:
+            if not isinstance(item, TableInfo):
+                continue
+            identifiers.append(item.name)
+            identifiers.append(f"{item.schema}.{item.name}")
+
+        self.panel.apply_sql_completion_lookup(
+            prefix,
+            tuple(identifiers),
+        )
 
     def _schemas_loaded(
         self,
@@ -652,6 +719,7 @@ class DatabaseWorkspace:
         self._generation += 1
         self._connection_generation += 1
         self._search_generation += 1
+        self._completion_generation += 1
         self.panel.clear()
 
     def _has_table(self) -> bool:
