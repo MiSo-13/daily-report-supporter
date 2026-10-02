@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QMenu,
@@ -688,12 +689,17 @@ class DatabasePanel(QWidget):
             if self._sort_column
             else ""
         )
+        preview_label = (
+            f" · 큰 값 {self.data_model.truncated_value_count}개 미리보기"
+            if self.data_model.truncated_value_count
+            else ""
+        )
         self.data_status.setText(
             f"페이지 {page + 1} · {len(result.rows)}행"
             + (" · 다음 페이지 있음" if result.has_next else "")
             + sort_label
+            + preview_label
         )
-        self.data_table.resizeColumnsToContents()
 
     def set_columns(self, columns: list[ColumnInfo]) -> None:
         rows = [
@@ -715,8 +721,14 @@ class DatabasePanel(QWidget):
     def set_query_result(self, result: QueryResult) -> None:
         self.query_model.set_result(result.columns, result.rows)
         suffix = " · 500행까지만 표시" if result.truncated else ""
-        self.sql_status.setText(f"{len(result.rows)}행{suffix}")
-        self.sql_table.resizeColumnsToContents()
+        preview_label = (
+            f" · 큰 값 {self.query_model.truncated_value_count}개 미리보기"
+            if self.query_model.truncated_value_count
+            else ""
+        )
+        self.sql_status.setText(
+            f"{len(result.rows)}행{suffix}{preview_label}"
+        )
 
     def set_filter_clause(self, clause: str) -> None:
         self.filter_input.setText(clause)
@@ -771,6 +783,7 @@ class DatabasePanel(QWidget):
         self.data_table = QTableView()
         self.data_table.setModel(self.data_model)
         self.data_table.setAlternatingRowColors(True)
+        self._configure_result_table(self.data_table)
         self.data_table.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu
         )
@@ -907,6 +920,7 @@ class DatabasePanel(QWidget):
         self.sql_table.setModel(self.query_model)
         self.sql_table.setSortingEnabled(True)
         self.sql_table.setAlternatingRowColors(True)
+        self._configure_result_table(self.sql_table)
         self._install_copy_shortcut(self.sql_table)
 
         layout = QVBoxLayout(page)
@@ -974,7 +988,10 @@ class DatabasePanel(QWidget):
         )
         menu.addSeparator()
 
-        if value is None:
+        if self.data_model.is_preview_value(value):
+            preview_action = menu.addAction("큰 값 미리보기 · 필터 사용 불가")
+            preview_action.setEnabled(False)
+        elif value is None:
             null_action = menu.addAction("NULL만 보기")
             null_action.triggered.connect(
                 lambda _checked=False: self.quick_filter_requested.emit(
@@ -1021,6 +1038,17 @@ class DatabasePanel(QWidget):
     def _clear_filter(self) -> None:
         self.filter_input.clear()
         self.filter_requested.emit("")
+
+    @staticmethod
+    def _configure_result_table(table: QTableView) -> None:
+        table.setWordWrap(False)
+        table.setTextElideMode(Qt.TextElideMode.ElideRight)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setMinimumSectionSize(60)
+        header.setDefaultSectionSize(160)
+        header.setMaximumSectionSize(360)
+        header.setStretchLastSection(False)
 
     def _install_copy_shortcut(self, table: QTableView) -> None:
         shortcut = QShortcut(
@@ -1074,7 +1102,11 @@ class DatabasePanel(QWidget):
                     values.append("")
                     continue
                 index = model.index(row, column)
-                value = model.data(index, Qt.ItemDataRole.DisplayRole)
+                if isinstance(model, DatabaseTableModel):
+                    raw_value = model.raw_value(row, column)
+                    value = DatabaseTableModel.display_value(raw_value)
+                else:
+                    value = model.data(index, Qt.ItemDataRole.DisplayRole)
                 values.append("" if value is None else str(value))
             lines.append("\t".join(values))
 
