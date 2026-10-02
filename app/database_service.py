@@ -16,6 +16,7 @@ from app.database_models import (
     QueryResult,
     TableInfo,
 )
+from app.database_value_preview import compact_database_rows
 
 
 READ_ONLY_START_RE = re.compile(
@@ -217,7 +218,7 @@ class DatabaseAdapter:
             cursor = connection.cursor()
             try:
                 cursor.execute(sql, (limit + 1, offset))
-                rows = cursor.fetchmany(limit + 1)
+                raw_rows = cursor.fetchmany(limit + 1)
                 columns = tuple(
                     str(column[0])
                     for column in (cursor.description or ())
@@ -225,10 +226,12 @@ class DatabaseAdapter:
             finally:
                 cursor.close()
 
-        has_next = len(rows) > limit
+        has_next = len(raw_rows) > limit
+        rows = compact_database_rows(raw_rows[:limit])
+        del raw_rows
         return PageResult(
             columns=columns,
-            rows=tuple(tuple(row) for row in rows[:limit]),
+            rows=rows,
             has_next=has_next,
         )
 
@@ -247,14 +250,17 @@ class DatabaseAdapter:
                     str(column[0])
                     for column in (cursor.description or ())
                 )
-                rows = cursor.fetchmany(max_rows + 1)
+                raw_rows = cursor.fetchmany(max_rows + 1)
             finally:
                 cursor.close()
 
+        truncated = len(raw_rows) > max_rows
+        rows = compact_database_rows(raw_rows[:max_rows])
+        del raw_rows
         return QueryResult(
             columns=columns,
-            rows=tuple(tuple(row) for row in rows[:max_rows]),
-            truncated=len(rows) > max_rows,
+            rows=rows,
+            truncated=truncated,
         )
 
     def select_template(self, schema: str, table: str) -> str:
