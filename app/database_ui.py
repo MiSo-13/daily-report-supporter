@@ -30,6 +30,7 @@ from app.database_models import (
     QueryResult,
     TableInfo,
 )
+from app.database_sql_editor import SqlEditor
 from app.database_table_model import DatabaseTableModel
 
 
@@ -557,6 +558,21 @@ class DatabasePanel(QWidget):
     def set_connection_context(self, profile: DatabaseProfile) -> None:
         self.connection_label.setText(f"<b>{profile.name}</b>")
         self.connection_label.setToolTip(profile.target_label)
+        self.sql_editor.set_dialect(profile.db_type)
+
+    def reset_sql_completion(
+        self,
+        profile: DatabaseProfile,
+        identifiers: list[str] | tuple[str, ...] = (),
+    ) -> None:
+        self.sql_editor.set_dialect(profile.db_type)
+        self.sql_editor.set_identifiers(identifiers)
+
+    def add_sql_completion_identifiers(
+        self,
+        identifiers: list[str] | tuple[str, ...],
+    ) -> None:
+        self.sql_editor.add_identifiers(identifiers)
 
     def set_table_context(
         self,
@@ -758,17 +774,20 @@ class DatabasePanel(QWidget):
         )
         note.setObjectName("databaseHint")
 
-        self.sql_editor = QPlainTextEdit()
+        self.sql_editor = SqlEditor()
         self.sql_editor.setPlaceholderText("SELECT ...")
         self.sql_editor.setMaximumHeight(150)
+        self.sql_editor.setToolTip(
+            "Tab: 자동완성 · Ctrl+Space: 자동완성 목록 · "
+            "Ctrl+Enter: 현재 쿼리 실행"
+        )
+        self.sql_editor.execute_requested.connect(
+            self.sql_requested.emit
+        )
 
         self.sql_button = QPushButton("SQL 실행")
         self.sql_button.setObjectName("primaryButton")
-        self.sql_button.clicked.connect(
-            lambda _checked=False: self.sql_requested.emit(
-                self.sql_editor.toPlainText()
-            )
-        )
+        self.sql_button.clicked.connect(self._request_sql_execution)
         copy_button = QPushButton("선택 복사")
         copy_button.clicked.connect(
             lambda _checked=False: self._copy_selection(self.sql_table)
@@ -802,6 +821,13 @@ class DatabasePanel(QWidget):
         layout.addLayout(action_row)
         layout.addWidget(self.sql_table, 1)
         self.tabs.addTab(page, "SQL")
+
+    def _request_sql_execution(self, _checked: bool = False) -> None:
+        statement = self.sql_editor.statement_to_execute()
+        if not statement:
+            self.sql_status.setText("실행할 SQL을 입력하세요.")
+            return
+        self.sql_requested.emit(statement)
 
     def _apply_filter(self, _checked: bool = False) -> None:
         self.filter_requested.emit(self.where_clause)
