@@ -332,6 +332,20 @@ status = 'ERROR' AND id > 100
 
 SQL 탭은 조회 목적 전용입니다.
 
+SQL 입력기는 다음 편집 기능을 지원합니다.
+
+- SQL keyword/function/string/number/comment syntax highlighting
+- `Tab`: 현재 단어 기준 자동완성
+- `Ctrl+Space`: 자동완성 목록 표시
+- schema/table/현재 테이블 column 이름 자동완성
+- lazy loading으로 아직 확인하지 않은 table은 `Tab` 입력 시 DB metadata를 비동기로 검색해 후보 보충
+- MySQL/PostgreSQL 종류에 맞는 keyword/function 자동완성
+- `Ctrl+Enter`: 커서가 위치한 SQL statement만 실행
+- SQL 일부를 선택한 상태에서는 선택 영역을 우선 실행
+- 여러 SQL은 세미콜론(`;`) 기준으로 구분하며 문자열/주석 내부 세미콜론은 구분자로 처리하지 않음
+
+`SQL 실행` 버튼도 전체 입력 내용을 일괄 실행하지 않고 선택 영역 또는 커서가 위치한 statement 하나만 실행합니다.
+
 허용 시작 구문:
 
 - `SELECT`
