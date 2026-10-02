@@ -25,7 +25,7 @@ Markdown 파일을 데이터 원본으로 사용하는 PyQt6 기반 일일 업�
 - 전체 일일 문서 검색 및 검색 결과에서 해당 날짜/업무로 이동
 - 독립 메모 관리: 여러 Markdown 메모, 제목 변경, 전체 검색, 편집/미리보기
 - 다중 터미널: 로컬 PTY/ConPTY 세션 + 저장형 SSH 프로필, 직접 키 입력, Tab/Ctrl+C
-- DB Viewer: MySQL/PostgreSQL 다중 연결, 연결 순서 드래그 변경, schema/table 탐색, 페이지 데이터/컬럼/Read Only SQL 조회, 연결별 SQL 작성 내용 자동 복원
+- DB Viewer: MySQL/PostgreSQL 다중 연결, 연결 순서 드래그 변경, schema/table 탐색, 페이지 데이터/컬럼/Read Only SQL 조회, 연결별 SQL 작성 내용 자동 복원, SQL syntax highlighting/자동완성, Ctrl+Enter 현재 쿼리 실행
 - 앱 하단 왼쪽 CPU / RAM 사용량 표시 및 표시 여부 설정
 - 메모/터미널 목록 항목 드래그 순서 변경 및 저장
 - 업무별 제목, 관련 문서 표시 문구/실제 URL, 주요 내용, 상태 관리

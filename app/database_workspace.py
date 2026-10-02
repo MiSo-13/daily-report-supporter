@@ -7,7 +7,7 @@ from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QWidget
 
 from app.database_dialogs import DatabaseProfileDialog
-from app.database_models import DatabaseProfile
+from app.database_models import DatabaseProfile, TableInfo
 from app.database_service import DatabaseService
 from app.database_store import DatabaseStore
 from app.database_ui import DatabasePanel, DatabaseSidebar
@@ -56,6 +56,7 @@ class DatabaseWorkspace:
         self._generation = 0
         self._connection_generation = 0
         self._search_generation = 0
+        self._completion_generation = 0
         self._pending_sql_draft: tuple[str, str] | None = None
         self._sql_save_timer = QTimer(parent)
         self._sql_save_timer.setSingleShot(True)
@@ -76,6 +77,9 @@ class DatabaseWorkspace:
         self.panel.filter_requested.connect(self.apply_filter)
         self.panel.sql_requested.connect(self.execute_sql)
         self.panel.sql_draft_changed.connect(self.schedule_sql_draft_save)
+        self.panel.sql_completion_lookup_requested.connect(
+            self.lookup_sql_completion
+        )
         self.panel.sort_requested.connect(self.apply_sort)
         self.panel.quick_filter_requested.connect(self.apply_quick_filter)
 
@@ -156,6 +160,8 @@ class DatabaseWorkspace:
                 self._pending_sql_draft = None
                 self._sql_save_timer.stop()
                 self.panel.set_sql_text("")
+                self.panel.reset_sql_completion(updated)
+                self._completion_generation += 1
 
     def delete(self) -> None:
         profile_id = self.sidebar.selected_profile_id()
@@ -206,6 +212,8 @@ class DatabaseWorkspace:
 
         self._current_profile_id = profile_id
         self.panel.set_connection_context(profile)
+        self.panel.reset_sql_completion(profile)
+        self._completion_generation += 1
         draft = self.store.get_sql_draft(profile_id)
         self.panel.set_sql_text(draft if draft is not None else "")
         self.sidebar.set_loading(profile_id)
@@ -249,7 +257,7 @@ class DatabaseWorkspace:
                 password,
                 schema,
             ),
-            lambda result: self.sidebar.set_schema_tables(
+            lambda result: self._schema_tables_loaded(
                 profile_id,
                 schema,
                 result,
@@ -329,6 +337,10 @@ class DatabaseWorkspace:
 
         self._flush_sql_draft()
 
+        if self._current_profile_id != profile_id:
+            self.panel.reset_sql_completion(profile)
+            self._completion_generation += 1
+
         self._current_profile_id = profile_id
         self._current_schema = schema
         self._current_table = table
@@ -346,6 +358,9 @@ class DatabaseWorkspace:
             schema,
             table,
             sql_text,
+        )
+        self.panel.add_sql_completion_identifiers(
+            (schema, table, f"{schema}.{table}")
         )
         self.panel.set_loading()
 
@@ -414,6 +429,40 @@ class DatabaseWorkspace:
     def apply_sort(self, _column: str, _direction: str) -> None:
         if self._has_table():
             self.load_page(0)
+
+    def lookup_sql_completion(self, prefix: str) -> None:
+        profile_id = self._current_profile_id
+        if not profile_id or len(prefix.strip()) < 2:
+            return
+
+        try:
+            profile = self.store.get(profile_id)
+        except KeyError:
+            return
+
+        password = self._passwords.get(profile_id)
+        if password is None:
+            return
+
+        self._completion_generation += 1
+        generation = self._completion_generation
+        normalized = prefix.strip()
+
+        self._run(
+            lambda: self.service.search_tables(
+                profile,
+                password,
+                normalized,
+                limit=50,
+            ),
+            lambda result: self._sql_completion_loaded(
+                profile_id,
+                normalized,
+                generation,
+                result,
+            ),
+            lambda _message: None,
+        )
 
     def apply_quick_filter(
         self,
@@ -525,6 +574,54 @@ class DatabaseWorkspace:
             lambda message: self._table_failed(generation, message),
         )
 
+    def _schema_tables_loaded(
+        self,
+        profile_id: str,
+        schema: str,
+        result: object,
+    ) -> None:
+        if not isinstance(result, list):
+            return
+
+        self.sidebar.set_schema_tables(profile_id, schema, result)
+        if self._current_profile_id != profile_id:
+            return
+
+        identifiers: list[str] = []
+        for item in result:
+            if not isinstance(item, TableInfo):
+                continue
+            identifiers.append(item.name)
+            identifiers.append(f"{schema}.{item.name}")
+
+        self.panel.add_sql_completion_identifiers(tuple(identifiers))
+
+    def _sql_completion_loaded(
+        self,
+        profile_id: str,
+        prefix: str,
+        generation: int,
+        result: object,
+    ) -> None:
+        if (
+            generation != self._completion_generation
+            or self._current_profile_id != profile_id
+            or not isinstance(result, list)
+        ):
+            return
+
+        identifiers: list[str] = []
+        for item in result:
+            if not isinstance(item, TableInfo):
+                continue
+            identifiers.append(item.name)
+            identifiers.append(f"{item.schema}.{item.name}")
+
+        self.panel.apply_sql_completion_lookup(
+            prefix,
+            tuple(identifiers),
+        )
+
     def _schemas_loaded(
         self,
         profile: DatabaseProfile,
@@ -538,6 +635,9 @@ class DatabaseWorkspace:
         self.sidebar.set_schemas(profile.connection_id, result)
         if self._current_profile_id == profile.connection_id:
             self.panel.set_connection_context(profile)
+            self.panel.add_sql_completion_identifiers(
+                tuple(str(schema) for schema in result)
+            )
         self._show_status(
             f"{profile.name} 연결 완료 · {len(result)}개 schema",
             3000,
@@ -566,6 +666,14 @@ class DatabaseWorkspace:
         if not isinstance(result, list):
             return
         self.sidebar.set_search_results(profile_id, query, result)
+        if self._current_profile_id == profile_id:
+            identifiers: list[str] = []
+            for item in result:
+                if not isinstance(item, TableInfo):
+                    continue
+                identifiers.append(item.name)
+                identifiers.append(f"{item.schema}.{item.name}")
+            self.panel.add_sql_completion_identifiers(tuple(identifiers))
 
     def _search_failed(
         self,
@@ -593,6 +701,12 @@ class DatabaseWorkspace:
         columns, data = result
         self.panel.set_columns(columns)
         self.panel.set_data(data, page)
+        identifiers = [
+            str(column.name)
+            for column in columns
+            if hasattr(column, "name")
+        ]
+        self.panel.add_sql_completion_identifiers(tuple(identifiers))
 
     def _page_loaded(
         self,
@@ -666,6 +780,7 @@ class DatabaseWorkspace:
         self._generation += 1
         self._connection_generation += 1
         self._search_generation += 1
+        self._completion_generation += 1
         self.panel.clear()
 
     def _has_table(self) -> bool:

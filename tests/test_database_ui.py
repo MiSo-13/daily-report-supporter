@@ -134,3 +134,21 @@ def test_database_sidebar_emits_reordered_connection_ids() -> None:
     sidebar._persist_profile_order()
 
     assert events == [["stage", "dev"]]
+
+
+
+def test_database_panel_runs_only_sql_at_cursor() -> None:
+    panel = DatabasePanel()
+    panel.sql_editor.setPlainText("SELECT 1;\nSELECT 2;")
+    cursor = panel.sql_editor.textCursor()
+    cursor.setPosition(
+        panel.sql_editor.toPlainText().index("SELECT 2") + 3
+    )
+    panel.sql_editor.setTextCursor(cursor)
+
+    executed: list[str] = []
+    panel.sql_requested.connect(executed.append)
+
+    panel._request_sql_execution()
+
+    assert executed == ["SELECT 2"]
