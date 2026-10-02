@@ -90,3 +90,47 @@ def test_database_panel_copy_selection_uses_tsv() -> None:
     panel._copy_selection(panel.data_table, include_headers=True)
 
     assert QApplication.clipboard().text() == "id\tname\n1\tAlpha"
+
+
+def test_database_panel_programmatic_sql_restore_does_not_emit_draft() -> None:
+    panel = DatabasePanel()
+    drafts: list[str] = []
+    panel.sql_draft_changed.connect(drafts.append)
+
+    panel.set_sql_text("SELECT * FROM users;")
+
+    assert panel.sql_text == "SELECT * FROM users;"
+    assert drafts == []
+
+
+def test_database_panel_user_sql_edit_emits_draft() -> None:
+    panel = DatabasePanel()
+    drafts: list[str] = []
+    panel.sql_draft_changed.connect(drafts.append)
+
+    panel.sql_editor.setPlainText("SELECT 1;")
+
+    assert drafts == ["SELECT 1;"]
+
+
+def test_database_sidebar_emits_reordered_connection_ids() -> None:
+    sidebar = DatabaseSidebar()
+    first = _profile()
+    second = DatabaseProfile(
+        connection_id="stage",
+        name="STG",
+        db_type="postgresql",
+        host="localhost",
+        port=5432,
+        database="stage",
+        user="viewer",
+    )
+    events: list[list[str]] = []
+    sidebar.profile_reorder_requested.connect(events.append)
+    sidebar.set_profiles([first, second])
+
+    moved = sidebar.tree.takeTopLevelItem(1)
+    sidebar.tree.insertTopLevelItem(0, moved)
+    sidebar._persist_profile_order()
+
+    assert events == [["stage", "dev"]]
