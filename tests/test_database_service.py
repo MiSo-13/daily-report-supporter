@@ -14,6 +14,7 @@ from app.database_service import (
     validate_read_only_sql,
     validate_where_clause,
 )
+from app.database_value_preview import DatabaseValuePreview
 
 
 def _profile(db_type: str) -> DatabaseProfile:
@@ -139,24 +140,31 @@ def test_quick_filter_quotes_string_and_null() -> None:
 class _FakeCursor:
     description = (("id",),)
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        rows: list[tuple[object, ...]] | None = None,
+    ) -> None:
         self.sql = ""
         self.params: object = None
+        self.rows = rows if rows is not None else [(3,), (2,)]
 
     def execute(self, sql: str, params: object = None) -> None:
         self.sql = sql
         self.params = params
 
-    def fetchmany(self, _size: int) -> list[tuple[int]]:
-        return [(3,), (2,)]
+    def fetchmany(self, _size: int) -> list[tuple[object, ...]]:
+        return list(self.rows)
 
     def close(self) -> None:
         return None
 
 
 class _FakeConnection:
-    def __init__(self) -> None:
-        self.cursor_instance = _FakeCursor()
+    def __init__(
+        self,
+        rows: list[tuple[object, ...]] | None = None,
+    ) -> None:
+        self.cursor_instance = _FakeCursor(rows)
 
     def cursor(self) -> _FakeCursor:
         return self.cursor_instance
@@ -166,9 +174,12 @@ class _FakeConnection:
 
 
 class _FakeAdapter(DatabaseAdapter):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        rows: list[tuple[object, ...]] | None = None,
+    ) -> None:
         super().__init__(_profile(DB_POSTGRESQL), "")
-        self.fake_connection = _FakeConnection()
+        self.fake_connection = _FakeConnection(rows)
 
     def _connect(self) -> _FakeConnection:
         return self.fake_connection
@@ -229,3 +240,29 @@ def test_fetch_page_rejects_invalid_sort_direction() -> None:
             order_by="id",
             order_direction="DROP",
         )
+
+
+
+def test_fetch_page_compacts_large_value_before_ui_model() -> None:
+    adapter = _FakeAdapter(rows=[("x" * 200_000,)])
+
+    result = adapter.fetch_page(
+        "public",
+        "events",
+        limit=100,
+        offset=0,
+    )
+
+    value = result.rows[0][0]
+    assert isinstance(value, DatabaseValuePreview)
+    assert value.original_size == 200_000
+
+
+def test_run_query_compacts_large_value_before_ui_model() -> None:
+    adapter = _FakeAdapter(rows=[("x" * 200_000,)])
+
+    result = adapter.run_query("SELECT payload FROM events")
+
+    value = result.rows[0][0]
+    assert isinstance(value, DatabaseValuePreview)
+    assert value.original_size == 200_000
