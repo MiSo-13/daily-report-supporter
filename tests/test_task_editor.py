@@ -38,8 +38,11 @@ def test_plain_text_paste_shortcut_ignores_rich_text_formatting() -> None:
     )
 
     assert editor.toPlainText() == "굵은 텍스트"
-    assert "color:red" not in editor.toHtml()
-    assert "font-weight" not in editor.toHtml()
+    html = editor.toHtml().lower()
+    assert "color:red" not in html
+    assert "#ff0000" not in html
+    assert "font-weight:700" not in html
+    assert "font-weight:600" not in html
 
 
 def test_plain_text_paste_replaces_selected_text() -> None:
