@@ -89,7 +89,6 @@ COMMON_FUNCTIONS = {
 
 MYSQL_KEYWORDS = {
     "DESCRIBE",
-    "DESC",
     "REGEXP",
 }
 
@@ -111,7 +110,6 @@ MYSQL_FUNCTIONS = {
 }
 
 POSTGRESQL_KEYWORDS = {
-    "ILIKE",
     "SIMILAR",
 }
 
@@ -148,7 +146,7 @@ def sql_functions(db_type: str) -> set[str]:
 
 
 def statement_at_cursor(sql: str, cursor_position: int) -> str:
-    """세미콜론으로 구분된 SQL 중 커서가 위치한 statement를 반환한다."""
+    """세미콜론으렜 구분된 SQL 중 커서가 위치한 statement를 반환한다."""
     if not sql:
         return ""
 
@@ -197,7 +195,258 @@ def _statement_separators(sql: str) -> list[int]:
         next_char = sql[index + 1] if index + 1 < len(sql) else ""
 
         if line_comment:
-            if char in "\r\n        string_pattern = r"""'(?:''|\\.|[^'])*'|"(?:""|\\.|[^"])*"|\`(?:\`\`|[^\`])*\`"""\n").strip()
+            if char in "\r\n":
+                line_comment = False
+            index += 1
+            continue
+
+        if block_depth:
+            if char == "/" and next_char == "*":
+                block_depth += 1
+                index += 2
+                continue
+            if char == "*" and next_char == "/":
+                block_depth -= 1
+                index += 2
+                continue
+            index += 1
+            continue
+
+        if dollar_tag is not None:
+            if sql.startswith(dollar_tag, index):
+                index += len(dollar_tag)
+                dollar_tag = None
+            else:
+                index += 1
+            continue
+
+        if quote is not None:
+            if char == "\\" and index + 1 < len(sql):
+                index += 2
+                continue
+            if char == quote:
+                if next_char == quote:
+                    index += 2
+                    continue
+                quote = None
+            index += 1
+            continue
+
+        if char in ("'", '"', "`"):
+            quote = char
+            index += 1
+            continue
+
+        if char == "-" and next_char == "-":
+            line_comment = True
+            index += 2
+            continue
+
+        if char == "/" and next_char == "*":
+            block_depth = 1
+            index += 2
+            continue
+
+        if char == "$":
+            match = re.match(
+                r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$",
+                sql[index:],
+            )
+            if match is not None:
+                dollar_tag = match.group(0)
+                index += len(dollar_tag)
+                continue
+
+        if char == ";":
+            separators.append(index)
+
+        index += 1
+
+    return separators
+
+
+class SqlSyntaxHighlighter(QSyntaxHighlighter):
+    def __init__(self, editor: QPlainTextEdit) -> None:
+        super().__init__(editor.document())
+        self._editor = editor
+        self._db_type = DB_MYSQL
+        self._keywords = sql_keywords(self._db_type)
+        self._functions = sql_functions(self._db_type)
+        self._keyword_format = QTextCharFormat()
+        self._function_format = QTextCharFormat()
+        self._string_format = QTextCharFormat()
+        self._number_format = QTextCharFormat()
+        self._comment_format = QTextCharFormat()
+        self.refresh_palette()
+
+    def set_dialect(self, db_type: str) -> None:
+        self._db_type = db_type
+        self._keywords = sql_keywords(db_type)
+        self._functions = sql_functions(db_type)
+        self.rehighlight()
+
+    def refresh_palette(self) -> None:
+        base = self._editor.palette().color(QPalette.ColorRole.Base)
+        dark = base.lightness() < 128
+
+        if dark:
+            keyword = QColor("#6ea8fe")
+            function = QColor("#dcdcaa")
+            string = QColor("#ce9178")
+            number = QColor("#b5cea8")
+            comment = QColor("#7ca668")
+        else:
+            keyword = QColor("#0000cc")
+            function = QColor("#795e26")
+            string = QColor("#a31515")
+            number = QColor("#098658")
+            comment = QColor("#008000")
+
+        self._keyword_format = _format(keyword, bold=True)
+        self._function_format = _format(function)
+        self._string_format = _format(string)
+        self._number_format = _format(number)
+        self._comment_format = _format(comment, italic=True)
+        self.rehighlight()
+
+    def highlightBlock(self, text: str) -> None:
+        for word in self._keywords:
+            self._apply_word(text, word, self._keyword_format)
+
+        for word in self._functions:
+            self._apply_word(text, word, self._function_format)
+
+        for match in re.finditer(r"\b(?:\d+(?:\.\d+)?)\b", text):
+            self.setFormat(
+                match.start(),
+                match.end() - match.start(),
+                self._number_format,
+            )
+
+        string_pattern = (
+            r"'(?:''|\\.|[^'])*'"
+            r'e"|"(?:""|\\.|[^"])*"'
+            r|"(`(?:``|[^`])*`)"
+        )
+        for match in re.finditer(string_pattern, text):
+            self.setFormat(
+                match.start(),
+                match.end() - match.start(),
+                self._string_format,
+            )
+
+        self._highlight_comments(text)
+
+    def _highlight_comments(self, text: str) -> None:
+        self.setCurrentBlockState(0)
+
+        if self.previousBlockState() == 1:
+            start = 0
+        else:
+            start = text.find("/*")
+
+        while start >= 0:
+            end = text.find("*/", start + 2)
+            if end < 0:
+                self.setCurrentBlockState(1)
+                self.setFormat(
+                    start,
+                    len(text) - start,
+                    self._comment_format,
+                )
+                break
+
+            length = end - start + 2
+            self.setFormat(start, length, self._comment_format)
+            start = text.find("/*", end + 2)
+
+        for match in re.finditer(r"--.*$", text):
+            self.setFormat(
+                match.start(),
+                match.end() - match.start(),
+                self._comment_format,
+            )
+
+    def _apply_word(
+        self,
+        text: str,
+        word: str,
+        text_format: QTextCharFormat,
+    ) -> None:
+        pattern = rf"\b{re.escape(word)}\b"
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            self.setFormat(
+                match.start(),
+                match.end() - match.start(),
+                text_format,
+            )
+
+
+class SqlEditor(QPlainTextEdit):
+    execute_requested = pyqtSignal(str)
+    completion_lookup_requested = pyqtSignal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._db_type = DB_MYSQL
+        self._identifiers: set[str] = set()
+        self._functions = sql_functions(self._db_type)
+
+        self._completion_model = QStringListModel(self)
+        self._completer = QCompleter(self._completion_model, self)
+        self._completer.setWidget(self)
+        self._completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self._completer.setCompletionMode(
+            QCompleter.CompletionMode.PopupCompletion
+        )
+        self._completer.activated[str].connect(self._insert_completion)
+
+        self.highlighter = SqlSyntaxHighlighter(self)
+        self._refresh_completion_model()
+
+    def set_dialect(self, db_type: str) -> None:
+        self._db_type = db_type
+        self._functions = sql_functions(db_type)
+        self.highlighter.set_dialect(db_type)
+        self._refresh_completion_model()
+
+    def set_identifiers(self, values: Iterable[str]) -> None:
+        self._identifiers = {
+            value.strip()
+            for value in values
+            if isinstance(value, str) and value.strip()
+        }
+        self._refresh_completion_model()
+
+    def add_identifiers(self, values: Iterable[str]) -> None:
+        for value in values:
+            if isinstance(value, str) and value.strip():
+                self._identifiers.add(value.strip())
+        self._refresh_completion_model()
+
+    def completion_candidates(self) -> list[str]:
+        return self._completion_model.stringList()
+
+    def apply_lookup_candidates(
+        self,
+        prefix: str,
+        values: Iterable[str],
+    ) -> None:
+        self.add_identifiers(values)
+        current_prefix = self._completion_prefix()
+        if current_prefix.casefold() != prefix.casefold():
+            return
+
+        matches = self._matches(current_prefix)
+        if len(matches) == 1:
+            self._insert_completion(matches[0])
+        elif matches:
+            self._show_completion()
+
+    def statement_to_execute(self) -> str:
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            selected = cursor.selectedText().replace("\u2029", "\n").strip()
             if selected:
                 return selected
 
