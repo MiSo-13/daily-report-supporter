@@ -53,6 +53,8 @@ Windows는 `.exe` 하나만 받아 실행할 수 있습니다.
 
 빌드 방법과 Release 생성 방법은 [빌드/배포 문서](./docs/building.md)를 참고하세요.
 
+WorKing은 동일한 초록색 로고를 Windows 실행 파일, macOS 앱 번들, Linux/Windows/macOS 실행 창 아이콘에 공통으로 사용합니다. 아이콘 원본은 `assets/app-icon.svg` 하나로 관리하며 빌드 시 운영체제에 맞는 형식으로 자동 변환합니다.
+
 ## 소스에서 실행
 
 Python 3.11+ 권장.
