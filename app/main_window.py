@@ -28,6 +28,7 @@ from app.dialogs import (
     GreetingSettingsDialog,
     ReportDialog,
 )
+from app.app_icon import create_app_icon
 from app.app_meta import APP_NAME, ORGANIZATION_NAME
 from app.database_workspace import DatabaseWorkspace
 from app.markdown_store import MarkdownStore
@@ -640,7 +641,12 @@ def run(startup_message: str = "") -> int:
     app.setApplicationDisplayName(APP_NAME)
     app.setOrganizationName(ORGANIZATION_NAME)
     app.setStyle("Fusion")
+    icon = create_app_icon()
+    if not icon.isNull():
+        app.setWindowIcon(icon)
     window = MainWindow()
+    if not icon.isNull():
+        window.setWindowIcon(icon)
     window.show()
     if startup_message:
         QTimer.singleShot(
