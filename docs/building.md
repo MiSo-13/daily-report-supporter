@@ -70,6 +70,22 @@ dist/WorKing
 chmod +x dist/WorKing
 ```
 
+## 앱 아이콘
+
+앱 아이콘 원본은 `assets/app-icon.svg` 하나로 관리합니다. 투명 배경의 초록색 WorKing 로고이며 소스 실행과 배포 실행에서 동일하게 사용합니다.
+
+빌드 시 `scripts/build_app.py`가 SVG를 1024px PNG로 렌더링한 뒤 운영체제에 맞는 패키지 아이콘을 생성합니다.
+
+| 환경 | 빌드 아이콘 |
+| --- | --- |
+| Windows | 다중 해상도 `.ico` 생성 후 `WorKing.exe`에 포함 |
+| macOS | `.icns` 생성 후 `WorKing.app` bundle icon으로 포함 |
+| Linux / Crostini | Qt 실행 창/Taskbar 아이콘에 동일 SVG 사용 |
+
+Windows/macOS 변환에는 빌드 의존성인 Pillow를 사용합니다. 생성되는 `build/app-icon.*` 파일은 임시 빌드 산출물이므로 Git에 저장하지 않습니다.
+
+PyInstaller onefile/onedir 실행에서도 런타임 아이콘을 사용할 수 있도록 `assets/app-icon.svg`를 bundle data에 포함합니다.
+
 ## GitHub Actions
 
 `.github/workflows/build-release.yml`에서 OS별 빌드를 실행합니다.
