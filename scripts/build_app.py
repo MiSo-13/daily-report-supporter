@@ -8,12 +8,51 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.app_icon import APP_ICON_RELATIVE_PATH, app_icon_path, render_app_icon_png
 from app.app_meta import APP_NAME, BUNDLE_IDENTIFIER
+
 ENTRYPOINT = ROOT / "main.py"
 CROSTINI_SETUP = ROOT / "scripts" / "setup_crostini.sh"
+BUILD_ROOT = ROOT / "build"
+
+
+def _prepare_build_icon() -> Path:
+    from PIL import Image
+
+    png_path = render_app_icon_png(
+        BUILD_ROOT / "app-icon.png",
+        size=1024,
+    )
+
+    with Image.open(png_path) as image:
+        rgba = image.convert("RGBA")
+        if sys.platform == "win32":
+            icon_path = BUILD_ROOT / "app-icon.ico"
+            rgba.save(
+                icon_path,
+                format="ICO",
+                sizes=[
+                    (16, 16),
+                    (24, 24),
+                    (32, 32),
+                    (48, 48),
+                    (64, 64),
+                    (128, 128),
+                    (256, 256),
+                ],
+            )
+            return icon_path
+
+        if sys.platform == "darwin":
+            icon_path = BUILD_ROOT / "app-icon.icns"
+            rgba.save(icon_path, format="ICNS")
+            return icon_path
+
+    return png_path
 
 
 def build() -> None:
+    icon_path = _prepare_build_icon()
     args = [
         sys.executable,
         "-m",
@@ -24,6 +63,8 @@ def build() -> None:
         APP_NAME,
         "--add-data",
         f"{CROSTINI_SETUP}:scripts",
+        "--add-data",
+        f"{app_icon_path()}:{APP_ICON_RELATIVE_PATH.parent}",
         "--collect-all",
         "pymysql",
         "--collect-all",
@@ -35,6 +76,8 @@ def build() -> None:
     if sys.platform == "darwin":
         args.extend(
             [
+                "--icon",
+                str(icon_path),
                 "--onedir",
                 "--windowed",
                 "--osx-bundle-identifier",
@@ -44,6 +87,8 @@ def build() -> None:
     elif sys.platform == "win32":
         args.extend(
             [
+                "--icon",
+                str(icon_path),
                 "--onefile",
                 "--windowed",
                 "--collect-all",
