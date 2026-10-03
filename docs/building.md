@@ -85,6 +85,8 @@ git push origin v0.1.0
 
 태그 빌드가 모두 성공하면 해당 GitHub Release에 OS별 파일이 자동 첨부됩니다.
 
+Release job은 소스 checkout 없이 artifact만 모아 업로드하므로 GitHub CLI 대상 저장소를 `GH_REPO=${{ github.repository }}`로 명시합니다. 이 설정이 없으면 `gh release`가 현재 디렉터리에서 Git 저장소를 찾다가 `fatal: not a git repository` 오류로 실패할 수 있습니다.
+
 기존 설치본의 `DailyReportSupporter` 데이터는 첫 실행 시 현재 앱 옆 Portable `data/`로 자동 복사합니다.
 
 ## Portable 데이터 위치
