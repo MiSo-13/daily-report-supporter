@@ -7,6 +7,8 @@ WorKing은 PyQt6 UI, Markdown 기반 업무 데이터, 독립 메모/터미널 �
 - `main.py`: 입력기/Qt platform 사전 설정 후 GUI 실행
 - `app/main_window.py`: 최상위 화면 전환, 업무 검색/일일보고, 설정 메뉴 연결
 - `app/app_meta.py`: 앱 이름, 조직명, bundle identifier, 현재/legacy 데이터 디렉터리 이름
+- `app/app_icon.py`: SVG 앱 아이콘 로딩, Qt 런타임 아이콘 생성, 빌드용 PNG 렌더링
+- `assets/app-icon.svg`: Windows/macOS/Linux가 공통으로 사용하는 WorKing 아이콘 원본
 
 ## 경로
 
