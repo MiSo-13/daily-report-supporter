@@ -86,6 +86,8 @@ Windows/macOS 변환에는 빌드 의존성인 Pillow를 사용합니다. 생성
 
 PyInstaller onefile/onedir 실행에서도 런타임 아이콘을 사용할 수 있도록 `assets/app-icon.svg`를 bundle data에 포함합니다.
 
+Linux 빌드에서는 패키지용 `.ico`/`.icns` 변환이 필요하지 않으므로 `scripts/build_app.py`가 Qt 아이콘 렌더러를 import하지 않습니다. SVG는 그대로 bundle data에 포함하고, 실행 시 Qt가 창/Taskbar 아이콘으로 렌더링합니다. 따라서 Linux 빌드 runner가 아이콘 변환 때문에 `libEGL.so.1` 같은 GUI native library를 선행 요구하지 않습니다.
+
 ## GitHub Actions
 
 `.github/workflows/build-release.yml`에서 OS별 빌드를 실행합니다.
