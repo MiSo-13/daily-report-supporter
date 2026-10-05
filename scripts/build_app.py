@@ -8,16 +8,18 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.app_icon import APP_ICON_RELATIVE_PATH, app_icon_path, render_app_icon_png
 from app.app_meta import APP_NAME, BUNDLE_IDENTIFIER
 
 ENTRYPOINT = ROOT / "main.py"
 CROSTINI_SETUP = ROOT / "scripts" / "setup_crostini.sh"
+APP_ICON_SOURCE = ROOT / "assets" / "app-icon.svg"
+APP_ICON_BUNDLE_DIR = "assets"
 BUILD_ROOT = ROOT / "build"
 
 
 def _prepare_build_icon() -> Path:
     from PIL import Image
+    from app.app_icon import render_app_icon_png
 
     png_path = render_app_icon_png(
         BUILD_ROOT / "app-icon.png",
@@ -52,7 +54,11 @@ def _prepare_build_icon() -> Path:
 
 
 def build() -> None:
-    icon_path = _prepare_build_icon()
+    icon_path = (
+        _prepare_build_icon()
+        if sys.platform in ("darwin", "win32")
+        else None
+    )
     args = [
         sys.executable,
         "-m",
@@ -64,7 +70,7 @@ def build() -> None:
         "--add-data",
         f"{CROSTINI_SETUP}:scripts",
         "--add-data",
-        f"{app_icon_path()}:{APP_ICON_RELATIVE_PATH.parent}",
+        f"{APP_ICON_SOURCE}:{APP_ICON_BUNDLE_DIR}",
         "--collect-all",
         "pymysql",
         "--collect-all",
