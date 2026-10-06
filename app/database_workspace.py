@@ -7,7 +7,12 @@ from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QWidget
 
 from app.database_dialogs import DatabaseProfileDialog
-from app.database_models import DatabaseProfile, TableInfo
+from app.database_models import (
+    CellDetailResult,
+    ColumnInfo,
+    DatabaseProfile,
+    TableInfo,
+)
 from app.database_service import DatabaseService
 from app.database_store import DatabaseStore
 from app.database_ui import DatabasePanel, DatabaseSidebar
@@ -53,10 +58,12 @@ class DatabaseWorkspace:
         self._current_profile_id: str | None = None
         self._current_schema: str | None = None
         self._current_table: str | None = None
+        self._current_columns: list[ColumnInfo] = []
         self._generation = 0
         self._connection_generation = 0
         self._search_generation = 0
         self._completion_generation = 0
+        self._detail_generation = 0
         self._pending_sql_draft: tuple[str, str] | None = None
         self._sql_save_timer = QTimer(parent)
         self._sql_save_timer.setSingleShot(True)
@@ -82,6 +89,7 @@ class DatabaseWorkspace:
         )
         self.panel.sort_requested.connect(self.apply_sort)
         self.panel.quick_filter_requested.connect(self.apply_quick_filter)
+        self.panel.detail_requested.connect(self.show_cell_detail)
 
         self._reload_profiles()
 
@@ -344,6 +352,8 @@ class DatabaseWorkspace:
         self._current_profile_id = profile_id
         self._current_schema = schema
         self._current_table = table
+        self._current_columns = []
+        self._detail_generation += 1
         self._generation += 1
         generation = self._generation
 
@@ -463,6 +473,122 @@ class DatabaseWorkspace:
             ),
             lambda _message: None,
         )
+
+    def show_cell_detail(
+        self,
+        row: int,
+        column: str,
+        current_value: object,
+    ) -> None:
+        if not self._has_table():
+            return
+
+        profile_id = self._current_profile_id
+        if not profile_id:
+            return
+
+        try:
+            profile = self.store.get(profile_id)
+        except KeyError:
+            return
+
+        column_info = next(
+            (
+                info
+                for info in self._current_columns
+                if info.name == column
+            ),
+            None,
+        )
+        data_type = column_info.data_type if column_info else ""
+        schema = str(self._current_schema)
+        table = str(self._current_table)
+
+        if not self.panel.data_model.is_preview_value(current_value):
+            self.panel.show_detail_value(
+                schema,
+                table,
+                column,
+                data_type,
+                current_value,
+                exact=True,
+                source="현재 페이지",
+            )
+            return
+
+        password = self._password_for(profile)
+        if password is None:
+            return
+
+        primary_key_values = self._primary_key_values_for_row(row)
+        absolute_offset = (
+            self.panel.current_page * self.panel.page_size
+            + max(row, 0)
+        )
+
+        self._detail_generation += 1
+        detail_generation = self._detail_generation
+        table_generation = self._generation
+        self.panel.show_detail_loading(
+            schema,
+            table,
+            column,
+            data_type,
+        )
+
+        self._run(
+            lambda: self.service.load_cell_detail(
+                profile,
+                password,
+                schema,
+                table,
+                column,
+                primary_key_values=primary_key_values,
+                offset=absolute_offset,
+                where_clause=self.panel.where_clause,
+                order_by=self.panel.sort_column,
+                order_direction=self.panel.sort_direction,
+            ),
+            lambda result: self._cell_detail_loaded(
+                detail_generation,
+                table_generation,
+                schema,
+                table,
+                column,
+                data_type,
+                result,
+            ),
+            lambda message: self._cell_detail_failed(
+                detail_generation,
+                table_generation,
+                message,
+            ),
+        )
+
+    def _primary_key_values_for_row(
+        self,
+        row: int,
+    ) -> dict[str, object] | None:
+        key_columns = [
+            column
+            for column in self._current_columns
+            if column.key.upper() == "PRI"
+        ]
+        if not key_columns:
+            return None
+
+        headers = self.panel.data_model.headers()
+        values: dict[str, object] = {}
+        for column in key_columns:
+            try:
+                index = headers.index(column.name)
+            except ValueError:
+                return None
+            value = self.panel.data_model.raw_value(row, index)
+            if self.panel.data_model.is_preview_value(value):
+                return None
+            values[column.name] = value
+        return values
 
     def apply_quick_filter(
         self,
@@ -699,6 +825,11 @@ class DatabaseWorkspace:
         if not isinstance(result, tuple) or len(result) != 2:
             return
         columns, data = result
+        self._current_columns = [
+            column
+            for column in columns
+            if isinstance(column, ColumnInfo)
+        ]
         self.panel.set_columns(columns)
         self.panel.set_data(data, page)
         identifiers = [
@@ -707,6 +838,48 @@ class DatabaseWorkspace:
             if hasattr(column, "name")
         ]
         self.panel.add_sql_completion_identifiers(tuple(identifiers))
+
+    def _cell_detail_loaded(
+        self,
+        detail_generation: int,
+        table_generation: int,
+        schema: str,
+        table: str,
+        column: str,
+        data_type: str,
+        result: object,
+    ) -> None:
+        if (
+            detail_generation != self._detail_generation
+            or table_generation != self._generation
+            or schema != self._current_schema
+            or table != self._current_table
+            or not isinstance(result, CellDetailResult)
+        ):
+            return
+
+        self.panel.show_detail_value(
+            schema,
+            table,
+            column,
+            data_type,
+            result.value,
+            exact=result.exact,
+            source=result.source,
+        )
+
+    def _cell_detail_failed(
+        self,
+        detail_generation: int,
+        table_generation: int,
+        message: str,
+    ) -> None:
+        if (
+            detail_generation != self._detail_generation
+            or table_generation != self._generation
+        ):
+            return
+        self.panel.show_detail_error(message)
 
     def _page_loaded(
         self,
@@ -777,6 +950,8 @@ class DatabaseWorkspace:
         self._current_profile_id = None
         self._current_schema = None
         self._current_table = None
+        self._current_columns = []
+        self._detail_generation += 1
         self._generation += 1
         self._connection_generation += 1
         self._search_generation += 1
