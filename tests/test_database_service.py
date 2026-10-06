@@ -306,7 +306,7 @@ def test_fetch_cell_detail_falls_back_to_current_query_position() -> None:
     assert (
         adapter.fake_connection.cursor_instance.sql
         == 'SELECT "payload" FROM "public"."events" '
-        "WHERE status = 'READY' ORDER BY "id" DESC "
+        "WHERE status = 'READY' ORDER BY \"id\" DESC "
         "LIMIT 1 OFFSET %s"
     )
     assert adapter.fake_connection.cursor_instance.params == (201,)
