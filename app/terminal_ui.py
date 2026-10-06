@@ -50,6 +50,7 @@ class TerminalSessionWidget(QWidget):
 
         self.output = TerminalDisplay()
         self.output.input_ready.connect(self.send_input)
+        self.output.terminal_size_changed.connect(self.resize_terminal)
 
         hint = QLabel(
             "터미널을 클릭한 뒤 바로 입력 · Ctrl+C 중지 · Ctrl+Shift+C 복사"
@@ -114,6 +115,8 @@ class TerminalSessionWidget(QWidget):
         self.backend.exited.connect(self._finished)
         self.backend.failed.connect(self._process_error)
         self.backend.start()
+        rows, columns = self.output.terminal_dimensions()
+        self.resize_terminal(rows, columns)
 
         if self.backend.is_running():
             if self.profile.kind == TERMINAL_SSH:
@@ -144,6 +147,11 @@ class TerminalSessionWidget(QWidget):
         if self.backend is None or not self.backend.is_running():
             return
         self.backend.write(text)
+
+    def resize_terminal(self, rows: int, columns: int) -> None:
+        if self.backend is None or not self.backend.is_running():
+            return
+        self.backend.resize(rows, columns)
 
     def focus_terminal(self) -> None:
         self.start()

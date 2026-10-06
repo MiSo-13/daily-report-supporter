@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import struct
 import sys
 import threading
 
@@ -62,6 +63,9 @@ class TerminalBackend(QObject):
 
     def interrupt(self) -> None:
         self.write("\x03")
+
+    def resize(self, rows: int, columns: int) -> None:
+        raise NotImplementedError
 
     def close(self) -> None:
         raise NotImplementedError
@@ -128,6 +132,26 @@ class UnixPtyBackend(TerminalBackend):
             )
         except OSError:
             self._running = False
+
+    def resize(self, rows: int, columns: int) -> None:
+        if not self._running or self.master_fd is None:
+            return
+
+        rows = max(int(rows), 1)
+        columns = max(int(columns), 1)
+        try:
+            import fcntl
+            import termios
+
+            fcntl.ioctl(
+                self.master_fd,
+                termios.TIOCSWINSZ,
+                struct.pack("HHHH", rows, columns, 0, 0),
+            )
+            if self.pid is not None:
+                os.kill(self.pid, signal.SIGWINCH)
+        except (ImportError, OSError, ValueError, struct.error):
+            return
 
     def close(self) -> None:
         if not self._running:
@@ -240,6 +264,18 @@ class WindowsConPtyBackend(TerminalBackend):
             self.process.write(text)
         except Exception:
             self._running = False
+
+    def resize(self, rows: int, columns: int) -> None:
+        process = self.process
+        if not self.is_running() or process is None:
+            return
+        try:
+            process.setwinsize(
+                max(int(rows), 1),
+                max(int(columns), 1),
+            )
+        except Exception:
+            return
 
     def close(self) -> None:
         process = self.process

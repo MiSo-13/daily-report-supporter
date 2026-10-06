@@ -10,6 +10,7 @@ from PyQt6.QtGui import (
     QFontDatabase,
     QInputMethodEvent,
     QKeyEvent,
+    QResizeEvent,
     QTextCharFormat,
     QTextCursor,
 )
@@ -27,6 +28,7 @@ CLEAR_SCREEN_MARKERS = (
 
 class TerminalDisplay(QPlainTextEdit):
     input_ready = pyqtSignal(str)
+    terminal_size_changed = pyqtSignal(int, int)
 
     MAX_BLOCKS = 1800
     MAX_DOCUMENT_CHARS = 800_000
@@ -97,6 +99,11 @@ class TerminalDisplay(QPlainTextEdit):
         self._flush_timer.setInterval(self.FLUSH_INTERVAL_MS)
         self._flush_timer.timeout.connect(self._flush_pending)
 
+        self._resize_timer = QTimer(self)
+        self._resize_timer.setSingleShot(True)
+        self._resize_timer.setInterval(40)
+        self._resize_timer.timeout.connect(self._emit_terminal_size)
+
     def set_terminal_font(self, family: str, point_size: int) -> None:
         font = QFontDatabase.systemFont(
             QFontDatabase.SystemFont.FixedFont
@@ -105,6 +112,30 @@ class TerminalDisplay(QPlainTextEdit):
             font.setFamily(family)
         font.setPointSize(point_size)
         self.setFont(font)
+        self._schedule_terminal_resize()
+
+    def terminal_dimensions(self) -> tuple[int, int]:
+        metrics = self.fontMetrics()
+        char_width = max(metrics.horizontalAdvance("M"), 1)
+        line_height = max(metrics.lineSpacing(), 1)
+        viewport = self.viewport()
+        usable_width = max(viewport.width() - 8, char_width)
+        usable_height = max(viewport.height() - 8, line_height)
+        rows = max(usable_height // line_height, 1)
+        columns = max(usable_width // char_width, 1)
+        return rows, columns
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._schedule_terminal_resize()
+
+    def _schedule_terminal_resize(self) -> None:
+        if hasattr(self, "_resize_timer"):
+            self._resize_timer.start()
+
+    def _emit_terminal_size(self) -> None:
+        rows, columns = self.terminal_dimensions()
+        self.terminal_size_changed.emit(rows, columns)
 
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):

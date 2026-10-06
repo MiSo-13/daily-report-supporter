@@ -275,7 +275,9 @@ SSH 프로필에 저장되는 정보는 이름/Host/Port/User뿐이며 비밀번
 
 Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
-키 입력과 streaming I/O는 실제 pseudo-terminal로 처리하고 로그용 ANSI 색상/서식은 지원하지만, ANSI cursor/screen 명령 전체를 구현한 terminal emulator는 아닙니다. `vim`/`vi`, `nano`, `top`/`htop`, `less`/`more`, `watch`, `fzf` 같은 전체 화면 TUI는 표시가 제한될 수 있습니다. 터미널 하단의 `⚠ 전체화면 TUI 미지원` 안내에 마우스를 올리면 같은 제한 범위를 확인할 수 있습니다.
+키 입력과 streaming I/O는 실제 pseudo-terminal로 처리하며, 화면 크기 변경과 터미널 폰트 변경 시 현재 rows/columns를 PTY/ConPTY에 전달합니다. 따라서 `redis-cli`처럼 터미널 폭을 조회하는 interactive CLI의 prompt와 line editing 호환성을 개선했습니다.
+
+로그용 ANSI 색상/서식은 지원하지만, ANSI cursor/screen 명령 전체를 구현한 terminal emulator는 아닙니다. `vim`/`vi`, `nano`, `top`/`htop`, `less`/`more`, `watch`, `fzf` 같은 전체 화면 TUI는 표시가 제한될 수 있습니다. 터미널 하단의 `⚠ 전체화면 TUI 미지원` 안내에 마우스를 올리면 같은 제한 범위를 확인할 수 있습니다.
 
 ## DB Viewer
 

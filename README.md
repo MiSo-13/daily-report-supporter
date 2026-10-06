@@ -295,7 +295,7 @@ docker logs -f my_service
 
 터미널 프로필은 `<app-root>/data/config/terminal-sessions.json`에 저장됩니다. 터미널 목록 항목을 드래그하면 배열 순서도 함께 저장되어 다음 실행에 유지됩니다. 앱을 종료하면 실제 프로세스는 종료되고, 다음 실행에서는 프로필만 복원됩니다. 프로필을 선택하는 시점에 shell/SSH 연결을 시작합니다.
 
-터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다.
+터미널은 Linux/macOS/Crostini에서 PTY, Windows에서 ConPTY를 사용합니다. 화면 크기와 폰트에서 계산한 rows/columns를 PTY/ConPTY에 계속 동기화하므로 `redis-cli`처럼 터미널 폭을 사용하는 interactive CLI도 정상적인 prompt/line editing을 사용할 수 있습니다.
 
 대량 로그 때문에 앱이 멈추는 것을 줄이기 위해 출력은 50ms 단위로 묶어서 렌더링하고, 화면에는 최근 약 1,800줄 / 약 0.8MB까지만 유지합니다. 숨겨진 터미널은 계속 다시 그리지 않고 최근 출력만 제한적으로 버퍼링합니다. 출력량이 렌더링 속도를 크게 초과하면 오래된 대기 로그 일부를 생략하고 화면에 안내합니다.
 
