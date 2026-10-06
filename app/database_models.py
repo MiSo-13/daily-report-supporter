@@ -91,3 +91,11 @@ class QueryResult:
     columns: tuple[str, ...]
     rows: tuple[tuple[object, ...], ...]
     truncated: bool
+
+
+
+@dataclass(frozen=True, slots=True)
+class CellDetailResult:
+    value: object
+    exact: bool
+    source: str
