@@ -10,6 +10,7 @@ from typing import Iterator
 from app.database_models import (
     DB_MYSQL,
     DB_POSTGRESQL,
+    CellDetailResult,
     ColumnInfo,
     DatabaseProfile,
     PageResult,
@@ -233,6 +234,88 @@ class DatabaseAdapter:
             columns=columns,
             rows=rows,
             has_next=has_next,
+        )
+
+    def fetch_cell_detail(
+        self,
+        schema: str,
+        table: str,
+        column: str,
+        *,
+        primary_key_values: dict[str, object] | None = None,
+        offset: int = 0,
+        where_clause: str = "",
+        order_by: str = "",
+        order_direction: str = "ASC",
+    ) -> CellDetailResult:
+        identifier = self.quote_identifier(column)
+        table_name = self.qualified_table(schema, table)
+
+        if primary_key_values:
+            conditions: list[str] = []
+            params: list[object] = []
+            for key, value in primary_key_values.items():
+                key_identifier = self.quote_identifier(key)
+                if value is None:
+                    conditions.append(f"{key_identifier} IS NULL")
+                else:
+                    conditions.append(f"{key_identifier} = %s")
+                    params.append(value)
+
+            sql = (
+                f"SELECT {identifier} FROM {table_name} WHERE "
+                + " AND ".join(conditions)
+                + " LIMIT 2"
+            )
+            with self.connection() as connection:
+                cursor = connection.cursor()
+                try:
+                    cursor.execute(sql, tuple(params))
+                    rows = cursor.fetchmany(2)
+                finally:
+                    cursor.close()
+
+            if not rows:
+                raise ValueError("상세 조회 대상 행을 찾지 못했습니다.")
+            if len(rows) > 1:
+                raise ValueError(
+                    "Primary Key 조회 결과가 여러 행입니다. 상세 조회를 중단합니다."
+                )
+            return CellDetailResult(
+                value=rows[0][0],
+                exact=True,
+                source="Primary Key",
+            )
+
+        safe_where = validate_where_clause(where_clause)
+        sql = f"SELECT {identifier} FROM {table_name}"
+        if safe_where:
+            sql += f" WHERE {safe_where}"
+
+        if order_by:
+            direction = order_direction.upper()
+            if direction not in ("ASC", "DESC"):
+                raise ValueError("정렬 방향은 ASC 또는 DESC만 사용할 수 있습니다.")
+            sql += (
+                f" ORDER BY {self.quote_identifier(order_by)} "
+                f"{direction}"
+            )
+
+        sql += " LIMIT 1 OFFSET %s"
+        with self.connection() as connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute(sql, (max(int(offset), 0),))
+                rows = cursor.fetchmany(1)
+            finally:
+                cursor.close()
+
+        if not rows:
+            raise ValueError("상세 조회 대상 행을 찾지 못했습니다.")
+        return CellDetailResult(
+            value=rows[0][0],
+            exact=False,
+            source="현재 조회 순서",
         )
 
     def run_query(
@@ -696,6 +779,31 @@ class DatabaseService:
             table,
             limit=page_size,
             offset=max(page, 0) * page_size,
+            where_clause=where_clause,
+            order_by=order_by,
+            order_direction=order_direction,
+        )
+
+    def load_cell_detail(
+        self,
+        profile: DatabaseProfile,
+        password: str,
+        schema: str,
+        table: str,
+        column: str,
+        *,
+        primary_key_values: dict[str, object] | None = None,
+        offset: int = 0,
+        where_clause: str = "",
+        order_by: str = "",
+        order_direction: str = "ASC",
+    ) -> CellDetailResult:
+        return self.adapter(profile, password).fetch_cell_detail(
+            schema,
+            table,
+            column,
+            primary_key_values=primary_key_values,
+            offset=offset,
             where_clause=where_clause,
             order_by=order_by,
             order_direction=order_direction,
