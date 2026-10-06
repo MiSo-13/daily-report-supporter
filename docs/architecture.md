@@ -49,11 +49,15 @@ PTY/렌더링 로직과 프로필/워크스페이스 로직을 분리해 대량 
 
 - `app/database_service.py`: MySQL/PostgreSQL adapter, metadata/table/query 조회, Read Only SQL 검증
 - `app/database_table_model.py`: 결과 모델과 대용량 셀 미리보기/표시 길이 제한
+- `app/database_detail.py`: 상세 탭용 TEXT/JSON/Binary 포맷과 상세 표시 상한
+- `app/database_service.py`: PK 우선 / 현재 조회 offset fallback 방식의 단일 셀 원본 조회
 - `app/database_sql_editor.py`: SQL syntax highlighting, 자동완성, 현재 statement 판별
 - `app/database_ui.py`: 연결/sidebar, 데이터/컬럼/SQL 결과 UI
 - `app/database_workspace.py`: 연결 상태, 비동기 조회, SQL draft와 metadata 자동완성 조정
 
 DB 결과는 전체 row 수뿐 아니라 셀 하나의 크기도 UI 성능에 영향을 줄 수 있습니다. 따라서 큰 TEXT/JSON/BLOB 값은 DB worker에서 UI signal로 넘기기 전에 제한된 preview로 먼저 치환하고, `DatabaseTableModel`에서도 동일 규칙을 방어적으로 적용합니다. 데이터/SQL 결과 테이블은 `resizeColumnsToContents()`로 전체 셀을 측정하지 않습니다. 작은 값은 기존 객체를 그대로 유지합니다.
+
+대용량 셀의 목록 preview와 상세 조회는 분리합니다. 목록에서는 worker 단계에서 값을 축소하지만 사용자가 `상세 보기`를 요청하면 해당 셀만 별도 read-only query로 다시 가져옵니다. Primary Key가 있으면 PK 조건을 우선하고, 없으면 현재 filter/order/offset을 사용합니다.
 
 ## 설정과 스타일
 
