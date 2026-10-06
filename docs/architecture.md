@@ -40,6 +40,8 @@ WorKing은 PyQt6 UI, Markdown 기반 업무 데이터, 독립 메모/터미널 �
 - `app/terminal_display.py`: 키 입력, ANSI 기본 처리, 출력 buffer/scrollback 제한
 - `app/terminal_dialogs.py`: SSH profile 입력 UI
 - `app/terminal_store.py`: local/SSH profile 저장
+- `app/terminal_display.py`: 터미널 출력 렌더링과 viewport 기반 rows/columns 계산
+- `app/terminal_backend.py`: Unix PTY / Windows ConPTY I/O 및 window size 동기화
 - `app/terminal_ui.py`: 세션 widget, sidebar, panel
 - `app/terminal_workspace.py`: 세션 생성/선택/편집/삭제 lifecycle 조정
 
