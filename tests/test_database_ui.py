@@ -199,3 +199,64 @@ def test_copy_selection_uses_stored_preview_not_full_large_value() -> None:
     copied = QApplication.clipboard().text()
     assert len(copied) <= 4096
     assert "원본 200,000자" in copied
+
+
+
+def test_database_panel_detail_tab_formats_json() -> None:
+    panel = DatabasePanel()
+
+    panel.show_detail_value(
+        "public",
+        "events",
+        "payload",
+        "jsonb",
+        {"user": {"name": "Alice"}, "active": True},
+        exact=True,
+        source="Primary Key",
+    )
+
+    assert panel.tabs.isTabVisible(panel._detail_tab_index)
+    assert panel.tabs.currentIndex() == panel._detail_tab_index
+    assert panel.tabs.tabText(panel._detail_tab_index) == "상세 · payload"
+    assert '"name": "Alice"' in panel.detail_viewer.toPlainText()
+    assert "JSON" in panel.detail_meta.text()
+    assert "Primary Key" in panel.detail_status.text()
+
+
+def test_database_panel_detail_tab_marks_fallback_lookup() -> None:
+    panel = DatabasePanel()
+
+    panel.show_detail_value(
+        "public",
+        "logs",
+        "message",
+        "text",
+        "hello",
+        exact=False,
+        source="현재 조회 순서",
+    )
+
+    assert "PK 없음" in panel.detail_status.text()
+    assert "현재 조회 순서" in panel.detail_status.text()
+
+
+def test_database_panel_hides_detail_when_table_changes() -> None:
+    panel = DatabasePanel()
+    panel.show_detail_value(
+        "public",
+        "events",
+        "payload",
+        "text",
+        "hello",
+        exact=True,
+        source="현재 페이지",
+    )
+
+    panel.set_table_context(
+        _profile(),
+        "public",
+        "users",
+        "SELECT * FROM users;",
+    )
+
+    assert not panel.tabs.isTabVisible(panel._detail_tab_index)
