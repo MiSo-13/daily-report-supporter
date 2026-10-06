@@ -5,6 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtGui import QFont, QTextCursor
+from PyQt6.QtTest import QSignalSpy
 from PyQt6.QtWidgets import QApplication
 
 from app.terminal_display import TerminalDisplay
@@ -158,3 +159,31 @@ def test_osc_title_sequence_is_ignored_without_leaking_text() -> None:
     )
 
     assert display.toPlainText() == "ready"
+
+
+
+def test_terminal_dimensions_follow_widget_size() -> None:
+    display = TerminalDisplay()
+    display.resize(900, 480)
+    display.show()
+    QApplication.processEvents()
+
+    rows, columns = display.terminal_dimensions()
+
+    assert rows > 1
+    assert columns > 20
+
+
+def test_terminal_resize_emits_rows_and_columns() -> None:
+    display = TerminalDisplay()
+    spy = QSignalSpy(display.terminal_size_changed)
+    display.show()
+    display.resize(820, 420)
+    QApplication.processEvents()
+
+    display._emit_terminal_size()
+
+    assert len(spy) >= 1
+    rows, columns = spy[-1]
+    assert rows > 0
+    assert columns > 0
