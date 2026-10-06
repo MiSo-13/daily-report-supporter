@@ -4,7 +4,13 @@ import csv
 from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QDropEvent, QFontDatabase, QKeySequence, QShortcut
+from PyQt6.QtGui import (
+    QDropEvent,
+    QFontDatabase,
+    QKeySequence,
+    QShortcut,
+    QTextCursor,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -1039,7 +1045,7 @@ class DatabasePanel(QWidget):
         self.detail_status.setText(accuracy)
         self.detail_viewer.setPlainText(detail.text)
         cursor = self.detail_viewer.textCursor()
-        cursor.movePosition(cursor.MoveOperation.Start)
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
         self.detail_viewer.setTextCursor(cursor)
 
     def show_detail_error(self, message: str) -> None:
