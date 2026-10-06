@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import struct
 import sys
 
 from PyQt6.QtCore import QObject
@@ -61,3 +62,63 @@ def test_factory_accepts_direct_command(monkeypatch, tmp_path) -> None:
 
     assert backend.program == "ssh"
     assert backend.arguments == ["-p", "2222", "ubuntu@example.com"]
+
+
+
+def test_unix_resize_updates_pty_window_and_sends_sigwinch(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    backend = terminal_backend.UnixPtyBackend(tmp_path)
+    backend._running = True
+    backend.master_fd = 42
+    backend.pid = 1234
+
+    ioctl_calls: list[tuple[int, int, bytes]] = []
+    kill_calls: list[tuple[int, int]] = []
+
+    import fcntl
+    import termios
+
+    monkeypatch.setattr(
+        fcntl,
+        "ioctl",
+        lambda fd, request, payload: ioctl_calls.append(
+            (fd, request, payload)
+        ),
+    )
+    monkeypatch.setattr(
+        terminal_backend.os,
+        "kill",
+        lambda pid, sig: kill_calls.append((pid, sig)),
+    )
+
+    backend.resize(37, 142)
+
+    assert len(ioctl_calls) == 1
+    fd, request, payload = ioctl_calls[0]
+    assert fd == 42
+    assert request == termios.TIOCSWINSZ
+    assert struct.unpack("HHHH", payload)[:2] == (37, 142)
+    assert kill_calls == [(1234, terminal_backend.signal.SIGWINCH)]
+
+
+def test_windows_resize_uses_pywinpty_setwinsize(tmp_path) -> None:
+    class FakeProcess:
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, int]] = []
+
+        def isalive(self) -> bool:
+            return True
+
+        def setwinsize(self, rows: int, columns: int) -> None:
+            self.calls.append((rows, columns))
+
+    backend = terminal_backend.WindowsConPtyBackend(tmp_path)
+    process = FakeProcess()
+    backend.process = process
+    backend._running = True
+
+    backend.resize(31, 118)
+
+    assert process.calls == [(31, 118)]
