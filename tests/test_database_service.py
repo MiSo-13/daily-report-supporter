@@ -152,8 +152,8 @@ class _FakeCursor:
         self.sql = sql
         self.params = params
 
-    def fetchmany(self, _size: int) -> list[tuple[object, ...]]:
-        return list(self.rows)
+    def fetchmany(self, size: int) -> list[tuple[object, ...]]:
+        return list(self.rows[:size])
 
     def close(self) -> None:
         return None
@@ -266,3 +266,62 @@ def test_run_query_compacts_large_value_before_ui_model() -> None:
     value = result.rows[0][0]
     assert isinstance(value, DatabaseValuePreview)
     assert value.original_size == 200_000
+
+
+
+def test_fetch_cell_detail_uses_primary_key_for_exact_lookup() -> None:
+    adapter = _FakeAdapter(rows=[("full payload",)])
+
+    result = adapter.fetch_cell_detail(
+        "public",
+        "events",
+        "payload",
+        primary_key_values={"id": 42},
+    )
+
+    assert (
+        adapter.fake_connection.cursor_instance.sql
+        == 'SELECT "payload" FROM "public"."events" '
+        'WHERE "id" = %s LIMIT 2'
+    )
+    assert adapter.fake_connection.cursor_instance.params == (42,)
+    assert result.value == "full payload"
+    assert result.exact
+    assert result.source == "Primary Key"
+
+
+def test_fetch_cell_detail_falls_back_to_current_query_position() -> None:
+    adapter = _FakeAdapter(rows=[("full payload",)])
+
+    result = adapter.fetch_cell_detail(
+        "public",
+        "events",
+        "payload",
+        offset=201,
+        where_clause="status = 'READY'",
+        order_by="id",
+        order_direction="DESC",
+    )
+
+    assert (
+        adapter.fake_connection.cursor_instance.sql
+        == 'SELECT "payload" FROM "public"."events" '
+        "WHERE status = 'READY' ORDER BY \"id\" DESC "
+        "LIMIT 1 OFFSET %s"
+    )
+    assert adapter.fake_connection.cursor_instance.params == (201,)
+    assert result.value == "full payload"
+    assert not result.exact
+    assert result.source == "현재 조회 순서"
+
+
+def test_fetch_cell_detail_rejects_duplicate_primary_key_result() -> None:
+    adapter = _FakeAdapter(rows=[("first",), ("second",)])
+
+    with pytest.raises(ValueError, match="여러 행"):
+        adapter.fetch_cell_detail(
+            "public",
+            "events",
+            "payload",
+            primary_key_values={"id": 42},
+        )

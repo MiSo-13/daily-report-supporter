@@ -4,10 +4,17 @@ import csv
 from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QDropEvent, QKeySequence, QShortcut
+from PyQt6.QtGui import (
+    QDropEvent,
+    QFontDatabase,
+    QKeySequence,
+    QShortcut,
+    QTextCursor,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
@@ -25,6 +32,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.database_detail import format_database_detail_value
 from app.database_models import (
     ColumnInfo,
     DatabaseProfile,
@@ -575,6 +583,7 @@ class DatabasePanel(QWidget):
     sql_completion_lookup_requested = pyqtSignal(str)
     sort_requested = pyqtSignal(str, str)
     quick_filter_requested = pyqtSignal(str, object, str)
+    detail_requested = pyqtSignal(int, str, object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -602,12 +611,17 @@ class DatabasePanel(QWidget):
         self._build_data_tab()
         self._build_columns_tab()
         self._build_sql_tab()
+        self._build_detail_tab()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
         layout.addLayout(header)
         layout.addWidget(self.tabs, 1)
+
+    @property
+    def current_page(self) -> int:
+        return self._page
 
     @property
     def page_size(self) -> int:
@@ -669,6 +683,7 @@ class DatabasePanel(QWidget):
         self._sort_direction = "ASC"
         self._sort_section = -1
         self.data_table.horizontalHeader().setSortIndicatorShown(False)
+        self._hide_detail_tab()
 
     def set_loading(self, text: str = "조회 중...") -> None:
         self.data_status.setText(text)
@@ -763,6 +778,7 @@ class DatabasePanel(QWidget):
         self._sort_direction = "ASC"
         self._sort_section = -1
         self.data_table.horizontalHeader().setSortIndicatorShown(False)
+        self._hide_detail_tab()
 
     def _build_data_tab(self) -> None:
         page = QWidget()
@@ -930,6 +946,136 @@ class DatabasePanel(QWidget):
         layout.addWidget(self.sql_table, 1)
         self.tabs.addTab(page, "SQL")
 
+    def _build_detail_tab(self) -> None:
+        page = QWidget()
+
+        self.detail_title = QLabel("<b>셀 상세 보기</b>")
+        self.detail_meta = QLabel("")
+        self.detail_meta.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        self.detail_status = QLabel("")
+        self.detail_status.setObjectName("databaseHint")
+
+        self.detail_viewer = QPlainTextEdit()
+        self.detail_viewer.setReadOnly(True)
+        self.detail_viewer.setLineWrapMode(
+            QPlainTextEdit.LineWrapMode.NoWrap
+        )
+        self.detail_viewer.setFont(
+            QFontDatabase.systemFont(
+                QFontDatabase.SystemFont.FixedFont
+            )
+        )
+
+        copy_button = QPushButton("전체 복사")
+        copy_button.clicked.connect(
+            lambda _checked=False: QApplication.clipboard().setText(
+                self.detail_viewer.toPlainText()
+            )
+        )
+        self.detail_wrap_checkbox = QCheckBox("줄바꿈")
+        self.detail_wrap_checkbox.toggled.connect(
+            self._set_detail_wrap
+        )
+        close_button = QPushButton("닫기")
+        close_button.clicked.connect(
+            lambda _checked=False: self._hide_detail_tab()
+        )
+
+        action_row = QHBoxLayout()
+        action_row.addWidget(copy_button)
+        action_row.addWidget(self.detail_wrap_checkbox)
+        action_row.addStretch(1)
+        action_row.addWidget(close_button)
+
+        layout = QVBoxLayout(page)
+        layout.addWidget(self.detail_title)
+        layout.addWidget(self.detail_meta)
+        layout.addWidget(self.detail_status)
+        layout.addLayout(action_row)
+        layout.addWidget(self.detail_viewer, 1)
+
+        self._detail_tab_index = self.tabs.addTab(page, "상세")
+        self.tabs.setTabVisible(self._detail_tab_index, False)
+
+    def show_detail_loading(
+        self,
+        schema: str,
+        table: str,
+        column: str,
+        data_type: str,
+    ) -> None:
+        self._show_detail_tab(column)
+        self.detail_title.setText(
+            f"<b>{schema}.{table}.{column}</b>"
+        )
+        self.detail_meta.setText(f"타입: {data_type or '-'}")
+        self.detail_status.setText("원본 값을 조회 중...")
+        self.detail_viewer.setPlainText("")
+
+    def show_detail_value(
+        self,
+        schema: str,
+        table: str,
+        column: str,
+        data_type: str,
+        value: object,
+        *,
+        exact: bool,
+        source: str,
+    ) -> None:
+        detail = format_database_detail_value(value, data_type)
+        self._show_detail_tab(column)
+        self.detail_title.setText(
+            f"<b>{schema}.{table}.{column}</b>"
+        )
+        self.detail_meta.setText(
+            f"타입: {data_type or '-'} · {detail.format_label} · "
+            f"크기: {detail.size_label}"
+        )
+
+        accuracy = (
+            f"원본 조회 · {source}"
+            if exact
+            else f"PK 없음 · {source} 기준 재조회"
+        )
+        if detail.truncated:
+            accuracy += " · 상세 표시 상한으로 일부 생략"
+        self.detail_status.setText(accuracy)
+        self.detail_viewer.setPlainText(detail.text)
+        cursor = self.detail_viewer.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        self.detail_viewer.setTextCursor(cursor)
+
+    def show_detail_error(self, message: str) -> None:
+        self.detail_status.setText(f"상세 조회 오류: {message}")
+        self.detail_viewer.setPlainText("")
+
+    def _show_detail_tab(self, column: str) -> None:
+        self.tabs.setTabVisible(self._detail_tab_index, True)
+        self.tabs.setTabText(
+            self._detail_tab_index,
+            f"상세 · {column}",
+        )
+        self.tabs.setCurrentIndex(self._detail_tab_index)
+
+    def _hide_detail_tab(self) -> None:
+        if not hasattr(self, "_detail_tab_index"):
+            return
+        self.tabs.setTabVisible(self._detail_tab_index, False)
+        self.detail_viewer.clear()
+        self.detail_status.clear()
+        self.tabs.setCurrentIndex(0)
+
+    def _set_detail_wrap(self, enabled: bool) -> None:
+        mode = (
+            QPlainTextEdit.LineWrapMode.WidgetWidth
+            if enabled
+            else QPlainTextEdit.LineWrapMode.NoWrap
+        )
+        self.detail_viewer.setLineWrapMode(mode)
+
     def _request_sql_execution(self, _checked: bool = False) -> None:
         statement = self.sql_editor.statement_to_execute()
         if not statement:
@@ -980,6 +1126,15 @@ class DatabasePanel(QWidget):
         value = self.data_model.raw_value(index.row(), index.column())
 
         menu = QMenu(self.data_table)
+        detail_action = menu.addAction("상세 보기")
+        detail_action.triggered.connect(
+            lambda _checked=False: self.detail_requested.emit(
+                index.row(),
+                column,
+                value,
+            )
+        )
+        menu.addSeparator()
         copy_action = menu.addAction("값 복사")
         copy_action.triggered.connect(
             lambda _checked=False: QApplication.clipboard().setText(
