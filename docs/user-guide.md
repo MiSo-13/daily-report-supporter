@@ -395,11 +395,14 @@ SQL을 한 번도 작성하지 않은 연결에서 테이블을 선택하면 해
 
 SQL 편집기는 일반 DB Viewer처럼 다음 기능을 지원합니다.
 
+- SQL 작성 영역과 결과 영역 사이 경계를 드래그해 높이 조절
 - SQL keyword/function/string/number/comment syntax highlighting
 - `Tab`: 현재 단어 기준 자동완성
 - `Ctrl+Space`: 자동완성 목록 표시
 - schema/table/현재 테이블 column 이름 자동완성
-- lazy loading으로 아직 확인하지 않은 table은 `Tab` 입력 시 DB metadata를 비동기로 검색해 후보 보충
+- `table.` 또는 `schema.table.` 뒤에서 `Tab`: 해당 테이블 column 목록 자동완성
+- 아직 column metadata를 읽지 않은 table은 `Tab` 시 DB metadata를 비동기로 조회
+- lazy loading으로 아직 확인하지 않은 table 이름도 `Tab` 입력 시 DB metadata를 비동기로 검색해 후보 보충
 - MySQL/PostgreSQL 종류에 맞는 keyword/function 자동완성
 - `Ctrl+Enter`: 커서가 위치한 SQL statement만 실행
 - SQL 일부를 선택한 상태에서는 선택 영역을 우선 실행
