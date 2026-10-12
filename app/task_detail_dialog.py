@@ -28,40 +28,42 @@ class TaskDetailDialog(QDialog):
         self.resize(900, 700)
         self.setMinimumSize(620, 460)
 
-        title = QLabel(
+        self.title_label = QLabel(
             f"<h2>{escape(task.title or '(제목 없음)')}</h2>"
         )
-        title.setWordWrap(True)
+        self.title_label.setWordWrap(True)
 
-        status = QLabel(f"상태: {task.status.value}")
-        status.setObjectName("taskDetailStatus")
+        self.status_label = QLabel(f"상태: {task.status.value}")
+        self.status_label.setObjectName("taskDetailStatus")
 
         header = QHBoxLayout()
-        header.addWidget(status)
+        header.addWidget(self.status_label)
         header.addStretch(1)
 
         if task.link_url.strip():
             link_label = task.link_text.strip() or task.link_url.strip()
-            open_link = QPushButton(f"관련 문서 열기 · {link_label}")
-            open_link.setObjectName("openUrlButton")
-            open_link.clicked.connect(
+            self.open_link_button = QPushButton(
+                f"관련 문서 열기 · {link_label}"
+            )
+            self.open_link_button.setObjectName("openUrlButton")
+            self.open_link_button.clicked.connect(
                 lambda: QDesktopServices.openUrl(QUrl(task.link_url.strip()))
             )
-            header.addWidget(open_link)
+            header.addWidget(self.open_link_button)
 
         details = "\n".join(task.details)
-        preview = QTextBrowser()
-        preview.setOpenExternalLinks(True)
-        preview.setMarkdown(details or "_주요 내용이 없습니다._")
+        self.preview = QTextBrowser()
+        self.preview.setOpenExternalLinks(True)
+        self.preview.setMarkdown(details or "_주요 내용이 없습니다._")
 
-        source = QPlainTextEdit()
-        source.setReadOnly(True)
-        source.setPlainText(details)
-        source.setPlaceholderText("주요 내용이 없습니다.")
+        self.source = QPlainTextEdit()
+        self.source.setReadOnly(True)
+        self.source.setPlainText(details)
+        self.source.setPlaceholderText("주요 내용이 없습니다.")
 
-        tabs = QTabWidget()
-        tabs.addTab(preview, "미리보기")
-        tabs.addTab(source, "원문")
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.preview, "미리보기")
+        self.tabs.addTab(self.source, "원문")
 
         close_buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Close
@@ -71,7 +73,7 @@ class TaskDetailDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(10)
-        layout.addWidget(title)
+        layout.addWidget(self.title_label)
         layout.addLayout(header)
-        layout.addWidget(tabs, 1)
+        layout.addWidget(self.tabs, 1)
         layout.addWidget(close_buttons)
