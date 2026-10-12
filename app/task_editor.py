@@ -239,6 +239,7 @@ class TaskEditor(QWidget):
         else:
             self._clear_form()
             self._set_add_mode()
+            self.list_widget.set_reordering_enabled(True)
 
     def enter_add_mode(self) -> None:
         self.list_widget.blockSignals(True)
@@ -383,7 +384,7 @@ class TaskEditor(QWidget):
         self.open_detail()
 
     def _persist_reordered_tasks(self) -> None:
-        if self.update_button.isVisible() or self._form_has_draft():
+        if self.update_button.isVisible():
             self.refresh(select_row=self.list_widget.currentRow())
             return
 
