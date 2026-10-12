@@ -7,9 +7,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import QMimeData, Qt
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QAbstractItemView
 
-from app.models import TaskStatus
+from app.models import Task, TaskStatus
 from app.task_editor import PlainTextPasteEdit, TaskEditor
 
 
@@ -77,3 +77,65 @@ def test_task_editor_uses_plain_text_paste_editor() -> None:
 
     assert isinstance(editor.details_input, PlainTextPasteEdit)
     assert "Ctrl+Shift+V" in editor.details_input.toolTip()
+
+
+def test_task_editor_reorders_tasks_and_persists() -> None:
+    persisted: list[list[str]] = []
+    editor: TaskEditor
+
+    def persist() -> None:
+        persisted.append([task.title for task in editor.get_tasks()])
+
+    editor = TaskEditor(
+        "오늘 업무",
+        persist,
+        default_status=TaskStatus.PLANNED,
+    )
+    editor.set_tasks(
+        [
+            Task("첫 번째"),
+            Task("두 번째"),
+            Task("세 번째"),
+        ]
+    )
+
+    moved = editor.list_widget.takeItem(0)
+    editor.list_widget.insertItem(2, moved)
+    editor.list_widget.setCurrentItem(moved)
+    editor._persist_reordered_tasks()
+
+    assert [task.title for task in editor.get_tasks()] == [
+        "두 번째",
+        "세 번째",
+        "첫 번째",
+    ]
+    assert persisted[-1] == ["두 번째", "세 번째", "첫 번째"]
+
+
+def test_task_editor_disables_reorder_while_edit_has_unsaved_changes() -> None:
+    editor = TaskEditor(
+        "오늘 업무",
+        lambda: None,
+        default_status=TaskStatus.PLANNED,
+    )
+    editor.set_tasks([Task("기존 업무")])
+    editor.select_task(0)
+
+    assert (
+        editor.list_widget.dragDropMode()
+        == QAbstractItemView.DragDropMode.InternalMove
+    )
+
+    editor.title_input.setText("수정 중 업무")
+
+    assert (
+        editor.list_widget.dragDropMode()
+        == QAbstractItemView.DragDropMode.NoDragDrop
+    )
+
+    editor.save_changes()
+
+    assert (
+        editor.list_widget.dragDropMode()
+        == QAbstractItemView.DragDropMode.InternalMove
+    )
