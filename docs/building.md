@@ -1,70 +1,30 @@
-# 빌드와 배포
+# 빌드/배포
 
-PyInstaller로 실행파일을 만들 수 있습니다.
+WorKing 배포 파일은 PyInstaller로 만듭니다. PyInstaller는 크로스컴파일러가 아니므로 Windows, macOS, Linux 빌드는 각각 해당 OS runner에서 수행합니다.
 
-PyInstaller는 크로스컴파일러가 아니므로 Windows용은 Windows에서, macOS용은 macOS에서, Linux용은 Linux에서 각각 빌드합니다.
+## 로컬 빌드
 
-## Release에서 받기
-
-GitHub Releases:
-
-https://github.com/MiSo-13/daily-report-supporter/releases/latest
-
-배포 파일:
-
-| 환경 | 파일 |
-| --- | --- |
-| Windows x64 | `WorKing.exe` |
-| macOS Apple Silicon | `WorKing-macos-arm64.zip` |
-| macOS Intel | `WorKing-macos-x64.zip` |
-| ChromeOS/Crostini x64 | `WorKing-linux-x64` |
-| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
-
-Windows 사용자는 `.exe` 하나만 받아 실행하면 Python 설치가 필요하지 않습니다.
-
-## 직접 빌드
-
-먼저 빌드 의존성을 설치합니다.
+빌드 의존성을 설치합니다.
 
 ```bash
 pip install -r requirements.txt -r requirements-build.txt
 ```
 
-공통 빌드 명령:
+공통 명령:
 
 ```bash
 python scripts/build_app.py
 ```
 
-### Windows
+결과는 플랫폼에 따라 다릅니다.
 
-결과:
+| 환경 | 결과 |
+| --- | --- |
+| Windows | `dist/WorKing.exe` |
+| macOS | `dist/WorKing.app` |
+| Linux / Crostini | `dist/WorKing` |
 
-```text
-dist/WorKing.exe
-```
-
-단일 실행파일이며 콘솔 창 없이 실행됩니다.
-
-### macOS
-
-결과:
-
-```text
-dist/WorKing.app
-```
-
-macOS에서는 PyInstaller 권장 방식에 맞춰 `.app` bundle을 생성합니다.
-
-### Linux / ChromeOS Crostini
-
-결과:
-
-```text
-dist/WorKing
-```
-
-필요하면 실행 권한을 부여합니다.
+Linux 결과물은 필요하면 실행 권한을 추가합니다.
 
 ```bash
 chmod +x dist/WorKing
@@ -72,103 +32,75 @@ chmod +x dist/WorKing
 
 ## 앱 아이콘
 
-앱 아이콘 원본은 `assets/app-icon.svg` 하나로 관리합니다. 투명 배경의 초록색 WorKing 로고이며 소스 실행과 배포 실행에서 동일하게 사용합니다.
+원본 아이콘은 `assets/app-icon.svg` 하나만 관리합니다.
 
-빌드 시 `scripts/build_app.py`가 SVG를 1024px PNG로 렌더링한 뒤 운영체제에 맞는 패키지 아이콘을 생성합니다.
+Windows와 macOS에서는 빌드 시 운영체제용 아이콘 파일을 만든 뒤 PyInstaller의 `--icon` 옵션에 넘깁니다.
 
-| 환경 | 빌드 아이콘 |
+| 환경 | 처리 |
 | --- | --- |
-| Windows | 다중 해상도 `.ico` 생성 후 `WorKing.exe`에 포함 |
-| macOS | `.icns` 생성 후 `WorKing.app` bundle icon으로 포함 |
-| Linux / Crostini | Qt 실행 창/Taskbar 아이콘에 동일 SVG 사용 |
+| Windows | 다중 해상도 `.ico` → `WorKing.exe` |
+| macOS | `.icns` → `WorKing.app` |
+| Linux / Crostini | SVG를 bundle에 포함하고 Qt window icon으로 사용 |
 
-Windows/macOS 변환에는 빌드 의존성인 Pillow를 사용합니다. 생성되는 `build/app-icon.*` 파일은 임시 빌드 산출물이므로 Git에 저장하지 않습니다.
-
-PyInstaller onefile/onedir 실행에서도 런타임 아이콘을 사용할 수 있도록 `assets/app-icon.svg`를 bundle data에 포함합니다.
-
-Linux 빌드에서는 패키지용 `.ico`/`.icns` 변환이 필요하지 않으므로 `scripts/build_app.py`가 Qt 아이콘 렌더러를 import하지 않습니다. SVG는 그대로 bundle data에 포함하고, 실행 시 Qt가 창/Taskbar 아이콘으로 렌더링합니다. 따라서 Linux 빌드 runner가 아이콘 변환 때문에 `libEGL.so.1` 같은 GUI native library를 선행 요구하지 않습니다.
+Linux 빌드에서는 아이콘 변환을 위해 QtGui를 미리 로드하지 않습니다. SVG만 bundle에 넣고 실행 시 렌더링합니다.
 
 ## GitHub Actions
 
-`.github/workflows/build-release.yml`에서 OS별 빌드를 실행합니다.
+`.github/workflows/build-release.yml`에서 아래 빌드를 실행합니다.
 
-Actions 화면에서 수동 실행하면 빌드 artifact를 확인할 수 있습니다.
+- Windows x64
+- macOS Apple Silicon
+- macOS Intel
+- Linux x64
+- Linux ARM64
 
-Release를 만들려면 태그를 push합니다.
+Actions 화면에서 수동 실행하면 각 결과물을 artifact로 받을 수 있습니다.
+
+`v*` 태그를 push하면 빌드 완료 후 GitHub Release를 만들고 OS별 파일을 첨부합니다.
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-태그 빌드가 모두 성공하면 해당 GitHub Release에 OS별 파일이 자동 첨부됩니다.
+배포 파일명:
 
-Release job은 소스 checkout 없이 artifact만 모아 업로드하므로 GitHub CLI 대상 저장소를 `GH_REPO=${{ github.repository }}`로 명시합니다. 이 설정이 없으면 `gh release`가 현재 디렉터리에서 Git 저장소를 찾다가 `fatal: not a git repository` 오류로 실패할 수 있습니다.
+| 환경 | Release 파일 |
+| --- | --- |
+| Windows x64 | `WorKing.exe` |
+| macOS Apple Silicon | `WorKing-macos-arm64.zip` |
+| macOS Intel | `WorKing-macos-x64.zip` |
+| Linux/Crostini x64 | `WorKing-linux-x64` |
+| Linux/Crostini ARM64 | `WorKing-linux-arm64` |
 
-기존 설치본의 `DailyReportSupporter` 데이터는 첫 실행 시 현재 앱 옆 Portable `data/`로 자동 복사합니다.
+Release job은 소스 checkout 없이 build artifact만 모아 업로드하므로 GitHub CLI 대상 저장소를 `GH_REPO`로 명시합니다.
 
-## Portable 데이터 위치
+## 배포 파일과 데이터 폴더
 
-WorKing은 실행 위치 옆의 `data/`만 사용자 데이터 저장소로 사용합니다.
-
-소스 실행:
-
-```text
-<repository>/
-├─ main.py
-└─ data/
-```
-
-Windows:
+배포 파일을 옮길 때 `data/`도 함께 옮기면 업무, 메모, 설정, 터미널/DB 프로필이 그대로 따라갑니다.
 
 ```text
 WorKing/
-├─ WorKing.exe
+├─ WorKing.exe       # Windows
+# 또는 WorKing       # Linux
+# 또는 WorKing.app   # macOS
 └─ data/
 ```
 
-Linux / ChromeOS Crostini:
+macOS는 app bundle 내부가 아니라 `WorKing.app`이 놓인 폴더의 `data/`를 사용합니다.
 
-```text
-WorKing/
-├─ WorKing
-└─ data/
-```
+실행 위치가 쓰기 불가능하면 홈 디렉터리 등으로 자동 fallback하지 않습니다.
 
-macOS:
+## 플랫폼 참고
 
-```text
-WorKing/
-├─ WorKing.app
-└─ data/
-```
+### Windows
 
-macOS에서는 PyInstaller bundle 내부의 `Contents/MacOS`가 아니라 `WorKing.app`이 놓인 외부 폴더를 기준으로 합니다.
+Windows 터미널 backend는 ConPTY를 위해 `pywinpty==3.0.5`를 사용합니다. PyInstaller 빌드에서는 `winpty` native 파일도 함께 수집합니다.
 
-앱을 다른 폴더로 옮길 때 `data/`도 같이 옮기면 업무/메모/설정/터미널/DB 프로필이 함께 이동합니다. 실행 위치에 쓰기 권한이 없으면 다른 사용자 디렉터리로 fallback하지 않고 오류를 표시합니다.
+### Linux / Crostini
 
-기존 사용자 데이터는 첫 실행 시 `~/DailyReportSupporter/`, 전환 `~/WorKing/`, 또는 소스 저장소의 기존 파일을 읽어 현재 앱 옆 `data/`로 복사합니다. 기존 원본은 그대로 보존합니다.
+Linux 배포 파일은 빌드한 환경의 glibc와 시스템 라이브러리 영향을 받습니다. 오래된 Crostini에서 배포 파일이 실행되지 않으면 [빠른 시작](./getting-started.md)의 소스 실행 방식을 사용할 수 있습니다.
 
-## 서명
+### 코드 서명
 
-현재 자동 빌드는 코드 서명/공증을 하지 않습니다.
-
-따라서 처음 실행할 때:
-
-- Windows: SmartScreen 경고가 표시될 수 있습니다.
-- macOS: Gatekeeper 경고가 표시될 수 있습니다.
-
-공개 배포를 본격적으로 할 경우 Windows 코드 서명 인증서와 Apple Developer ID/notarization을 추가하는 것을 권장합니다.
-
-## ChromeOS 참고
-
-Crostini x64와 ARM64 빌드를 각각 제공합니다.
-
-Linux 실행파일은 시스템의 glibc 버전에 영향을 받습니다. 배포 실행파일이 동작하지 않는 오래된 Crostini 환경에서는 [빠른 시작](./getting-started.md)의 Python 실행 방식을 사용하면 됩니다.
-
-
-## Windows 터미널 빌드
-
-Windows 터미널은 ConPTY를 위해 `pywinpty==3.0.5`를 사용합니다. `requirements.txt`의 platform marker로 Windows에서만 설치됩니다.
-
-PyInstaller Windows 빌드는 `winpty`의 native binary를 포함하기 위해 `--collect-all winpty`를 사용합니다.
+현재 자동 빌드는 Windows code signing과 macOS notarization을 하지 않습니다. 처음 실행할 때 SmartScreen 또는 Gatekeeper 확인이 나타날 수 있습니다.
