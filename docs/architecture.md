@@ -21,7 +21,8 @@ WorKing은 PyQt6 UI, Markdown 기반 업무 데이터, 독립 메모/터미널 �
 ## 업무
 
 - `app/markdown_store.py`: 일일 Markdown 읽기/쓰기
-- `app/task_editor.py`: 업무 편집 UI
+- `app/task_editor.py`: 업무 편집 UI, 드래그 순서 변경과 상세 보기 진입
+- `app/task_detail_dialog.py`: 개별 업무의 읽기 전용 대형 Markdown 상세 뷰어
 - `app/models.py`: 업무/문서 모델
 - `app/report_builder.py`: 일일보고 생성
 

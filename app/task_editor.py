@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QListWidgetItem,
     QPushButton,
     QSplitter,
@@ -24,6 +23,8 @@ from PyQt6.QtWidgets import (
 
 from app.dialogs import DeleteConfirmDialog
 from app.models import Task, TaskStatus
+from app.reorderable_list import ReorderableListWidget
+from app.task_detail_dialog import TaskDetailDialog
 
 
 class PlainTextPasteEdit(QTextEdit):
@@ -63,9 +64,13 @@ class TaskEditor(QWidget):
         self.tasks: list[Task] = []
         self._loading_form = False
 
-        self.list_widget = QListWidget()
-        self.list_widget.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.list_widget = ReorderableListWidget()
+        self.list_widget.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
         self.list_widget.currentRowChanged.connect(self._load_selected)
+        self.list_widget.itemDoubleClicked.connect(self._open_item_detail)
+        self.list_widget.order_changed.connect(self._persist_reordered_tasks)
 
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("업무 제목")
@@ -123,6 +128,9 @@ class TaskEditor(QWidget):
         self.new_mode_button = QPushButton("+ 새 업무 작성")
         self.new_mode_button.clicked.connect(self.enter_add_mode)
 
+        self.detail_button = QPushButton("상세 보기")
+        self.detail_button.clicked.connect(self.open_detail)
+
         self.delete_button = QPushButton("삭제")
         self.delete_button.setObjectName("dangerButton")
         self.delete_button.clicked.connect(self.delete_task)
@@ -134,11 +142,16 @@ class TaskEditor(QWidget):
         buttons = QHBoxLayout()
         buttons.addWidget(self.add_button)
         buttons.addWidget(self.new_mode_button)
+        buttons.addWidget(self.detail_button)
         buttons.addWidget(self.delete_button)
         buttons.addStretch(1)
         buttons.addWidget(self.update_button)
 
         self.heading_label = QLabel(f"<b>{title}</b>")
+        self.list_hint = QLabel(
+            "드래그해서 업무 순서 변경 · 더블클릭 또는 상세 보기로 크게 보기"
+        )
+        self.list_hint.setObjectName("taskListHint")
 
         editor_panel = QWidget()
         editor_layout = QVBoxLayout(editor_panel)
@@ -158,6 +171,7 @@ class TaskEditor(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         layout.addWidget(self.heading_label)
+        layout.addWidget(self.list_hint)
         layout.addWidget(self.content_splitter, 1)
 
         self._set_add_mode()
@@ -203,11 +217,12 @@ class TaskEditor(QWidget):
             TaskStatus.IN_PROGRESS: "▶",
             TaskStatus.COMPLETED: "✓",
         }
-        for task in self.tasks:
+        for index, task in enumerate(self.tasks):
             item = QListWidgetItem(
                 f"{symbols[task.status]} [{task.status.value}] "
                 f"{task.title or '(제목 없음)'}"
             )
+            item.setData(Qt.ItemDataRole.UserRole, index)
             if task.link_url:
                 label = task.link_text or task.link_url
                 item.setToolTip(f"{label}\n{task.link_url}")
@@ -224,6 +239,7 @@ class TaskEditor(QWidget):
         else:
             self._clear_form()
             self._set_add_mode()
+            self.list_widget.set_reordering_enabled(True)
 
     def enter_add_mode(self) -> None:
         self.list_widget.blockSignals(True)
@@ -232,6 +248,7 @@ class TaskEditor(QWidget):
         self.list_widget.blockSignals(False)
         self._clear_form()
         self._set_add_mode()
+        self.list_widget.set_reordering_enabled(True)
         self.title_input.setFocus()
 
     def save_current(self) -> None:
@@ -265,25 +282,30 @@ class TaskEditor(QWidget):
 
     def delete_task(self) -> None:
         row = self.list_widget.currentRow()
-        if row < 0 or row >= len(self.tasks):
+        task_index = self._task_index_for_row(row)
+        if task_index is None:
             return
 
-        dialog = DeleteConfirmDialog(self, self.tasks[row].title)
+        dialog = DeleteConfirmDialog(self, self.tasks[task_index].title)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
-        QTimer.singleShot(0, lambda row=row: self._delete_row(row))
+        QTimer.singleShot(
+            0,
+            lambda task_index=task_index: self._delete_row(task_index),
+        )
 
-    def _delete_row(self, row: int) -> None:
-        if row < 0 or row >= len(self.tasks):
+    def _delete_row(self, task_index: int) -> None:
+        if task_index < 0 or task_index >= len(self.tasks):
             return
-        del self.tasks[row]
+        del self.tasks[task_index]
         self.on_persist()
         self.refresh()
 
     def save_changes(self) -> None:
         row = self.list_widget.currentRow()
-        if row < 0 or row >= len(self.tasks):
+        task_index = self._task_index_for_row(row)
+        if task_index is None:
             return
 
         task = self._task_from_form()
@@ -297,18 +319,20 @@ class TaskEditor(QWidget):
             self.link_url_input.setFocus()
             return
 
-        self.tasks[row] = task
+        self.tasks[task_index] = task
         self.on_persist()
         self.refresh(select_row=row)
         self.update_button.setVisible(False)
 
     def _load_selected(self, row: int) -> None:
-        if row < 0 or row >= len(self.tasks):
+        task_index = self._task_index_for_row(row)
+        if task_index is None:
             self._clear_form()
             self._set_add_mode()
+            self.list_widget.set_reordering_enabled(True)
             return
 
-        task = self.tasks[row]
+        task = self.tasks[task_index]
         self._loading_form = True
         self.title_input.setText(task.title)
         self.link_text_input.setText(task.link_text)
@@ -320,6 +344,7 @@ class TaskEditor(QWidget):
         self._loading_form = False
         self._set_edit_mode()
         self.update_button.setVisible(False)
+        self.list_widget.set_reordering_enabled(True)
 
     def _form_changed(self, *_args: object) -> None:
         if self._loading_form:
@@ -327,13 +352,90 @@ class TaskEditor(QWidget):
 
         self.validation_label.clear()
         row = self.list_widget.currentRow()
-        if row < 0 or row >= len(self.tasks):
+        task_index = self._task_index_for_row(row)
+        if task_index is None:
             self._set_add_mode()
+            self.list_widget.set_reordering_enabled(
+                not self._form_has_draft()
+            )
             return
 
         draft = self._task_from_form(allow_empty_title=True)
+        changed = draft is not None and draft != self.tasks[task_index]
         self._set_edit_mode()
-        self.update_button.setVisible(draft is not None and draft != self.tasks[row])
+        self.update_button.setVisible(changed)
+        self.list_widget.set_reordering_enabled(not changed)
+
+    def open_detail(self) -> None:
+        row = self.list_widget.currentRow()
+        task_index = self._task_index_for_row(row)
+        if task_index is None:
+            return
+
+        draft = self._task_from_form(allow_empty_title=True)
+        task = draft if draft is not None else self.tasks[task_index]
+        TaskDetailDialog(self, task).exec()
+
+    def _open_item_detail(self, item: QListWidgetItem) -> None:
+        row = self.list_widget.row(item)
+        if row < 0:
+            return
+        self.list_widget.setCurrentRow(row)
+        self.open_detail()
+
+    def _persist_reordered_tasks(self) -> None:
+        if self.update_button.isVisible():
+            self.refresh(select_row=self.list_widget.currentRow())
+            return
+
+        old_tasks = list(self.tasks)
+        order: list[int] = []
+        for row in range(self.list_widget.count()):
+            item = self.list_widget.item(row)
+            value = item.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(value, int):
+                self.refresh()
+                return
+            order.append(value)
+
+        if sorted(order) != list(range(len(old_tasks))):
+            self.refresh()
+            return
+
+        selected_row = self.list_widget.currentRow()
+        self.tasks = [old_tasks[index] for index in order]
+
+        for row in range(self.list_widget.count()):
+            self.list_widget.item(row).setData(
+                Qt.ItemDataRole.UserRole,
+                row,
+            )
+
+        self.on_persist()
+        if 0 <= selected_row < len(self.tasks):
+            self._load_selected(selected_row)
+
+    def _task_index_for_row(self, row: int) -> int | None:
+        if row < 0 or row >= self.list_widget.count():
+            return None
+        item = self.list_widget.item(row)
+        value = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(value, int) and 0 <= value < len(self.tasks):
+            return value
+        if 0 <= row < len(self.tasks):
+            return row
+        return None
+
+    def _form_has_draft(self) -> bool:
+        default_status = self.default_status.value
+        return bool(
+            self.title_input.text().strip()
+            or self.link_text_input.text().strip()
+            or self.link_url_input.text().strip()
+            or self.details_input.toPlainText()
+            or str(self.status_input.currentData() or default_status)
+            != default_status
+        )
 
     def _task_from_form(self, *, allow_empty_title: bool = False) -> Task | None:
         title = self.title_input.text().strip()
@@ -387,10 +489,12 @@ class TaskEditor(QWidget):
     def _set_add_mode(self) -> None:
         self.add_button.setVisible(True)
         self.new_mode_button.setVisible(False)
+        self.detail_button.setVisible(False)
         self.delete_button.setVisible(False)
         self.update_button.setVisible(False)
 
     def _set_edit_mode(self) -> None:
         self.add_button.setVisible(False)
         self.new_mode_button.setVisible(True)
+        self.detail_button.setVisible(True)
         self.delete_button.setVisible(True)
