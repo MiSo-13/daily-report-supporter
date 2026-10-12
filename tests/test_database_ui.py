@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 from app.database_models import DatabaseProfile, PageResult
@@ -260,3 +261,12 @@ def test_database_panel_hides_detail_when_table_changes() -> None:
     )
 
     assert not panel.tabs.isTabVisible(panel._detail_tab_index)
+
+
+def test_sql_tab_uses_resizable_vertical_splitter() -> None:
+    panel = DatabasePanel()
+
+    assert panel.sql_splitter.count() == 2
+    assert panel.sql_splitter.orientation() == Qt.Orientation.Vertical
+    assert panel.sql_editor.maximumHeight() > 150
+    assert panel.sql_editor.minimumHeight() == 90

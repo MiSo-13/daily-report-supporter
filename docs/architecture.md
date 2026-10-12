@@ -54,13 +54,13 @@ PTY/ConPTY와 화면 렌더러를 분리해 streaming 출력이나 interactive C
 - `app/database_models.py`: 연결/테이블/조회 관련 모델
 - `app/database_store.py`: 연결 프로필, 순서, 최근 테이블, SQL draft 저장
 - `app/database_dialogs.py`: 연결 생성/수정 UI
-- `app/database_service.py`: MySQL/PostgreSQL 연결, metadata/data/query 조회, Read Only 검증
-- `app/database_sql_editor.py`: SQL highlighting, 자동완성, statement 선택
+- `app/database_service.py`: MySQL/PostgreSQL 연결, metadata/data/query 조회, table column 자동완성 metadata 조회, Read Only 검증
+- `app/database_sql_editor.py`: SQL highlighting, prefix 자동완성, 자동완성 키 처리, statement 선택
 - `app/database_value_preview.py`: 큰 셀 값을 목록용 preview로 축소
 - `app/database_table_model.py`: 결과 테이블 모델
 - `app/database_detail.py`: TEXT/JSON/Binary 상세 표시 포맷
-- `app/database_ui.py`: DB 화면 위젯
-- `app/database_workspace.py`: 비동기 조회와 화면 상태 조정
+- `app/database_ui.py`: DB 화면 위젯과 SQL 입력/결과 splitter
+- `app/database_workspace.py`: 비동기 조회, SQL draft, table별 column metadata 자동완성 조정
 
 목록 조회와 큰 셀의 원본 상세 조회는 분리되어 있습니다. 일반 결과는 worker 단계에서 크기를 제한하고, 사용자가 데이터 셀의 `상세 보기`를 열 때만 해당 셀을 다시 조회합니다.
 

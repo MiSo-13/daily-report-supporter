@@ -179,3 +179,72 @@ def test_sql_highlighter_applies_multiple_token_styles() -> None:
     }
 
     assert len(colors) >= 4
+
+
+def test_tab_requests_column_lookup_after_table_dot() -> None:
+    editor = SqlEditor()
+    editor.setPlainText("SELECT users.")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    requested: list[str] = []
+    editor.completion_lookup_requested.connect(requested.append)
+
+    QTest.keyClick(editor, Qt.Key.Key_Tab)
+
+    assert requested == ["users."]
+
+
+def test_tab_completes_known_table_column() -> None:
+    editor = SqlEditor()
+    editor.set_identifiers(["users.id"])
+    editor.setPlainText("SELECT users.")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    QTest.keyClick(editor, Qt.Key.Key_Tab)
+
+    assert editor.toPlainText() == "SELECT users.id"
+
+
+def test_async_table_column_candidates_open_completion_list() -> None:
+    editor = SqlEditor()
+    editor.setPlainText("SELECT users.")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    editor.apply_lookup_candidates(
+        "users.",
+        ["users.id", "users.name"],
+    )
+
+    assert editor._completer.completionPrefix() == "users."
+    assert editor._completer.completionCount() == 2
+
+
+def test_enter_accepts_selected_completion_without_newline() -> None:
+    editor = SqlEditor()
+    editor.resize(640, 320)
+    editor.show()
+    editor.set_identifiers(["users.id", "users.name"])
+    editor.setPlainText("SELECT users.")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    editor._show_completion()
+    QApplication.processEvents()
+
+    popup = editor._completer.popup()
+    second = editor._completer.completionModel().index(1, 0)
+    popup.setCurrentIndex(second)
+
+    QTest.keyClick(editor, Qt.Key.Key_Return)
+
+    assert editor.toPlainText() == "SELECT users.name"
+    assert "\n" not in editor.toPlainText()
+
+
+def test_enter_inserts_newline_when_completion_popup_is_closed() -> None:
+    editor = SqlEditor()
+    editor.setPlainText("SELECT 1")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    QTest.keyClick(editor, Qt.Key.Key_Return)
+
+    assert editor.toPlainText() == "SELECT 1\n"

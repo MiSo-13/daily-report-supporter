@@ -322,10 +322,13 @@ EXPLAIN
 
 편집기 기능:
 
+- SQL 작성 영역과 결과 영역 사이 경계를 드래그해 높이 조절
 - syntax highlighting
 - `Tab`: 현재 단어 자동완성
-- `Ctrl+Space`: 자동완성 목록
-- schema/table/current table column 후보
+- `table.` 또는 `schema.table.` 뒤에서 `Tab`: 해당 테이블 column 후보 표시
+- 아직 읽지 않은 테이블의 column metadata는 필요할 때 비동기로 조회
+- `Ctrl+Space`: 자동완성 목록 표시
+- 자동완성 목록에서 방향키로 이동하고 `Enter`로 확정, `Escape`로 닫기
 - MySQL/PostgreSQL별 keyword/function
 - `Ctrl+Enter`: 현재 statement 실행
 - 선택 영역이 있으면 선택한 SQL을 우선 실행

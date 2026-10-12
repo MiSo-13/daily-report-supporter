@@ -467,6 +467,20 @@ class SqlEditor(QPlainTextEdit):
             event.accept()
             return
 
+        popup = self._completer.popup()
+        if popup.isVisible():
+            if (
+                event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                and modifiers == Qt.KeyboardModifier.NoModifier
+            ):
+                if self._accept_current_completion():
+                    event.accept()
+                    return
+            if event.key() == Qt.Key.Key_Escape:
+                popup.hide()
+                event.accept()
+                return
+
         if (
             event.key() == Qt.Key.Key_Space
             and modifiers & Qt.KeyboardModifier.ControlModifier
@@ -500,16 +514,24 @@ class SqlEditor(QPlainTextEdit):
         ):
             self.highlighter.refresh_palette()
 
+    def _accept_current_completion(self) -> bool:
+        popup = self._completer.popup()
+        index = popup.currentIndex()
+        if not index.isValid():
+            return False
+
+        completion = str(index.data() or "")
+        if not completion:
+            return False
+
+        self._insert_completion(completion)
+        popup.hide()
+        return True
+
     def _accept_or_show_completion(self) -> bool:
         popup = self._completer.popup()
-        if popup.isVisible():
-            index = popup.currentIndex()
-            if index.isValid():
-                completion = str(index.data() or "")
-                if completion:
-                    self._insert_completion(completion)
-                    popup.hide()
-                    return True
+        if popup.isVisible() and self._accept_current_completion():
+            return True
 
         prefix = self._completion_prefix()
         if not prefix:

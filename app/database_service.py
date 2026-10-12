@@ -724,6 +724,54 @@ class DatabaseService:
             limit=limit,
         )
 
+    def load_completion_columns(
+        self,
+        profile: DatabaseProfile,
+        password: str,
+        relation: str,
+        *,
+        preferred_schema: str = "",
+    ) -> list[ColumnInfo]:
+        normalized = relation.strip().rstrip(".")
+        parts = [
+            part.strip()
+            for part in normalized.split(".")
+            if part.strip()
+        ]
+        if not parts or len(parts) > 2:
+            return []
+
+        adapter = self.adapter(profile, password)
+
+        if len(parts) == 2:
+            schema, table = parts
+            return adapter.list_columns(schema, table)
+
+        table = parts[0]
+        exact_matches = [
+            item
+            for item in adapter.search_tables(table, limit=100)
+            if item.name.casefold() == table.casefold()
+        ]
+        if preferred_schema:
+            preferred = [
+                item
+                for item in exact_matches
+                if item.schema.casefold() == preferred_schema.casefold()
+            ]
+            if len(preferred) == 1:
+                target = preferred[0]
+                return adapter.list_columns(
+                    target.schema,
+                    target.name,
+                )
+
+        if len(exact_matches) != 1:
+            return []
+
+        target = exact_matches[0]
+        return adapter.list_columns(target.schema, target.name)
+
     def load_catalog(
         self,
         profile: DatabaseProfile,
