@@ -1,31 +1,67 @@
 # 빠른 시작
 
-## 실행파일로 시작
+## Release 파일로 실행
 
-Python 설치 없이 사용하려면 [GitHub Releases](https://github.com/MiSo-13/daily-report-supporter/releases/latest)에서 운영체제에 맞는 파일을 받습니다.
+[GitHub Releases](https://github.com/MiSo-13/daily-report-supporter/releases/latest)에서 운영체제에 맞는 파일을 받습니다.
 
-- Windows: `WorKing.exe`
-- macOS: `WorKing-macos-*.zip`
-- ChromeOS/Crostini: `WorKing-linux-*`
-
-WorKing은 프로젝트/실행파일이 있는 폴더의 `data/` 아래에만 업무/메모/설정 데이터를 저장합니다. 기존 `~/DailyReportSupporter/` 데이터는 첫 실행 시 현재 앱 옆 `data/`로 자동 복사됩니다.
-
-## 1. 소스 실행 준비
-
-Python 3.11 이상을 권장합니다.
-
-저장소를 받은 뒤 프로젝트 폴더에서 가상환경을 만듭니다.
+| 환경 | 파일 |
+| --- | --- |
+| Windows x64 | `WorKing.exe` |
+| macOS Apple Silicon | `WorKing-macos-arm64.zip` |
+| macOS Intel | `WorKing-macos-x64.zip` |
+| ChromeOS/Crostini x64 | `WorKing-linux-x64` |
+| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
 
 ### Windows
 
+다운로드한 `WorKing.exe`를 쓰기 가능한 폴더에 두고 실행합니다. WorKing은 실행 파일 옆에 `data/`를 만들기 때문에 `Program Files`보다는 사용자 폴더 아래 전용 디렉터리가 편합니다.
+
+### macOS
+
+zip을 풀어 `WorKing.app`을 실행합니다. 현재 자동 빌드는 Apple notarization을 하지 않으므로 처음 실행할 때 Gatekeeper 확인이 필요할 수 있습니다.
+
+### ChromeOS / Crostini
+
+먼저 Crostini 터미널에서 아키텍처를 확인합니다.
+
 ```bash
+uname -m
+```
+
+- `x86_64`: `WorKing-linux-x64`
+- `aarch64` 또는 ARM64: `WorKing-linux-arm64`
+
+예를 들어 x64 파일을 `~/apps/WorKing/`에 둘 경우:
+
+```bash
+mkdir -p ~/apps/WorKing
+mv WorKing-linux-x64 ~/apps/WorKing/
+chmod +x ~/apps/WorKing/WorKing-linux-x64
+~/apps/WorKing/WorKing-linux-x64
+```
+
+Qt/X11 라이브러리가 부족하면 저장소의 `scripts/setup_crostini.sh`와 같은 패키지 구성이 필요합니다. 소스 실행 환경에서는 아래처럼 설치할 수 있습니다.
+
+```bash
+bash scripts/setup_crostini.sh
+```
+
+한글 입력이 불안정하면 앱에서 `설정 → 입력기 호환 모드 → Crostini 한글 호환 (IBus)`를 선택하고 재시작합니다.
+
+## 소스에서 실행
+
+Python 3.11 이상을 권장합니다.
+
+### Windows
+
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 python main.py
 ```
 
-### macOS
+### macOS / Linux / Crostini
 
 ```bash
 python3 -m venv .venv
@@ -34,121 +70,90 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### ChromeOS / Crostini
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python main.py
-```
-
-필요한 X11 패키지가 없으면 첫 실행 시 자동 설치를 시도합니다.
-
-수동 설치가 필요한 경우:
+Crostini에서 Qt 의존성이 없으면:
 
 ```bash
 bash scripts/setup_crostini.sh
 ```
 
-한글 입력이 되지 않으면 앱에서 `설정 → 입력기 호환 모드 → Crostini 한글 호환 (IBus)`를 선택한 뒤 앱을 다시 실행합니다.
+일반 Linux에서는 Crostini 전용 `xcb` 설정을 강제하지 않고 시스템의 Qt platform 설정을 따릅니다.
 
-## 2. 첫 실행
+## 첫 실행과 데이터 폴더
 
-앱을 실행하면 실행 위치 바로 아래에 `data/` 폴더를 준비합니다.
+WorKing은 현재 실행 위치 옆 `data/`를 사용합니다.
 
-소스 실행 예:
+소스 실행:
 
 ```text
 daily-report-supporter/
 ├─ main.py
 └─ data/
    ├─ config/
-   │  ├─ settings.json
-   │  └─ migration-v1.json
    ├─ reports/
    └─ memos/
 ```
 
-배포 실행 예:
+배포 파일:
 
 ```text
 WorKing/
-├─ WorKing.exe
+├─ WorKing.exe       # Windows
+# 또는 WorKing-linux-x64 / WorKing-linux-arm64
+# 또는 WorKing.app
 └─ data/
    ├─ config/
    ├─ reports/
    └─ memos/
 ```
 
-macOS에서는 `WorKing.app` 내부가 아니라 `.app`이 들어 있는 폴더의 `data/`를 사용합니다.
+macOS는 `WorKing.app/Contents` 내부가 아니라 `.app`이 놓인 폴더를 기준으로 합니다.
 
-기존 버전을 사용한 적이 있으면 첫 실행 시 `~/DailyReportSupporter/`, 전환 버전의 `~/WorKing/`, 또는 소스 저장소의 기존 데이터를 확인해 새 `data/`로 복사합니다. 기존 파일은 삭제하지 않고, 새 위치에 이미 존재하는 파일도 덮어쓰지 않습니다.
+기존 버전의 `~/DailyReportSupporter/`, `~/WorKing/` 또는 예전 소스 실행 위치에 데이터가 있으면 첫 실행 시 현재 `data/`로 복사합니다. 기존 파일은 지우지 않고, 새 위치에 이미 있는 파일도 덮어쓰지 않습니다.
 
-실행 위치에 쓰기 권한이 없으면 홈/AppData 등 다른 경로로 자동 변경하지 않고 오류를 표시합니다.
+실행 위치에 쓰기 권한이 없으면 다른 디렉터리로 자동 우회하지 않고 오류를 표시합니다.
 
-## 3. 첫 업무 추가
+## 첫 업무 작성
 
-`오늘 업무` 영역에서 아래 항목을 입력합니다.
-
-- 제목
-- 링크 이름
-- URL
-- 주요 내용
-- 상태
-
-입력 후 `+ 업무 추가`를 누르면 바로 Markdown 파일에 저장됩니다.
+업무 탭에서 제목과 상태를 입력하고 `+ 업무 추가`를 누릅니다. 관련 문서나 주요 내용이 있으면 함께 입력할 수 있습니다.
 
 예:
 
 ```text
 제목: 권한 API 개발
-링크 이름: 1694
-URL: http://naver.com
+링크 이름: API 문서
+URL: https://example.com/auth
 상태: 진행중
 ```
 
-Markdown:
+저장되는 Markdown은 대략 다음 형태입니다.
 
 ```markdown
 - [ ] 권한 API 개발
   - 상태: 진행중
-  - 관련 문서: [1694](http://naver.com)
+  - 관련 문서: [API 문서](https://example.com/auth)
 ```
 
-## 4. 다음날
+업무 목록은 드래그해서 순서를 바꿀 수 있고, 선택한 업무는 `상세 보기` 또는 더블클릭으로 크게 볼 수 있습니다.
 
-새 날짜 문서가 만들어질 때:
+## 다음날 이월
+
+새 날짜 문서를 처음 만들 때 상태에 따라 다음처럼 처리합니다.
 
 | 상태 | 다음날 |
 | --- | --- |
+| 예정 | 그대로 이월 |
+| 진행중 | 그대로 이월 |
 | 완료 | 이월하지 않음 |
-| 진행중 | 오늘 업무에 유지 |
-| 예정 | 오늘 업무에 유지 |
 
-## 5. 일일보고
+## 일일보고
 
-상단의 `일일보고 작성`을 누르면 현재 업무를 기준으로 보고서가 생성됩니다.
+`일일보고 작성`을 누르면 현재 날짜의 업무를 보고서 형식으로 정리합니다.
 
-- 진행중 / 완료 → 진행 업무
-- 진행중 / 예정 → 예정 업무
+기본 분류는 다음과 같습니다.
 
-생성된 텍스트는 `클립보드 복사`로 바로 복사할 수 있습니다.
+- 진행 업무: `진행중` + `완료`
+- 예정 업무: `진행중` + `예정`
 
+생성한 내용은 클립보드로 복사할 수 있습니다. 제목, 상단 문구, 꼬리말은 설정에서 바꿀 수 있습니다.
 
-## 6. 메모
-
-왼쪽의 `메모` 탭에서 날짜와 무관한 Markdown 메모를 만들 수 있습니다.
-
-`+ 새 메모`를 누르고 제목과 내용을 작성합니다. `편집`에서는 Raw Markdown을, `미리보기`에서는 렌더링된 내용을 보면서 수정할 수 있습니다.
-
-
-## 7. 터미널
-
-왼쪽의 `터미널` 탭에서 여러 shell 세션을 만들 수 있습니다.
-
-`+ 로컬`을 눌러 로컬 shell 프로필을 만들 수 있습니다. `+ SSH`에서는 이름/Host/Port/User만 저장해 원격 서버 프로필을 만들 수 있습니다.
-
-SSH 비밀번호는 저장하지 않습니다. SSH 프로필을 선택한 뒤 터미널의 `password:` 프롬프트에서 직접 입력합니다.
-
-터미널 화면을 클릭하고 바로 명령을 입력하며 Tab 자동완성, 방향키, `Ctrl+C`를 PTY/ConPTY에 그대로 전달합니다.
+업무 외 기능은 [사용 가이드](./user-guide.md), 설정 항목은 [설정](./settings.md)을 참고하세요.
