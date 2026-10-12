@@ -5,10 +5,13 @@ import pytest
 from app.database_models import (
     DB_MYSQL,
     DB_POSTGRESQL,
+    ColumnInfo,
     DatabaseProfile,
+    TableInfo,
 )
 from app.database_service import (
     DatabaseAdapter,
+    DatabaseService,
     MySqlAdapter,
     PostgreSqlAdapter,
     validate_read_only_sql,
@@ -325,3 +328,74 @@ def test_fetch_cell_detail_rejects_duplicate_primary_key_result() -> None:
             "payload",
             primary_key_values={"id": 42},
         )
+
+
+class _CompletionAdapter(_FakeAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.requested_columns: list[tuple[str, str]] = []
+
+    def search_tables(
+        self,
+        query: str,
+        *,
+        limit: int = 100,
+    ) -> list[TableInfo]:
+        return [
+            TableInfo("public", "users", "TABLE"),
+            TableInfo("audit", "users", "TABLE"),
+            TableInfo("public", "user_events", "TABLE"),
+        ]
+
+    def list_columns(
+        self,
+        schema: str,
+        table: str,
+    ) -> list[ColumnInfo]:
+        self.requested_columns.append((schema, table))
+        return [
+            ColumnInfo("id", "bigint", False),
+            ColumnInfo("name", "text", True),
+        ]
+
+
+class _CompletionService(DatabaseService):
+    def __init__(self, adapter: _CompletionAdapter) -> None:
+        self._adapter = adapter
+
+    def adapter(
+        self,
+        profile: DatabaseProfile,
+        password: str,
+    ) -> DatabaseAdapter:
+        return self._adapter
+
+
+def test_completion_columns_prefers_current_schema_for_bare_table() -> None:
+    adapter = _CompletionAdapter()
+    service = _CompletionService(adapter)
+
+    columns = service.load_completion_columns(
+        _profile(DB_POSTGRESQL),
+        "",
+        "users",
+        preferred_schema="public",
+    )
+
+    assert [column.name for column in columns] == ["id", "name"]
+    assert adapter.requested_columns == [("public", "users")]
+
+
+def test_completion_columns_supports_schema_qualified_table() -> None:
+    adapter = _CompletionAdapter()
+    service = _CompletionService(adapter)
+
+    columns = service.load_completion_columns(
+        _profile(DB_POSTGRESQL),
+        "",
+        "audit.users",
+        preferred_schema="public",
+    )
+
+    assert [column.name for column in columns] == ["id", "name"]
+    assert adapter.requested_columns == [("audit", "users")]
