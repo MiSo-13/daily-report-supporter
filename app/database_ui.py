@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QPlainTextEdit,
     QPushButton,
+    QSplitter,
     QTableView,
     QTabWidget,
     QTreeWidget,
@@ -891,7 +892,7 @@ class DatabasePanel(QWidget):
 
         self.sql_editor = SqlEditor()
         self.sql_editor.setPlaceholderText("SELECT ...")
-        self.sql_editor.setMaximumHeight(150)
+        self.sql_editor.setMinimumHeight(90)
         self.sql_editor.setToolTip(
             "Tab: 자동완성 · Ctrl+Space: 자동완성 목록 · "
             "Ctrl+Enter: 현재 쿼리 실행"
@@ -939,11 +940,28 @@ class DatabasePanel(QWidget):
         self._configure_result_table(self.sql_table)
         self._install_copy_shortcut(self.sql_table)
 
+        editor_panel = QWidget()
+        editor_layout = QVBoxLayout(editor_panel)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(8)
+        editor_layout.addWidget(note)
+        editor_layout.addWidget(self.sql_editor, 1)
+        editor_layout.addLayout(action_row)
+
+        self.sql_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.sql_splitter.setChildrenCollapsible(False)
+        self.sql_splitter.setHandleWidth(8)
+        self.sql_splitter.addWidget(editor_panel)
+        self.sql_splitter.addWidget(self.sql_table)
+        self.sql_splitter.setStretchFactor(0, 1)
+        self.sql_splitter.setStretchFactor(1, 2)
+        self.sql_splitter.setSizes([240, 420])
+        self.sql_splitter.setToolTip(
+            "경계를 드래그해 SQL 작성 영역과 결과 영역의 높이를 조절합니다."
+        )
+
         layout = QVBoxLayout(page)
-        layout.addWidget(note)
-        layout.addWidget(self.sql_editor)
-        layout.addLayout(action_row)
-        layout.addWidget(self.sql_table, 1)
+        layout.addWidget(self.sql_splitter, 1)
         self.tabs.addTab(page, "SQL")
 
     def _build_detail_tab(self) -> None:
