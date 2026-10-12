@@ -442,7 +442,8 @@ class DatabaseWorkspace:
 
     def lookup_sql_completion(self, prefix: str) -> None:
         profile_id = self._current_profile_id
-        if not profile_id or len(prefix.strip()) < 2:
+        normalized = prefix.strip()
+        if not profile_id or len(normalized) < 2:
             return
 
         try:
@@ -454,9 +455,33 @@ class DatabaseWorkspace:
         if password is None:
             return
 
+        if normalized.endswith("."):
+            if self._apply_current_table_column_completion(normalized):
+                return
+            self._completion_generation += 1
+            generation = self._completion_generation
+            relation = normalized[:-1]
+            preferred_schema = str(self._current_schema or "")
+
+            self._run(
+                lambda: self.service.load_completion_columns(
+                    profile,
+                    password,
+                    relation,
+                    preferred_schema=preferred_schema,
+                ),
+                lambda result: self._sql_column_completion_loaded(
+                    profile_id,
+                    normalized,
+                    generation,
+                    result,
+                ),
+                lambda _message: None,
+            )
+            return
+
         self._completion_generation += 1
         generation = self._completion_generation
-        normalized = prefix.strip()
 
         self._run(
             lambda: self.service.search_tables(
@@ -473,6 +498,33 @@ class DatabaseWorkspace:
             ),
             lambda _message: None,
         )
+
+    def _apply_current_table_column_completion(self, prefix: str) -> bool:
+        if (
+            not self._current_schema
+            or not self._current_table
+            or not self._current_columns
+        ):
+            return False
+
+        relation = prefix[:-1]
+        table = str(self._current_table)
+        schema = str(self._current_schema)
+        candidates = {
+            table.casefold(),
+            f"{schema}.{table}".casefold(),
+        }
+        if relation.casefold() not in candidates:
+            return False
+
+        self.panel.apply_sql_completion_lookup(
+            prefix,
+            tuple(
+                f"{prefix}{column.name}"
+                for column in self._current_columns
+            ),
+        )
+        return True
 
     def show_cell_detail(
         self,
@@ -748,6 +800,30 @@ class DatabaseWorkspace:
             tuple(identifiers),
         )
 
+    def _sql_column_completion_loaded(
+        self,
+        profile_id: str,
+        prefix: str,
+        generation: int,
+        result: object,
+    ) -> None:
+        if (
+            generation != self._completion_generation
+            or self._current_profile_id != profile_id
+            or not isinstance(result, list)
+        ):
+            return
+
+        identifiers = [
+            f"{prefix}{column.name}"
+            for column in result
+            if isinstance(column, ColumnInfo)
+        ]
+        self.panel.apply_sql_completion_lookup(
+            prefix,
+            tuple(identifiers),
+        )
+
     def _schemas_loaded(
         self,
         profile: DatabaseProfile,
@@ -832,11 +908,18 @@ class DatabaseWorkspace:
         ]
         self.panel.set_columns(columns)
         self.panel.set_data(data, page)
-        identifiers = [
-            str(column.name)
-            for column in columns
-            if hasattr(column, "name")
-        ]
+        identifiers: list[str] = []
+        schema = str(self._current_schema or "")
+        table = str(self._current_table or "")
+        for column in columns:
+            if not hasattr(column, "name"):
+                continue
+            name = str(column.name)
+            identifiers.append(name)
+            if table:
+                identifiers.append(f"{table}.{name}")
+            if schema and table:
+                identifiers.append(f"{schema}.{table}.{name}")
         self.panel.add_sql_completion_identifiers(tuple(identifiers))
 
     def _cell_detail_loaded(
