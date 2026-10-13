@@ -154,7 +154,7 @@ class TaskEditor(QWidget):
         )
         self.list_hint.setObjectName("taskListHint")
         self.show_inactive = QCheckBox("보류·취소 업무도 표시")
-        self.show_inactive.toggled.connect(self.refresh)
+        self.show_inactive.toggled.connect(lambda _checked: self.refresh())
 
         editor_panel = QWidget()
         editor_layout = QVBoxLayout(editor_panel)
