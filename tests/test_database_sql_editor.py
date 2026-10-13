@@ -12,8 +12,10 @@ from PyQt6.QtWidgets import QApplication
 from app.database_models import DB_MYSQL, DB_POSTGRESQL
 from app.database_sql_editor import (
     SqlEditor,
+    resolve_sql_relation,
     sql_functions,
     sql_keywords,
+    sql_relation_aliases,
     statement_at_cursor,
 )
 
@@ -248,3 +250,61 @@ def test_enter_inserts_newline_when_completion_popup_is_closed() -> None:
     QTest.keyClick(editor, Qt.Key.Key_Return)
 
     assert editor.toPlainText() == "SELECT 1\n"
+
+
+def test_sql_relation_aliases_resolves_from_alias() -> None:
+    sql = (
+        "SELECT ss.*\n"
+        "FROM scan_scan ss\n"
+        "WHERE ss.preset_value IS NOT NULL"
+    )
+
+    aliases = sql_relation_aliases(sql)
+
+    assert aliases["ss"] == "scan_scan"
+    assert aliases["scan_scan"] == "scan_scan"
+    assert resolve_sql_relation(sql, "ss") == "scan_scan"
+
+
+def test_sql_relation_aliases_supports_schema_as_and_join() -> None:
+    sql = (
+        "SELECT u.id, o.status\n"
+        "FROM public.users AS u\n"
+        "LEFT JOIN audit.orders o ON o.user_id = u.id"
+    )
+
+    assert resolve_sql_relation(sql, "u") == "public.users"
+    assert resolve_sql_relation(sql, "o") == "audit.orders"
+    assert resolve_sql_relation(sql, "orders") == "audit.orders"
+
+
+def test_sql_relation_aliases_ignores_string_and_comment_content() -> None:
+    sql = (
+        "SELECT 'FROM fake_table f' AS memo\n"
+        "FROM users u -- JOIN ignored_table x\n"
+        "WHERE u.name = 'JOIN nope n'"
+    )
+
+    aliases = sql_relation_aliases(sql)
+
+    assert aliases["u"] == "users"
+    assert "f" not in aliases
+    assert "x" not in aliases
+    assert "n" not in aliases
+
+
+def test_alias_partial_column_prefix_requests_lookup() -> None:
+    editor = SqlEditor()
+    editor.setPlainText(
+        "SELECT ss.*\n"
+        "FROM scan_scan ss\n"
+        "WHERE ss.pre"
+    )
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    requested: list[str] = []
+    editor.completion_lookup_requested.connect(requested.append)
+
+    QTest.keyClick(editor, Qt.Key.Key_Tab)
+
+    assert requested == ["ss.pre"]
