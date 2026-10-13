@@ -226,9 +226,28 @@ def test_fetch_page_uses_server_side_order_by() -> None:
     assert (
         adapter.fake_connection.cursor_instance.sql
         == 'SELECT * FROM "public"."users" ORDER BY "id" DESC '
-        "LIMIT %s OFFSET %s"
+        "LIMIT 2 OFFSET 20"
     )
-    assert adapter.fake_connection.cursor_instance.params == (2, 20)
+    assert adapter.fake_connection.cursor_instance.params is None
+
+
+def test_fetch_page_allows_percent_wildcard_in_like_filter() -> None:
+    adapter = _FakeAdapter(rows=[("ABC",)])
+
+    adapter.fetch_page(
+        "public",
+        "settings",
+        limit=100,
+        offset=0,
+        where_clause="preset_value LIKE '%C%'",
+    )
+
+    assert (
+        adapter.fake_connection.cursor_instance.sql
+        == 'SELECT * FROM "public"."settings" '
+        "WHERE preset_value LIKE '%C%' LIMIT 101 OFFSET 0"
+    )
+    assert adapter.fake_connection.cursor_instance.params is None
 
 
 def test_fetch_page_rejects_invalid_sort_direction() -> None:
@@ -310,12 +329,32 @@ def test_fetch_cell_detail_falls_back_to_current_query_position() -> None:
         adapter.fake_connection.cursor_instance.sql
         == 'SELECT "payload" FROM "public"."events" '
         "WHERE status = 'READY' ORDER BY \"id\" DESC "
-        "LIMIT 1 OFFSET %s"
+        "LIMIT 1 OFFSET 201"
     )
-    assert adapter.fake_connection.cursor_instance.params == (201,)
+    assert adapter.fake_connection.cursor_instance.params is None
     assert result.value == "full payload"
     assert not result.exact
     assert result.source == "현재 조회 순서"
+
+
+def test_fetch_cell_detail_allows_percent_wildcard_in_fallback_filter() -> None:
+    adapter = _FakeAdapter(rows=[("full payload",)])
+
+    result = adapter.fetch_cell_detail(
+        "public",
+        "settings",
+        "payload",
+        offset=3,
+        where_clause="preset_value LIKE '%C%'",
+    )
+
+    assert (
+        adapter.fake_connection.cursor_instance.sql
+        == 'SELECT "payload" FROM "public"."settings" '
+        "WHERE preset_value LIKE '%C%' LIMIT 1 OFFSET 3"
+    )
+    assert adapter.fake_connection.cursor_instance.params is None
+    assert result.value == "full payload"
 
 
 def test_fetch_cell_detail_rejects_duplicate_primary_key_result() -> None:

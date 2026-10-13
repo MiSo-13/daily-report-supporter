@@ -213,13 +213,15 @@ class DatabaseAdapter:
                 f"{direction}"
             )
 
-        sql += " LIMIT %s OFFSET %s"
+        query_limit = int(limit) + 1
+        query_offset = max(int(offset), 0)
+        sql += f" LIMIT {query_limit} OFFSET {query_offset}"
 
         with self.connection() as connection:
             cursor = connection.cursor()
             try:
-                cursor.execute(sql, (limit + 1, offset))
-                raw_rows = cursor.fetchmany(limit + 1)
+                cursor.execute(sql)
+                raw_rows = cursor.fetchmany(query_limit)
                 columns = tuple(
                     str(column[0])
                     for column in (cursor.description or ())
@@ -301,11 +303,12 @@ class DatabaseAdapter:
                 f"{direction}"
             )
 
-        sql += " LIMIT 1 OFFSET %s"
+        query_offset = max(int(offset), 0)
+        sql += f" LIMIT 1 OFFSET {query_offset}"
         with self.connection() as connection:
             cursor = connection.cursor()
             try:
-                cursor.execute(sql, (max(int(offset), 0),))
+                cursor.execute(sql)
                 rows = cursor.fetchmany(1)
             finally:
                 cursor.close()

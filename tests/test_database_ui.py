@@ -4,10 +4,12 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QEvent, Qt
+from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
-from app.database_models import DatabaseProfile, PageResult
+from app.database_models import ColumnInfo, DatabaseProfile, PageResult
 from app.database_ui import (
     KIND_SCHEMA,
     ROLE_KIND,
@@ -270,3 +272,42 @@ def test_sql_tab_uses_resizable_vertical_splitter() -> None:
     assert panel.sql_splitter.orientation() == Qt.Orientation.Vertical
     assert panel.sql_editor.maximumHeight() > 150
     assert panel.sql_editor.minimumHeight() == 90
+
+
+def test_filter_tab_completes_current_table_column() -> None:
+    panel = DatabasePanel()
+    panel.set_columns(
+        [
+            ColumnInfo("id", "bigint", False),
+            ColumnInfo("preset_value", "text", True),
+        ]
+    )
+    panel.filter_input.setText("pre")
+    panel.filter_input.setCursorPosition(3)
+
+    QTest.keyClick(panel.filter_input, Qt.Key.Key_Tab)
+
+    assert panel.filter_input.text() == "preset_value"
+
+
+def test_filter_tab_event_is_consumed_when_no_column_matches() -> None:
+    panel = DatabasePanel()
+    panel.set_columns(
+        [
+            ColumnInfo("id", "bigint", False),
+            ColumnInfo("preset_value", "text", True),
+        ]
+    )
+    panel.filter_input.setText("unknown")
+    panel.filter_input.setCursorPosition(len("unknown"))
+    event = QKeyEvent(
+        QEvent.Type.KeyPress,
+        Qt.Key.Key_Tab,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+    handled = panel.filter_input.event(event)
+
+    assert handled
+    assert event.isAccepted()
+    assert panel.filter_input.text() == "unknown"

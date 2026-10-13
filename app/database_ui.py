@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.database_detail import format_database_detail_value
+from app.database_filter_input import DatabaseFilterInput
 from app.database_models import (
     ColumnInfo,
     DatabaseProfile,
@@ -680,6 +681,7 @@ class DatabasePanel(QWidget):
         self.set_sql_text(sql_text)
         self._page = 0
         self.filter_input.clear()
+        self.filter_input.set_identifiers(())
         self._sort_column = ""
         self._sort_direction = "ASC"
         self._sort_section = -1
@@ -718,6 +720,9 @@ class DatabasePanel(QWidget):
         )
 
     def set_columns(self, columns: list[ColumnInfo]) -> None:
+        self.filter_input.set_identifiers(
+            column.name for column in columns
+        )
         rows = [
             [
                 column.name,
@@ -773,6 +778,7 @@ class DatabasePanel(QWidget):
         self.sql_status.clear()
         self.set_sql_text("")
         self.filter_input.clear()
+        self.filter_input.set_identifiers(())
         self.prev_button.setEnabled(False)
         self.next_button.setEnabled(False)
         self._sort_column = ""
@@ -783,9 +789,12 @@ class DatabasePanel(QWidget):
 
     def _build_data_tab(self) -> None:
         page = QWidget()
-        self.filter_input = QLineEdit()
+        self.filter_input = DatabaseFilterInput()
         self.filter_input.setPlaceholderText(
             "WHERE 조건만 입력 · 예: status = 'ERROR' AND id > 100"
+        )
+        self.filter_input.setToolTip(
+            "Tab: 현재 테이블 컬럼 자동완성"
         )
         self.filter_button = QPushButton("조건 적용")
         self.filter_button.clicked.connect(self._apply_filter)
