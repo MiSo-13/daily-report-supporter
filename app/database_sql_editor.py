@@ -145,6 +145,177 @@ def sql_functions(db_type: str) -> set[str]:
     return functions
 
 
+_SQL_IDENTIFIER_PART = (
+    r'(?:[A-Za-z_][A-Za-z0-9_$]*'
+    r'|"(?:""|[^"])+"'
+    r'|\`(?:\`\`|[^\`])+\`)'
+)
+_SQL_RELATION_RE = re.compile(
+    rf"\b(?:FROM|JOIN)\s+"
+    rf"(?P<relation>{_SQL_IDENTIFIER_PART}"
+    rf"(?:\s*\.\s*{_SQL_IDENTIFIER_PART})?)"
+    rf"(?:\s+(?:AS\s+)?(?P<alias>{_SQL_IDENTIFIER_PART}))?",
+    re.IGNORECASE,
+)
+
+
+def sql_relation_aliases(statement: str) -> dict[str, str]:
+    """현재 SELECT의 FROM/JOIN relation과 alias를 반환한다."""
+    masked = _mask_sql_strings_and_comments(statement)
+    relations: dict[str, str] = {}
+
+    for match in _SQL_RELATION_RE.finditer(masked):
+        relation_text = statement[
+            match.start("relation"):match.end("relation")
+        ]
+        relation = _normalize_relation_identifier(relation_text)
+        if not relation:
+            continue
+
+        relation_parts = relation.split(".")
+        relation_key = relation.casefold()
+        relations[relation_key] = relation
+        relations[relation_parts[-1].casefold()] = relation
+
+        alias_group = match.group("alias")
+        if not alias_group:
+            continue
+
+        alias_text = statement[
+            match.start("alias"):match.end("alias")
+        ]
+        alias = _normalize_relation_identifier(alias_text)
+        if (
+            not alias
+            or "." in alias
+            or alias.upper() in COMMON_KEYWORDS
+        ):
+            continue
+        relations[alias.casefold()] = relation
+
+    return relations
+
+
+def resolve_sql_relation(
+    statement: str,
+    qualifier: str,
+) -> str | None:
+    normalized = _normalize_relation_identifier(qualifier)
+    if not normalized:
+        return None
+    return sql_relation_aliases(statement).get(normalized.casefold())
+
+
+def _normalize_relation_identifier(value: str) -> str:
+    parts = re.findall(_SQL_IDENTIFIER_PART, value)
+    normalized: list[str] = []
+    for part in parts:
+        item = part.strip()
+        if item.startswith('"') and item.endswith('"'):
+            item = item[1:-1].replace('""', '"')
+        elif item.startswith("`") and item.endswith("`"):
+            item = item[1:-1].replace("``", "`")
+        if item:
+            normalized.append(item)
+    return ".".join(normalized)
+
+
+def _mask_sql_strings_and_comments(sql: str) -> str:
+    chars = list(sql)
+    quote: str | None = None
+    dollar_tag: str | None = None
+    line_comment = False
+    block_depth = 0
+    index = 0
+
+    while index < len(sql):
+        char = sql[index]
+        next_char = sql[index + 1] if index + 1 < len(sql) else ""
+
+        if line_comment:
+            if char in "\r\n":
+                line_comment = False
+            else:
+                chars[index] = " "
+            index += 1
+            continue
+
+        if block_depth:
+            chars[index] = " "
+            if char == "/" and next_char == "*":
+                chars[index + 1] = " "
+                block_depth += 1
+                index += 2
+                continue
+            if char == "*" and next_char == "/":
+                chars[index + 1] = " "
+                block_depth -= 1
+                index += 2
+                continue
+            index += 1
+            continue
+
+        if dollar_tag is not None:
+            chars[index] = " "
+            if sql.startswith(dollar_tag, index):
+                for offset in range(len(dollar_tag)):
+                    chars[index + offset] = " "
+                index += len(dollar_tag)
+                dollar_tag = None
+            else:
+                index += 1
+            continue
+
+        if quote == "'":
+            chars[index] = " "
+            if char == "\" and index + 1 < len(sql):
+                chars[index + 1] = " "
+                index += 2
+                continue
+            if char == "'":
+                if next_char == "'":
+                    chars[index + 1] = " "
+                    index += 2
+                    continue
+                quote = None
+            index += 1
+            continue
+
+        if char == "'":
+            chars[index] = " "
+            quote = "'"
+            index += 1
+            continue
+
+        if char == "-" and next_char == "-":
+            chars[index] = chars[index + 1] = " "
+            line_comment = True
+            index += 2
+            continue
+
+        if char == "/" and next_char == "*":
+            chars[index] = chars[index + 1] = " "
+            block_depth = 1
+            index += 2
+            continue
+
+        if char == "$":
+            match = re.match(
+                r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$",
+                sql[index:],
+            )
+            if match is not None:
+                dollar_tag = match.group(0)
+                for offset in range(len(dollar_tag)):
+                    chars[index + offset] = " "
+                index += len(dollar_tag)
+                continue
+
+        index += 1
+
+    return "".join(chars)
+
+
 def statement_at_cursor(sql: str, cursor_position: int) -> str:
     """세미콜론으렜 구분된 SQL 중 커서가 위치한 statement를 반환한다."""
     if not sql:
@@ -443,6 +614,12 @@ class SqlEditor(QPlainTextEdit):
         elif matches:
             self._show_completion()
 
+    def current_statement(self) -> str:
+        return statement_at_cursor(
+            self.toPlainText(),
+            self.textCursor().position(),
+        )
+
     def statement_to_execute(self) -> str:
         cursor = self.textCursor()
         if cursor.hasSelection():
@@ -450,10 +627,7 @@ class SqlEditor(QPlainTextEdit):
             if selected:
                 return selected
 
-        return statement_at_cursor(
-            self.toPlainText(),
-            cursor.position(),
-        )
+        return self.current_statement()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         modifiers = event.modifiers()
