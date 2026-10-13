@@ -9,6 +9,8 @@ class TaskStatus(str, Enum):
     PLANNED = "예정"
     IN_PROGRESS = "진행중"
     COMPLETED = "완료"
+    ON_HOLD = "보류"
+    CANCELLED = "취소"
 
     @classmethod
     def from_text(cls, value: str, default: "TaskStatus" | None = None) -> "TaskStatus":
