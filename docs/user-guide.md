@@ -269,6 +269,8 @@ DB 탭은 MySQL과 PostgreSQL 조회용입니다. write SQL 기능은 없습니�
 - 이전/다음 페이지
 - 컬럼 헤더 클릭 정렬
 - WHERE 조건
+- Filter 입력 중 `Tab`으로 현재 테이블 컬럼명 자동완성
+- `LIKE '%값%'` 형태의 wildcard 조건
 - 우클릭 빠른 필터
 - TSV 복사
 - 현재 페이지 CSV 저장
@@ -279,7 +281,7 @@ WHERE 입력란에는 `WHERE` 없이 조건만 씁니다.
 status = 'ERROR' AND id > 100
 ```
 
-세미콜론, SQL 주석, 변경 SQL 키워드는 WHERE 조건에서 차단합니다.
+세미콜론, SQL 주석, 변경 SQL 키워드는 WHERE 조건에서 차단합니다. `LIKE '%C%'`처럼 문자열 안에 `%` wildcard를 사용하는 조건은 그대로 실행할 수 있습니다.
 
 ### 큰 값과 셀 상세 보기
 
