@@ -327,7 +327,10 @@ EXPLAIN
 - SQL 작성 영역과 결과 영역 사이 경계를 드래그해 높이 조절
 - syntax highlighting
 - `Tab`: 현재 단어 자동완성
-- `table.` 또는 `schema.table.` 뒤에서 `Tab`: 해당 테이블 column 후보 표시
+- `table.`, `table.pre` 뒤에서 `Tab`: 해당 테이블 column 후보 표시
+- `FROM scan_scan ss`, `JOIN users AS u`처럼 선언한 alias를 인식해 `ss.pre`, `u.id` 형태로 column 자동완성
+- `schema.table.` / `schema.table.pre`도 지원
+- SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY 등 현재 statement 안에서 같은 qualifier 기반 자동완성 사용
 - 아직 읽지 않은 테이블의 column metadata는 필요할 때 비동기로 조회
 - `Ctrl+Space`: 자동완성 목록 표시
 - 자동완성 목록에서 방향키로 이동하고 `Enter`로 확정, `Escape`로 닫기
