@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QComboBox,
+    QCheckBox,
     QDialog,
     QFormLayout,
     QHBoxLayout,
@@ -152,6 +153,8 @@ class TaskEditor(QWidget):
             "드래그해서 업무 순서 변경 · 더블클릭 또는 상세 보기로 크게 보기"
         )
         self.list_hint.setObjectName("taskListHint")
+        self.show_inactive = QCheckBox("보류·취소 업무도 표시")
+        self.show_inactive.toggled.connect(self.refresh)
 
         editor_panel = QWidget()
         editor_layout = QVBoxLayout(editor_panel)
@@ -172,6 +175,7 @@ class TaskEditor(QWidget):
         layout.setSpacing(8)
         layout.addWidget(self.heading_label)
         layout.addWidget(self.list_hint)
+        layout.addWidget(self.show_inactive)
         layout.addWidget(self.content_splitter, 1)
 
         self._set_add_mode()
@@ -216,6 +220,8 @@ class TaskEditor(QWidget):
             TaskStatus.PLANNED: "○",
             TaskStatus.IN_PROGRESS: "▶",
             TaskStatus.COMPLETED: "✓",
+            TaskStatus.ON_HOLD: "Ⅱ",
+            TaskStatus.CANCELLED: "×",
         }
         for index, task in enumerate(self.tasks):
             item = QListWidgetItem(
@@ -227,7 +233,11 @@ class TaskEditor(QWidget):
                 label = task.link_text or task.link_url
                 item.setToolTip(f"{label}\n{task.link_url}")
             self.list_widget.addItem(item)
+            item.setHidden(task.status in (TaskStatus.ON_HOLD, TaskStatus.CANCELLED)
+                           and not self.show_inactive.isChecked())
 
+        self.list_widget.set_reordering_enabled(self.show_inactive.isChecked() or not any(
+            t.status in (TaskStatus.ON_HOLD, TaskStatus.CANCELLED) for t in self.tasks))
         if select_row is not None and 0 <= select_row < len(self.tasks):
             self.list_widget.setCurrentRow(select_row)
         else:
