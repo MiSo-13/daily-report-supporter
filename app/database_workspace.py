@@ -14,6 +14,7 @@ from app.database_models import (
     TableInfo,
 )
 from app.database_service import DatabaseService
+from app.database_sql_editor import resolve_sql_relation
 from app.database_store import DatabaseStore
 from app.database_ui import DatabasePanel, DatabaseSidebar
 from app.dialogs import DeleteConfirmDialog
@@ -455,12 +456,16 @@ class DatabaseWorkspace:
         if password is None:
             return
 
-        if normalized.endswith("."):
-            if self._apply_current_table_column_completion(normalized):
+        relation = self._sql_column_relation(normalized)
+        if relation is not None:
+            if self._apply_current_table_column_completion(
+                normalized,
+                relation=relation,
+            ):
                 return
+
             self._completion_generation += 1
             generation = self._completion_generation
-            relation = normalized[:-1]
             preferred_schema = str(self._current_schema or "")
 
             self._run(
@@ -499,28 +504,62 @@ class DatabaseWorkspace:
             lambda _message: None,
         )
 
-    def _apply_current_table_column_completion(self, prefix: str) -> bool:
-        if (
-            not self._current_schema
-            or not self._current_table
-            or not self._current_columns
-        ):
+    def _sql_column_relation(self, prefix: str) -> str | None:
+        if "." not in prefix:
+            return None
+
+        qualifier, _column_prefix = prefix.rsplit(".", 1)
+        qualifier = qualifier.strip()
+        if not qualifier:
+            return None
+
+        statement = self.panel.sql_editor.current_statement()
+        resolved = resolve_sql_relation(statement, qualifier)
+        if resolved is not None:
+            return resolved
+
+        if self._relation_matches_current_table(qualifier):
+            return qualifier
+
+        if "." in qualifier or prefix.endswith("."):
+            return qualifier
+
+        return None
+
+    def _relation_matches_current_table(self, relation: str) -> bool:
+        if not self._current_schema or not self._current_table:
             return False
 
-        relation = prefix[:-1]
         table = str(self._current_table)
         schema = str(self._current_schema)
-        candidates = {
+        return relation.casefold() in {
             table.casefold(),
             f"{schema}.{table}".casefold(),
         }
-        if relation.casefold() not in candidates:
+
+    def _apply_current_table_column_completion(
+        self,
+        prefix: str,
+        *,
+        relation: str | None = None,
+    ) -> bool:
+        if not self._current_columns:
             return False
 
+        target_relation = relation
+        if target_relation is None:
+            if "." not in prefix:
+                return False
+            target_relation = prefix.rsplit(".", 1)[0]
+
+        if not self._relation_matches_current_table(target_relation):
+            return False
+
+        qualifier = prefix.rsplit(".", 1)[0]
         self.panel.apply_sql_completion_lookup(
             prefix,
             tuple(
-                f"{prefix}{column.name}"
+                f"{qualifier}.{column.name}"
                 for column in self._current_columns
             ),
         )
@@ -814,8 +853,9 @@ class DatabaseWorkspace:
         ):
             return
 
+        qualifier = prefix.rsplit(".", 1)[0]
         identifiers = [
-            f"{prefix}{column.name}"
+            f"{qualifier}.{column.name}"
             for column in result
             if isinstance(column, ColumnInfo)
         ]

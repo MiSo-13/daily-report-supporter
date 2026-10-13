@@ -115,3 +115,122 @@ def test_current_table_column_completion_supports_schema_prefix(
     assert applied == [
         ("public.users.", ("public.users.id",))
     ]
+
+
+def test_alias_partial_column_completion_uses_current_table_metadata(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    workspace._current_schema = "public"
+    workspace._current_table = "scan_scan"
+    workspace._current_columns = [
+        ColumnInfo("id", "bigint", False),
+        ColumnInfo("preset_value", "text", True),
+        ColumnInfo("preset_name", "text", True),
+    ]
+    workspace.panel.sql_editor.setPlainText(
+        "SELECT ss.*\n"
+        "FROM scan_scan ss\n"
+        "WHERE ss.pre"
+    )
+
+    applied: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        workspace.panel,
+        "apply_sql_completion_lookup",
+        lambda prefix, identifiers: applied.append(
+            (prefix, tuple(identifiers))
+        ),
+    )
+
+    relation = workspace._sql_column_relation("ss.pre")
+    handled = workspace._apply_current_table_column_completion(
+        "ss.pre",
+        relation=relation,
+    )
+
+    assert relation == "scan_scan"
+    assert handled
+    assert applied == [
+        (
+            "ss.pre",
+            (
+                "ss.id",
+                "ss.preset_value",
+                "ss.preset_name",
+            ),
+        )
+    ]
+
+
+def test_alias_dot_completion_uses_alias_in_candidate_names(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    workspace._current_schema = "public"
+    workspace._current_table = "scan_scan"
+    workspace._current_columns = [
+        ColumnInfo("id", "bigint", False),
+        ColumnInfo("preset_value", "text", True),
+    ]
+    workspace.panel.sql_editor.setPlainText(
+        "SELECT ss.\nFROM public.scan_scan AS ss"
+    )
+
+    applied: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        workspace.panel,
+        "apply_sql_completion_lookup",
+        lambda prefix, identifiers: applied.append(
+            (prefix, tuple(identifiers))
+        ),
+    )
+
+    relation = workspace._sql_column_relation("ss.")
+    handled = workspace._apply_current_table_column_completion(
+        "ss.",
+        relation=relation,
+    )
+
+    assert relation == "public.scan_scan"
+    assert handled
+    assert applied == [
+        ("ss.", ("ss.id", "ss.preset_value"))
+    ]
+
+
+def test_async_partial_column_completion_keeps_original_qualifier(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    workspace._current_profile_id = "dev"
+    workspace._completion_generation = 3
+
+    applied: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        workspace.panel,
+        "apply_sql_completion_lookup",
+        lambda prefix, identifiers: applied.append(
+            (prefix, tuple(identifiers))
+        ),
+    )
+
+    workspace._sql_column_completion_loaded(
+        "dev",
+        "ss.pre",
+        3,
+        [
+            ColumnInfo("id", "bigint", False),
+            ColumnInfo("preset_value", "text", True),
+        ],
+    )
+
+    assert applied == [
+        (
+            "ss.pre",
+            ("ss.id", "ss.preset_value"),
+        )
+    ]
