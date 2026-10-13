@@ -58,7 +58,7 @@ class MarkdownStore:
             pending = [
                 replace(task)
                 for task in source.today_tasks
-                if task.status is not TaskStatus.COMPLETED
+                if task.status not in (TaskStatus.COMPLETED, TaskStatus.CANCELLED)
             ]
             document = DailyDocument(today_tasks=pending)
 

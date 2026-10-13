@@ -32,6 +32,7 @@ from app.app_icon import create_app_icon
 from app.app_meta import APP_NAME, ORGANIZATION_NAME
 from app.database_workspace import DatabaseWorkspace
 from app.markdown_store import MarkdownStore
+from app.period_report_dialog import PeriodReportDialog
 from app.memo_workspace import MemoWorkspace
 from app.models import DailyDocument, Task, TaskStatus
 from app.runtime_paths import AppRuntimePaths, resolve_runtime_paths
@@ -152,6 +153,8 @@ class MainWindow(QMainWindow):
         self.current_label = QLabel()
         self.today_button = QPushButton("오늘로 이동")
         self.report_button = QPushButton("일일보고 작성")
+        self.period_report_button = QPushButton("주간·월간 보고")
+        self.period_report_button.clicked.connect(self.open_period_report)
         self.report_button.setObjectName("primaryButton")
         self.today_button.clicked.connect(self.open_today)
         self.report_button.clicked.connect(self.open_report)
@@ -162,6 +165,7 @@ class MainWindow(QMainWindow):
         toolbar.addStretch(1)
         toolbar.addWidget(self.today_button)
         toolbar.addWidget(self.report_button)
+        toolbar.addWidget(self.period_report_button)
 
         self.work_content = QWidget()
         content_layout = QVBoxLayout(self.work_content)
@@ -477,6 +481,10 @@ class MainWindow(QMainWindow):
             previous_done=list(self._legacy_previous_done),
             today_tasks=self.today_editor.get_tasks(),
         )
+
+    def open_period_report(self) -> None:
+        self.today_editor.save_current()
+        PeriodReportDialog(self.store, self.current_date, self).exec()
 
     def open_report(self) -> None:
         ReportDialog(
