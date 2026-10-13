@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from PyQt6.QtCore import QStringListModel, Qt
+from PyQt6.QtCore import QEvent, QStringListModel, Qt
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import QCompleter, QLineEdit
 
@@ -35,6 +35,17 @@ class DatabaseFilterInput(QLineEdit):
             )
         )
 
+    def event(self, event: QEvent) -> bool:
+        if (
+            event.type() == QEvent.Type.KeyPress
+            and isinstance(event, QKeyEvent)
+            and event.key() == Qt.Key.Key_Tab
+        ):
+            self._accept_or_show_completion()
+            event.accept()
+            return True
+        return super().event(event)
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
         popup = self._completer.popup()
 
@@ -47,11 +58,6 @@ class DatabaseFilterInput(QLineEdit):
                 popup.hide()
                 event.accept()
                 return
-
-        if event.key() == Qt.Key.Key_Tab:
-            self._accept_or_show_completion()
-            event.accept()
-            return
 
         super().keyPressEvent(event)
 
