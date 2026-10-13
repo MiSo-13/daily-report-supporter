@@ -268,7 +268,7 @@ def _mask_sql_strings_and_comments(sql: str) -> str:
 
         if quote == "'":
             chars[index] = " "
-            if char == "\" and index + 1 < len(sql):
+            if char == "\\" and index + 1 < len(sql):
                 chars[index + 1] = " "
                 index += 2
                 continue
