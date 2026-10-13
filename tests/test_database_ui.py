@@ -4,7 +4,8 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QEvent, Qt
+from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
@@ -289,21 +290,24 @@ def test_filter_tab_completes_current_table_column() -> None:
     assert panel.filter_input.text() == "preset_value"
 
 
-def test_filter_tab_does_not_move_focus_when_no_column_matches() -> None:
+def test_filter_tab_event_is_consumed_when_no_column_matches() -> None:
     panel = DatabasePanel()
-    panel.show()
     panel.set_columns(
         [
             ColumnInfo("id", "bigint", False),
             ColumnInfo("preset_value", "text", True),
         ]
     )
-    panel.filter_input.setFocus()
     panel.filter_input.setText("unknown")
-    QApplication.processEvents()
+    panel.filter_input.setCursorPosition(len("unknown"))
+    event = QKeyEvent(
+        QEvent.Type.KeyPress,
+        Qt.Key.Key_Tab,
+        Qt.KeyboardModifier.NoModifier,
+    )
 
-    QTest.keyClick(panel.filter_input, Qt.Key.Key_Tab)
-    QApplication.processEvents()
+    handled = panel.filter_input.event(event)
 
-    assert panel.filter_input.hasFocus()
+    assert handled
+    assert event.isAccepted()
     assert panel.filter_input.text() == "unknown"
