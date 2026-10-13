@@ -59,12 +59,13 @@ PTY/ConPTY와 화면 렌더러를 분리해 streaming 출력이나 interactive C
 - `app/database_value_preview.py`: 큰 셀 값을 목록용 preview로 축소
 - `app/database_table_model.py`: 결과 테이블 모델
 - `app/database_detail.py`: TEXT/JSON/Binary 상세 표시 포맷
+- `app/database_filter_input.py`: 데이터 Filter 컬럼 자동완성 입력
 - `app/database_ui.py`: DB 화면 위젯과 SQL 입력/결과 splitter
 - `app/database_workspace.py`: 비동기 조회, SQL draft, table별 column metadata 자동완성 조정
 
 목록 조회와 큰 셀의 원본 상세 조회는 분리되어 있습니다. 일반 결과는 worker 단계에서 크기를 제한하고, 사용자가 데이터 셀의 `상세 보기`를 열 때만 해당 셀을 다시 조회합니다.
 
-SQL은 조회 전용입니다. UI 검증과 DB connection의 read-only 설정을 함께 사용하며 write SQL 기능은 두지 않습니다.
+SQL은 조회 전용입니다. UI 검증과 DB connection의 read-only 설정을 함께 사용하며 write SQL 기능은 두지 않습니다. 데이터 Filter의 WHERE 문자열은 그대로 붙이되, 앱 내부에서 관리하는 LIMIT/OFFSET 정수는 SQL에 직접 넣어 DB-API의 `%s` placeholder와 LIKE wildcard `%`가 충돌하지 않도록 합니다.
 
 ## 상태바와 리소스
 
