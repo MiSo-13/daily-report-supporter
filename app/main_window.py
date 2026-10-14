@@ -643,11 +643,16 @@ class MainWindow(QMainWindow):
             self.load_date(date.fromisoformat(raw))
 
 
-def run(startup_message: str = "") -> int:
-    app = QApplication([])
+def _configure_application_metadata(app: QApplication) -> None:
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
+    app.setDesktopFileName(APP_NAME)
     app.setOrganizationName(ORGANIZATION_NAME)
+
+
+def run(startup_message: str = "") -> int:
+    app = QApplication([])
+    _configure_application_metadata(app)
     app.setStyle("Fusion")
     icon = create_app_icon()
     if not icon.isNull():

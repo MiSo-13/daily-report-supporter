@@ -48,6 +48,31 @@ bash scripts/setup_crostini.sh
 
 한글 입력이 불안정하면 앱에서 `설정 → 입력기 호환 모드 → Crostini 한글 호환 (IBus)`를 선택하고 재시작합니다.
 
+ChromeOS Linux 앱 목록과 Shelf 아이콘을 연결하려면 desktop entry 파일명을 `WorKing.desktop`으로 맞춥니다. WorKing은 Qt의 desktop file name도 `WorKing`으로 설정합니다.
+
+예:
+
+```ini
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WorKing
+Exec=/home/<user>/apps/WorKing/WorKing-linux-x64
+Path=/home/<user>/apps/WorKing
+Icon=/home/<user>/apps/WorKing/app-icon.svg
+Terminal=false
+Categories=Office;Utility;
+StartupNotify=true
+```
+
+저장 위치:
+
+```text
+~/.local/share/applications/WorKing.desktop
+```
+
+desktop entry나 아이콘을 바꾼 뒤에는 `update-desktop-database ~/.local/share/applications`를 실행하고 WorKing을 완전히 종료한 뒤 Linux 앱 목록에서 다시 실행합니다.
+
 ## 소스에서 실행
 
 Python 3.11 이상을 권장합니다.

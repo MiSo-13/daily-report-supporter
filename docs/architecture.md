@@ -5,7 +5,7 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 ## 시작과 공통 설정
 
 - `main.py`: 데이터 경로 확인, 마이그레이션, Qt/입력기 설정 후 앱 시작
-- `app/main_window.py`: 최상위 탭, 날짜 탐색, 전체 검색, 설정 메뉴
+- `app/main_window.py`: 최상위 탭, 날짜 탐색, 전체 검색, 설정 메뉴, Qt 앱 이름과 desktop file name 초기화
 - `app/app_meta.py`: 앱 이름, bundle identifier, 데이터 디렉터리 이름
 - `app/app_icon.py`: SVG 아이콘 로딩과 빌드용 렌더링
 - `app/settings.py`: `settings.json` 읽기/쓰기와 이전 설정 migration
