@@ -19,7 +19,7 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 
 홈 디렉터리의 예전 경로는 migration source로만 읽습니다. 현재 사용자 데이터는 `<app-root>/data/`에만 기록합니다.
 
-## 업무와 일일보고
+## 업무와 보고서
 
 - `app/models.py`: `Task`, `TaskStatus`, `DailyDocument`
 - `app/markdown_store.py`: 날짜별 Markdown 읽기/쓰기, 검색, 다음날 이월
