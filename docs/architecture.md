@@ -19,15 +19,19 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 
 홈 디렉터리의 예전 경로는 migration source로만 읽습니다. 현재 사용자 데이터는 `<app-root>/data/`에만 기록합니다.
 
-## 업무와 일일보고
+## 업무와 보고서
 
 - `app/models.py`: `Task`, `TaskStatus`, `DailyDocument`
 - `app/markdown_store.py`: 날짜별 Markdown 읽기/쓰기, 검색, 다음날 이월
 - `app/task_editor.py`: 업무 편집, 순서 변경, 상세 보기 진입
 - `app/task_detail_dialog.py`: 개별 업무 Markdown 상세 뷰어
 - `app/report_service.py`: 일일보고 텍스트 생성
+- `app/period_report.py`: 기간별 일일 Markdown 집계와 주간·월간 HTML 생성
+- `app/period_report_dialog.py`: 기간 선택, 추가 설명 입력, HTML 미리보기/저장 UI
 
-업무의 표시 순서와 저장 순서는 별도 order 파일 없이 Markdown에 적힌 순서를 그대로 사용합니다.
+업무의 표시 순서와 저장 순서는 별도 order 파일 없이 Markdown에 적힌 순서를 그대로 사용합니다. 다음날 문서를 만들 때 예정/진행중/보류는 이월하고 완료/취소는 제외합니다.
+
+기간 보고서는 업무 ID가 없는 기존 Markdown을 그대로 집계하므로 제목과 관련 문서 URL을 근사 식별자로 사용합니다. 실제 시작/완료 timestamp를 추정하지 않고 기간 내 최초 기록일과 완료 상태가 처음 확인된 날짜만 사용합니다.
 
 ## 메모
 
@@ -79,6 +83,7 @@ SQL은 조회 전용입니다. UI 검증과 DB connection의 read-only 설정을
 - 업무/메모/터미널/DB 화면 전환
 - 날짜와 전체 검색
 - 일일보고 실행
+- 주간·월간 HTML 보고서 실행
 - 설정 메뉴
 - 앱 종료 시 각 workspace 정리
 

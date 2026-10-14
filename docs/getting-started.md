@@ -48,7 +48,9 @@ bash scripts/setup_crostini.sh
 
 한글 입력이 불안정하면 앱에서 `설정 → 입력기 호환 모드 → Crostini 한글 호환 (IBus)`를 선택하고 재시작합니다.
 
-ChromeOS Linux 앱 목록과 Shelf 아이콘을 연결하려면 desktop entry 파일명을 `WorKing.desktop`으로 맞춥니다. WorKing은 Qt의 desktop file name도 `WorKing`으로 설정합니다.
+ChromeOS Linux 앱 목록과 Shelf 아이콘을 연결하려면 desktop entry 파일명을 `WorKing.desktop`으로 맞춥니다. WorKing도 Qt desktop file name을 `WorKing`으로 사용합니다.
+
+SVG 아이콘을 쓰려면 아이콘 파일을 실행 파일과 함께 보관한 뒤 `Icon=`에 절대 경로를 지정합니다. Release의 Linux 실행 파일은 단일 실행 파일이므로, desktop용 SVG 파일은 별도로 준비해야 합니다.
 
 예:
 
@@ -168,7 +170,11 @@ URL: https://example.com/auth
 | --- | --- |
 | 예정 | 그대로 이월 |
 | 진행중 | 그대로 이월 |
+| 보류 | 그대로 이월 |
 | 완료 | 이월하지 않음 |
+| 취소 | 이월하지 않음 |
+
+완료 업무는 진행 중인 업무 목록에서 숨겨지고, 보류·취소 업무는 `보류·취소 업무도 표시`를 켰을 때 다시 볼 수 있습니다.
 
 ## 일일보고
 
@@ -180,5 +186,17 @@ URL: https://example.com/auth
 - 예정 업무: `진행중` + `예정`
 
 생성한 내용은 클립보드로 복사할 수 있습니다. 제목, 상단 문구, 꼬리말은 설정에서 바꿀 수 있습니다.
+
+## 주간·월간 보고서
+
+`주간·월간 보고`에서는 기준 날짜를 선택해 해당 주 또는 월의 일일 Markdown을 모아 HTML 보고서를 만듭니다.
+
+- 완료 / 진행중 / 예정 / 보류 / 취소 건수와 목록
+- 주요 성과
+- 이슈 및 지원 요청
+- 다음 기간 계획
+- HTML 미리보기와 파일 저장
+
+이월된 같은 업무를 매일 별도 건으로 세지 않도록 제목과 관련 문서 URL을 기준으로 묶습니다. 기존 Markdown에는 업무별 고유 ID와 정확한 시작·완료 시각이 없으므로 보고서의 최초 기록일과 완료 기록일은 실제 시각이 아니라 일일 문서에 나타난 날짜 기준입니다.
 
 업무 외 기능은 [사용 가이드](./user-guide.md), 설정 항목은 [설정](./settings.md)을 참고하세요.

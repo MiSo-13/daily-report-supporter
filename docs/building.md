@@ -44,6 +44,8 @@ Windows와 macOS에서는 빌드 시 운영체제용 아이콘 파일을 만든 
 
 Linux 빌드에서는 아이콘 변환을 위해 QtGui를 미리 로드하지 않습니다. SVG만 bundle에 넣고 실행 시 렌더링합니다.
 
+Linux의 실행 파일 자체에는 Windows `.ico`처럼 desktop launcher용 아이콘이 내장되지 않습니다. ChromeOS/Crostini에서 Linux 앱 목록이나 Shelf 아이콘을 사용하려면 `WorKing.desktop`의 `Icon=`에 별도 SVG/PNG 파일 경로를 지정합니다. WorKing은 Qt desktop file name을 `WorKing`으로 설정하므로 desktop entry 파일명도 `WorKing.desktop`으로 맞춥니다.
+
 ## GitHub Actions
 
 `.github/workflows/build-release.yml`에서 아래 빌드를 실행합니다.
