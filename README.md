@@ -8,16 +8,18 @@ WorKing은 일일 업무를 Markdown으로 관리하는 PyQt6 데스크톱 앱�
 
 ### 업무
 
-- 상태: `예정`, `진행중`, `완료`
+- 상태: `예정`, `진행중`, `완료`, `보류`, `취소`
 - 업무 제목, 관련 문서 링크, Markdown 주요 내용
 - 업무 목록 드래그 순서 변경
+- 보류·취소 업무 기본 숨김 / 필요할 때 전체 표시
 - 선택 업무 상세 보기: Markdown 미리보기 / 원문
 - 전체 일일 문서 검색
 - 과거 날짜 조회와 수정
 - 다음날 자동 이월
 - 일일보고 생성과 클립보드 복사
+- 주간·월간 업무를 모아 HTML 보고서 미리보기 및 저장
 
-다음날 문서를 처음 열 때 `예정`과 `진행중` 업무는 상태를 유지한 채 이월되고, `완료` 업무는 이월하지 않습니다.
+다음날 문서를 처음 열 때 `예정`, `진행중`, `보류` 업무는 상태를 유지한 채 이월합니다. `완료`와 `취소` 업무는 이월하지 않습니다.
 
 일일보고는 기본적으로 다음처럼 분류합니다.
 
@@ -26,6 +28,10 @@ WorKing은 일일 업무를 Markdown으로 관리하는 PyQt6 데스크톱 앱�
 | 예정 |  | O |
 | 진행중 | O | O |
 | 완료 | O |  |
+| 보류 |  |  |
+| 취소 |  |  |
+
+주간·월간 보고서는 기간 안의 일일 Markdown을 모아 완료/진행중/예정/보류/취소 현황을 HTML로 정리합니다. 기존 데이터에는 업무별 고유 ID나 정확한 시작·완료 시각이 없으므로 제목과 링크를 기준으로 이월된 업무의 중복 집계를 줄입니다.
 
 ### 메모
 
@@ -42,9 +48,10 @@ WorKing은 일일 업무를 Markdown으로 관리하는 PyQt6 데스크톱 앱�
 MySQL과 PostgreSQL 연결을 여러 개 등록해 schema/table을 탐색하고 데이터를 조회할 수 있습니다.
 
 - 페이지 조회, 정렬, WHERE 필터
+- Filter 입력에서 `Tab` 컬럼 자동완성 및 `LIKE '%값%'` 조건
 - 컬럼 정보 확인
 - Read Only SQL
-- SQL syntax highlighting / 자동완성
+- SQL syntax highlighting / 테이블·alias 기반 컬럼 자동완성
 - `Ctrl+Enter`로 현재 statement 실행
 - 큰 TEXT/JSON/BLOB 값 미리보기
 - 데이터 셀 우클릭 → 원본 상세 보기
@@ -63,9 +70,9 @@ Python 없이 실행하려면 [GitHub Releases](https://github.com/MiSo-13/daily
 | ChromeOS/Crostini x64 | `WorKing-linux-x64` |
 | ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
 
-ChromeOS/Crostini에서 아키텍처가 헷갈리면 터미널에서 `uname -m`을 확인합니다. `x86_64`이면 x64, `aarch64`/ARM64이면 arm64 파일을 사용합니다.
+ChromeOS/Crostini에서 아키텍처가 헷갈리면 터미널에서 `uname -m`을 확인합니다. `x86_64`이면 x64, `aarch64`/ARM64이면 arm64 파일을 사용합니다. Linux 앱 목록에 직접 등록할 때는 `WorKing.desktop`과 아이콘 파일을 함께 설정할 수 있습니다.
 
-설치와 첫 실행은 [빠른 시작](./docs/getting-started.md)을 참고하세요.
+설치, Crostini desktop 등록, 첫 실행은 [빠른 시작](./docs/getting-started.md)을 참고하세요.
 
 ## 소스에서 실행
 
@@ -131,7 +138,7 @@ DB 비밀번호는 `database-connections.json`에 저장하지 않고 앱 실행
 ## 문서
 
 - [빠른 시작](./docs/getting-started.md) — 설치와 첫 실행
-- [사용 가이드](./docs/user-guide.md) — 업무, 메모, 터미널, DB 사용법
+- [사용 가이드](./docs/user-guide.md) — 업무, 일일/주간/월간 보고서, 메모, 터미널, DB 사용법
 - [설정](./docs/settings.md) — 테마, 폰트, 일일보고, Crostini 입력기
 - [빌드/배포](./docs/building.md) — PyInstaller와 GitHub Release
 - [코드 구조](./docs/architecture.md) — 주요 모듈과 책임
