@@ -21,6 +21,29 @@ from app.terminal_display import TerminalDisplay
 from app.terminal_store import TERMINAL_SSH, TerminalProfile
 
 
+SSH_SERVER_ALIVE_INTERVAL_SECONDS = 30
+SSH_SERVER_ALIVE_COUNT_MAX = 3
+
+
+def build_ssh_command(profile: TerminalProfile) -> list[str]:
+    ssh = shutil.which("ssh") or "ssh"
+    target = (
+        f"{profile.user}@{profile.host}"
+        if profile.user
+        else profile.host
+    )
+    return [
+        ssh,
+        "-o",
+        f"ServerAliveInterval={SSH_SERVER_ALIVE_INTERVAL_SECONDS}",
+        "-o",
+        f"ServerAliveCountMax={SSH_SERVER_ALIVE_COUNT_MAX}",
+        "-p",
+        str(profile.port),
+        target,
+    ]
+
+
 class TerminalSessionWidget(QWidget):
     def __init__(self, profile: TerminalProfile) -> None:
         super().__init__()
@@ -161,19 +184,7 @@ class TerminalSessionWidget(QWidget):
     def _command_for_profile(self) -> list[str] | None:
         if self.profile.kind != TERMINAL_SSH:
             return None
-
-        ssh = shutil.which("ssh") or "ssh"
-        target = (
-            f"{self.profile.user}@{self.profile.host}"
-            if self.profile.user
-            else self.profile.host
-        )
-        return [
-            ssh,
-            "-p",
-            str(self.profile.port),
-            target,
-        ]
+        return build_ssh_command(self.profile)
 
     def _read_output(self, raw_text: str) -> None:
         self.output.append_terminal_text(raw_text)

@@ -11,7 +11,7 @@ WorKing은 일일 업무를 Markdown으로 관리하는 PyQt6 데스크톱 앱�
 - 상태: `예정`, `진행중`, `완료`, `보류`, `취소`
 - 업무 제목, 관련 문서 링크, Markdown 주요 내용
 - 업무 목록 드래그 순서 변경
-- 보류·취소 업무 기본 숨김 / 필요할 때 전체 표시
+- 완료 업무는 해당 날짜 목록에 유지, 보류·취소 업무는 기본 숨김 / 필요할 때 전체 표시
 - 선택 업무 상세 보기: Markdown 미리보기 / 원문
 - 전체 일일 문서 검색
 - 과거 날짜 조회와 수정
@@ -41,7 +41,7 @@ WorKing은 일일 업무를 Markdown으로 관리하는 PyQt6 데스크톱 앱�
 
 로컬 shell과 SSH 프로필을 여러 개 열어 둘 수 있습니다. Linux/macOS/Crostini에서는 PTY, Windows에서는 ConPTY를 사용합니다.
 
-일반 CLI와 streaming 로그 확인에 맞춘 터미널이며 `redis-cli`처럼 터미널 크기를 사용하는 interactive CLI도 사용할 수 있습니다. `vim`, `top`, `fzf`처럼 화면 전체를 제어하는 TUI는 완전하게 지원하지 않습니다.
+일반 CLI와 streaming 로그 확인에 맞춘 터미널이며 `redis-cli`처럼 터미널 크기를 사용하는 interactive CLI도 사용할 수 있습니다. SSH 연결에는 OpenSSH client keepalive를 적용해 idle network timeout으로 세션이 끊기는 상황을 줄입니다. 서버 자체의 idle logout 정책까지 막지는 않습니다. `vim`, `top`, `fzf`처럼 화면 전체를 제어하는 TUI는 완전하게 지원하지 않습니다.
 
 ### DB Viewer
 
