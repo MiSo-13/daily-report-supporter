@@ -29,7 +29,7 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 - `app/period_report.py`: 기간별 일일 Markdown 집계와 주간·월간 HTML 생성
 - `app/period_report_dialog.py`: 기간 선택, 추가 설명 입력, HTML 미리보기/저장 UI
 
-업무의 표시 순서와 저장 순서는 별도 order 파일 없이 Markdown에 적힌 순서를 그대로 사용합니다. 다음날 문서를 만들 때 예정/진행중/보류는 이월하고 완료/취소는 제외합니다.
+업무의 표시 순서와 저장 순서는 별도 order 파일 없이 Markdown에 적힌 순서를 그대로 사용합니다. 완료 업무는 해당 날짜 목록에는 표시하되 다음날 문서를 만들 때는 제외합니다. 예정/진행중/보류는 이월하고 취소도 이월하지 않습니다.
 
 기간 보고서는 업무 ID가 없는 기존 Markdown을 그대로 집계하므로 제목과 관련 문서 URL을 근사 식별자로 사용합니다. 실제 시작/완료 timestamp를 추정하지 않고 기간 내 최초 기록일과 완료 상태가 처음 확인된 날짜만 사용합니다.
 
@@ -51,7 +51,7 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 - `app/terminal_ui.py`: 세션 화면과 sidebar
 - `app/terminal_workspace.py`: 프로필/세션 lifecycle
 
-PTY/ConPTY와 화면 렌더러를 분리해 streaming 출력이나 interactive CLI 처리 변경이 다른 UI에 번지지 않도록 구성되어 있습니다.
+PTY/ConPTY와 화면 렌더러를 분리해 streaming 출력이나 interactive CLI 처리 변경이 다른 UI에 번지지 않도록 구성되어 있습니다. SSH 프로필 실행 시 `terminal_ui.py`가 OpenSSH 명령에 `ServerAliveInterval=30`, `ServerAliveCountMax=3`을 추가해 client-side keepalive를 사용합니다.
 
 ## DB Viewer
 
