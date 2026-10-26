@@ -233,9 +233,10 @@ class TaskEditor(QWidget):
                 label = task.link_text or task.link_url
                 item.setToolTip(f"{label}\n{task.link_url}")
             self.list_widget.addItem(item)
-            item.setHidden(task.status is TaskStatus.COMPLETED or (
+            item.setHidden(
                 task.status in (TaskStatus.ON_HOLD, TaskStatus.CANCELLED)
-                and not self.show_inactive.isChecked()))
+                and not self.show_inactive.isChecked()
+            )
 
         self.list_widget.set_reordering_enabled(self.show_inactive.isChecked() or not any(
             t.status in (TaskStatus.ON_HOLD, TaskStatus.CANCELLED) for t in self.tasks))
