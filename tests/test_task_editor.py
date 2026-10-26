@@ -139,3 +139,45 @@ def test_task_editor_disables_reorder_while_edit_has_unsaved_changes() -> None:
         editor.list_widget.dragDropMode()
         == QAbstractItemView.DragDropMode.InternalMove
     )
+
+
+def test_completed_task_remains_visible_in_current_day_list() -> None:
+    editor = TaskEditor(
+        "오늘 업무",
+        lambda: None,
+        default_status=TaskStatus.PLANNED,
+    )
+    editor.set_tasks(
+        [
+            Task("진행 업무", status=TaskStatus.IN_PROGRESS),
+            Task("완료 업무", status=TaskStatus.COMPLETED),
+            Task("보류 업무", status=TaskStatus.ON_HOLD),
+            Task("취소 업무", status=TaskStatus.CANCELLED),
+        ]
+    )
+
+    assert not editor.list_widget.item(0).isHidden()
+    assert not editor.list_widget.item(1).isHidden()
+    assert editor.list_widget.item(2).isHidden()
+    assert editor.list_widget.item(3).isHidden()
+
+
+def test_inactive_toggle_reveals_hold_and_cancel_without_hiding_completed() -> None:
+    editor = TaskEditor(
+        "오늘 업무",
+        lambda: None,
+        default_status=TaskStatus.PLANNED,
+    )
+    editor.set_tasks(
+        [
+            Task("완료 업무", status=TaskStatus.COMPLETED),
+            Task("보류 업무", status=TaskStatus.ON_HOLD),
+            Task("취소 업무", status=TaskStatus.CANCELLED),
+        ]
+    )
+
+    editor.show_inactive.setChecked(True)
+
+    assert not editor.list_widget.item(0).isHidden()
+    assert not editor.list_widget.item(1).isHidden()
+    assert not editor.list_widget.item(2).isHidden()
