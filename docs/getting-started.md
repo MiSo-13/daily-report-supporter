@@ -9,8 +9,8 @@
 | Windows x64 | `WorKing.exe` |
 | macOS Apple Silicon | `WorKing-macos-arm64.zip` |
 | macOS Intel | `WorKing-macos-x64.zip` |
-| ChromeOS/Crostini x64 | `WorKing-linux-x64` |
-| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
+| ChromeOS/Crostini x64 | `WorKing-linux-x64.deb` 또는 `WorKing-linux-x64` |
+| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64.deb` 또는 `WorKing-linux-arm64` |
 
 ### Windows
 
@@ -28,10 +28,74 @@ zip을 풀어 `WorKing.app`을 실행합니다. 현재 자동 빌드는 Apple no
 uname -m
 ```
 
-- `x86_64`: `WorKing-linux-x64`
-- `aarch64` 또는 ARM64: `WorKing-linux-arm64`
+- `x86_64`: x64 패키지
+- `aarch64` 또는 ARM64: ARM64 패키지
 
-예를 들어 x64 파일을 `~/apps/WorKing/`에 둘 경우:
+#### .deb 설치 — 권장
+
+x64:
+
+```bash
+sudo apt install ./WorKing-linux-x64.deb
+```
+
+ARM64:
+
+```bash
+sudo apt install ./WorKing-linux-arm64.deb
+```
+
+설치하면 다음 항목이 함께 등록됩니다.
+
+- `/opt/working/WorKing`: 앱 실행 파일
+- `/usr/bin/working`: 터미널 실행 명령
+- `/usr/share/applications/WorKing.desktop`: Linux 앱 메뉴
+- `/usr/share/icons/hicolor/scalable/apps/WorKing.svg`: SVG 아이콘
+- Qt/X11 및 SSH client runtime dependency
+
+설치 후 ChromeOS의 Linux 앱 목록에서 `WorKing`을 실행하거나 터미널에서 다음 명령을 사용할 수 있습니다.
+
+```bash
+working
+```
+
+새 버전은 같은 방식으로 새 `.deb`를 설치하면 업그레이드됩니다.
+
+```bash
+sudo apt install ./WorKing-linux-x64.deb
+```
+
+앱 패키지를 제거하려면:
+
+```bash
+sudo apt remove working
+```
+
+사용자 데이터는 패키지 제거 시 삭제하지 않습니다.
+
+`.deb` 설치 버전은 시스템 설치 경로가 아닌 다음 사용자 경로에 데이터를 저장합니다.
+
+```text
+~/.local/share/WorKing/
+├─ config/
+├─ reports/
+└─ memos/
+```
+
+`XDG_DATA_HOME`이 설정되어 있으면 `$XDG_DATA_HOME/WorKing/`을 사용합니다.
+
+기존에 `~/apps/WorKing/data/` 같은 포터블 위치를 사용했다면 앱을 종료한 상태에서 데이터를 한 번 복사할 수 있습니다.
+
+```bash
+mkdir -p ~/.local/share/WorKing
+cp -a ~/apps/WorKing/data/. ~/.local/share/WorKing/
+```
+
+포터블 앱의 위치는 사용자마다 다르므로 이 이동은 자동으로 추정하지 않습니다.
+
+#### 단일 실행 파일로 사용
+
+설치하지 않고 포터블 파일을 계속 사용할 수도 있습니다. 예를 들어 x64 파일을 `~/apps/WorKing/`에 둘 경우:
 
 ```bash
 mkdir -p ~/apps/WorKing
@@ -39,6 +103,8 @@ mv WorKing-linux-x64 ~/apps/WorKing/
 chmod +x ~/apps/WorKing/WorKing-linux-x64
 ~/apps/WorKing/WorKing-linux-x64
 ```
+
+단일 실행 파일은 기존처럼 실행 파일 옆 `data/`를 사용합니다.
 
 Qt/X11 라이브러리가 부족하면 저장소의 `scripts/setup_crostini.sh`와 같은 패키지 구성이 필요합니다. 소스 실행 환경에서는 아래처럼 설치할 수 있습니다.
 
@@ -48,9 +114,9 @@ bash scripts/setup_crostini.sh
 
 한글 입력이 불안정하면 앱에서 `설정 → 입력기 호환 모드 → Crostini 한글 호환 (IBus)`를 선택하고 재시작합니다.
 
-ChromeOS Linux 앱 목록과 Shelf 아이콘을 연결하려면 desktop entry 파일명을 `WorKing.desktop`으로 맞춥니다. WorKing도 Qt desktop file name을 `WorKing`으로 사용합니다.
+단일 실행 파일을 ChromeOS Linux 앱 목록에 직접 등록하려면 desktop entry 파일명을 `WorKing.desktop`으로 맞춥니다. WorKing도 Qt desktop file name을 `WorKing`으로 사용합니다.
 
-SVG 아이콘을 쓰려면 아이콘 파일을 실행 파일과 함께 보관한 뒤 `Icon=`에 절대 경로를 지정합니다. Release의 Linux 실행 파일은 단일 실행 파일이므로, desktop용 SVG 파일은 별도로 준비해야 합니다.
+SVG 아이콘을 쓰려면 아이콘 파일을 실행 파일과 함께 보관한 뒤 `Icon=`에 절대 경로를 지정합니다.
 
 예:
 
@@ -120,7 +186,7 @@ daily-report-supporter/
    └─ memos/
 ```
 
-배포 파일:
+포터블 배포 파일:
 
 ```text
 WorKing/
@@ -133,7 +199,7 @@ WorKing/
    └─ memos/
 ```
 
-macOS는 `WorKing.app/Contents` 내부가 아니라 `.app`이 놓인 폴더를 기준으로 합니다.
+macOS는 `WorKing.app/Contents` 내부가 아니라 `.app`이 놓인 폴더를 기준으로 합니다. Crostini `.deb` 설치는 예외로 `~/.local/share/WorKing/` 또는 `$XDG_DATA_HOME/WorKing/`을 사용합니다.
 
 기존 버전의 `~/DailyReportSupporter/`, `~/WorKing/` 또는 예전 소스 실행 위치에 데이터가 있으면 첫 실행 시 현재 `data/`로 복사합니다. 기존 파일은 지우지 않고, 새 위치에 이미 있는 파일도 덮어쓰지 않습니다.
 
