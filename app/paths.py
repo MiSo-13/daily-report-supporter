@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 from app.app_meta import (
@@ -13,6 +15,17 @@ from app.app_meta import (
 APP_DIR_NAME = PORTABLE_DATA_DIR_NAME
 LEGACY_APP_DIR_NAME = LEGACY_DATA_DIR_NAME
 TRANSITIONAL_APP_DIR_NAME = TRANSITIONAL_DATA_DIR_NAME
+DATA_ROOT_ENV = "WORKING_DATA_ROOT"
+
+
+def configured_data_root(
+    env: Mapping[str, str] | None = None,
+) -> Path | None:
+    target_env = os.environ if env is None else env
+    value = target_env.get(DATA_ROOT_ENV, "").strip()
+    if not value:
+        return None
+    return Path(value).expanduser()
 
 
 def source_root() -> Path:
@@ -60,6 +73,10 @@ def default_data_root(
     executable: Path | str | None = None,
     platform: str | None = None,
 ) -> Path:
+    configured = configured_data_root()
+    if configured is not None:
+        return configured
+
     return app_root(
         frozen=frozen,
         executable=executable,
@@ -154,6 +171,10 @@ def default_terminal_cwd(
     executable: Path | str | None = None,
     platform: str | None = None,
 ) -> Path:
+    configured = configured_data_root()
+    if configured is not None:
+        return configured
+
     return app_root(
         frozen=frozen,
         executable=executable,
