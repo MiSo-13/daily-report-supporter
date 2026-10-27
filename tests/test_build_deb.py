@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+import subprocess
 
 import pytest
 
@@ -9,6 +11,7 @@ from scripts.build_deb import (
     ICON_PATH,
     INSTALL_ROOT,
     LAUNCHER_PATH,
+    build_deb,
     control_text,
     desktop_entry_text,
     launcher_text,
@@ -74,3 +77,43 @@ def test_stage_package_creates_expected_layout(tmp_path: Path) -> None:
 
     assert (package_root / LAUNCHER_PATH).stat().st_mode & 0o111
     assert (package_root / INSTALL_ROOT / "WorKing").stat().st_mode & 0o111
+
+
+def test_build_deb_creates_readable_archive(tmp_path: Path) -> None:
+    if shutil.which("dpkg-deb") is None:
+        pytest.skip("dpkg-deb를 사용할 수 없는 환경입니다.")
+
+    source_binary = tmp_path / "WorKing"
+    source_binary.write_bytes(b"binary")
+    output = tmp_path / "WorKing-linux-x64.deb"
+
+    result = build_deb(
+        binary=source_binary,
+        version="v0.2.0",
+        architecture="amd64",
+        output=output,
+    )
+
+    assert result == output.resolve()
+    assert output.is_file()
+
+    fields = subprocess.run(
+        ["dpkg-deb", "--field", str(output), "Package", "Version", "Architecture"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "Package: working" in fields
+    assert "Version: 0.2.0" in fields
+    assert "Architecture: amd64" in fields
+
+    contents = subprocess.run(
+        ["dpkg-deb", "--contents", str(output)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "./opt/working/WorKing" in contents
+    assert "./usr/bin/working" in contents
+    assert "./usr/share/applications/WorKing.desktop" in contents
+    assert "./usr/share/icons/hicolor/scalable/apps/WorKing.svg" in contents
