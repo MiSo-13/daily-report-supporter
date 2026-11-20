@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from uuid import uuid4
 
 from PyQt6.QtCore import QTimer, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QKeyEvent
@@ -191,6 +192,8 @@ class TaskEditor(QWidget):
                 link_url=t.link_url,
                 details=list(t.details),
                 status=t.status,
+                task_id=t.task_id,
+                project_id=t.project_id,
             )
             for t in tasks
         ]
@@ -209,6 +212,8 @@ class TaskEditor(QWidget):
                 link_url=t.link_url,
                 details=list(t.details),
                 status=t.status,
+                task_id=t.task_id,
+                project_id=t.project_id,
             )
             for t in self.tasks
         ]
@@ -287,6 +292,7 @@ class TaskEditor(QWidget):
             self.link_url_input.setFocus()
             return
 
+        task.task_id = str(uuid4())
         self.tasks.append(task)
         self.on_persist()
         self.refresh()
@@ -331,6 +337,8 @@ class TaskEditor(QWidget):
             self.link_url_input.setFocus()
             return
 
+        if task.task_id is None:
+            task.task_id = str(uuid4())
         self.tasks[task_index] = task
         self.on_persist()
         self.refresh(select_row=row)
@@ -456,6 +464,9 @@ class TaskEditor(QWidget):
 
         details_text = self.details_input.toPlainText()
 
+        selected_index = self._task_index_for_row(self.list_widget.currentRow())
+        selected_task = self.tasks[selected_index] if selected_index is not None else None
+
         return Task(
             title=title,
             link_text=self.link_text_input.text().strip(),
@@ -465,6 +476,8 @@ class TaskEditor(QWidget):
                 str(self.status_input.currentData() or self.default_status.value),
                 default=self.default_status,
             ),
+            task_id=selected_task.task_id if selected_task is not None else None,
+            project_id=selected_task.project_id if selected_task is not None else None,
         )
 
     @staticmethod

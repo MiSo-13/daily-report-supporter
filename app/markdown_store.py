@@ -14,6 +14,8 @@ from app.settings import (
 
 CHECKBOX_RE = re.compile(r"^- \[(?P<mark>[ xX])\] (?P<title>.*)$")
 MARKDOWN_LINK_RE = re.compile(r"^\[(?P<text>.*)\]\((?P<url>.+)\)$")
+TASK_ID_PREFIX = "  - 업무 ID:"
+PROJECT_ID_PREFIX = "  - 프로젝트 ID:"
 STATUS_PREFIX = "  - 상태:"
 LINK_PREFIX = "  - 관련 문서:"
 DETAIL_HEADER = "  - 주요 내용:"
@@ -330,6 +332,14 @@ class MarkdownStore:
                 continue
             if current is None:
                 continue
+            if line.startswith(TASK_ID_PREFIX):
+                current.task_id = line[len(TASK_ID_PREFIX):].strip() or None
+                reading_details = False
+                continue
+            if line.startswith(PROJECT_ID_PREFIX):
+                current.project_id = line[len(PROJECT_ID_PREFIX):].strip() or None
+                reading_details = False
+                continue
             if line.startswith(STATUS_PREFIX):
                 current.status = TaskStatus.from_text(
                     line[len(STATUS_PREFIX):],
@@ -367,6 +377,10 @@ class MarkdownStore:
             mark = "x" if item.status is TaskStatus.COMPLETED else " "
             lines.append(f"- [{mark}] {item.title}")
             lines.append(f"  - 상태: {item.status.value}")
+            if item.task_id:
+                lines.append(f"{TASK_ID_PREFIX} {item.task_id}")
+            if item.project_id:
+                lines.append(f"{PROJECT_ID_PREFIX} {item.project_id}")
             if item.link_url:
                 lines.append(f"  - 관련 문서: {item.markdown_link}")
             if item.details:

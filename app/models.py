@@ -28,6 +28,8 @@ class Task:
     link_url: str = ""
     details: list[str] = field(default_factory=list)
     status: TaskStatus = TaskStatus.PLANNED
+    task_id: str | None = None
+    project_id: str | None = None
 
     @property
     def completed(self) -> bool:
@@ -48,7 +50,17 @@ class Task:
             link_url=self.link_url.strip(),
             details=list(self.details),
             status=self.status,
+            task_id=self.task_id,
+            project_id=self.project_id,
         )
+
+
+@dataclass(slots=True)
+class Project:
+    id: str
+    name: str
+    description: str = ""
+    archived: bool = False
 
 
 @dataclass(slots=True)
