@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSplitter,
     QStackedWidget,
+    QTabBar,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -191,10 +192,10 @@ class MainWindow(QMainWindow):
         self.work_view_stack.addWidget(self.work_content)
         self.work_view_stack.addWidget(self.project_workspace.panel)
 
-        self.work_view_tabs = QTabWidget()
-        self.work_view_tabs.addTab(QWidget(), "일일 업무")
-        self.work_view_tabs.addTab(QWidget(), "프로젝트")
-        self.work_view_tabs.setMaximumHeight(36)
+        self.work_view_tabs = QTabBar()
+        self.work_view_tabs.addTab("일일 업무")
+        self.work_view_tabs.addTab("프로젝트")
+        self.work_view_tabs.setExpanding(False)
         self.work_view_tabs.currentChanged.connect(self._work_view_changed)
 
         self.work_panel = QWidget()
