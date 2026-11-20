@@ -229,7 +229,6 @@ class MainWindow(QMainWindow):
         if not self.load_date(date.today()):
             return
         self.work_view_tabs.setCurrentIndex(0)
-        self.today_editor.reload_projects()
         self.today_editor.prepare_new_task(project_id)
         self._refresh_filters(select_date=date.today())
 
