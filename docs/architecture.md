@@ -24,16 +24,17 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 - `app/models.py`: `Project`, `Task`, `TaskStatus`, `DailyDocument`
 - `app/markdown_store.py`: 날짜별 Markdown 읽기/쓰기, 검색, 다음날 이월, 선택적 업무 ID/프로젝트 ID 메타데이터
 - `app/project_store.py`: `config/projects.json` 기반 프로젝트 정의 및 아카이브 관리
-- `app/project_workspace.py`: 프로젝트 목록 검색, 생성/수정 다이얼로그, 보관/복원 UI
+- `app/project_workspace.py`: 프로젝트 목록 검색, 생성/수정·보관·복원, 프로젝트별 Task 목록과 일일 업무 이동
+- `app/project_tasks.py`: 일일 Markdown을 탐색해 프로젝트별 Task 최신 스냅샷 조회
 - `app/task_editor.py`: 업무 편집, 순서 변경, 상세 보기 진입
 - `app/task_detail_dialog.py`: 개별 업무 Markdown 상세 뷰어
 - `app/report_service.py`: 일일보고 텍스트 생성
 - `app/period_report.py`: 기간별 일일 Markdown 집계와 주간·월간 HTML 생성
 - `app/period_report_dialog.py`: 기간 선택, 추가 설명 입력, HTML 미리보기/저장 UI
 
-프로젝트는 날짜와 무관한 독립 개체로 `data/config/projects.json`에 저장합니다. 각 프로젝트의 ID는 변경되지 않으며, 이름 변경과 아카이브 시에도 그대로 유지합니다. 프로젝트 데이터 파일이 없는 기존 환경은 빈 목록으로 처리하고, 손상된 파일을 자동 덮어쓰지 않습니다. `app/project_workspace.py`는 프로젝트 검색·생성·수정·보관·복원 화면을 담당합니다. 업무 탭 안의 `일일 업무 / 프로젝트` 보기에서 전환하며, 기존 Task 연결과 프로젝트별 집계는 후속 PR에서 제공합니다.
+프로젝트는 날짜와 무관한 독립 개체로 `data/config/projects.json`에 저장합니다. 각 프로젝트의 ID는 변경되지 않으며, 이름 변경과 아카이브 시에도 그대로 유지합니다. 프로젝트 데이터 파일이 없는 기존 환경은 빈 목록으로 처리하고, 손상된 파일을 자동 덮어쓰지 않습니다. 업무 탭의 `일일 업무 / 프로젝트` 보기를 통해 프로젝트 검색·관리 및 Task 연결을 제공합니다. 프로젝트에 포함된 Task는 날짜별 Markdown에서 읽어 최신 기록을 보여주며 더블클릭하면 원래 날짜의 Task 편집기로 이동합니다.
 
-신규 UI Task에는 UUID 형태의 `task_id`를 부여합니다. Task의 `project_id`는 선택적이므로 기존 독립 업무가 계속 동작합니다. 두 ID는 기존 일일 Markdown의 `업무 ID`, `프로젝트 ID` 메타데이터로 직렬화하고, 없는 과거 문서는 ID 없이 읽습니다. 이월 시 두 ID를 유지합니다. 기존 일일 문서를 일괄 수정하거나 과거 업무의 ID를 추정하지 않습니다. 프로젝트 연결 작업과 프로젝트별 현황은 후속 PR에서 구현합니다.
+신규 UI Task에는 UUID 형태의 `task_id`를 부여합니다. Task의 `project_id`는 선택적이므로 기존 독립 업무가 계속 동작합니다. 두 ID는 기존 일일 Markdown의 `업무 ID`, `프로젝트 ID` 메타데이터로 직렬화하고, 없는 과거 문서는 ID 없이 읽습니다. 이월 시 두 ID를 유지합니다. 기존 일일 문서를 일괄 수정하거나 과거 업무의 ID를 추정하지 않습니다. 프로젝트 연결·해제는 Task 편집기의 선택 필드로 수행하고, 프로젝트에서 새 Task를 만들면 오늘 일일 문서에 생성합니다. ID가 없는 기존 Task는 동일 제목일지라도 별개 이력일 수 있어 일괄 병합하지 않습니다. 프로젝트별 통계 및 기간 보고서 개선은 후속 PR에서 구현합니다.
 
 업무의 표시 순서와 저장 순서는 별도 order 파일 없이 Markdown에 적힌 순서를 그대로 사용합니다. 완료 업무는 해당 날짜 목록에는 표시하되 다음날 문서를 만들 때는 제외합니다. 예정/진행중/보류는 이월하고 취소도 이월하지 않습니다.
 
