@@ -1,8 +1,15 @@
 from datetime import date
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PyQt6.QtWidgets import QApplication
 
 from app.markdown_store import MarkdownStore
 from app.models import DailyDocument, Task, TaskStatus
 from app.task_editor import TaskEditor
+
+_APP = QApplication.instance() or QApplication([])
 
 
 def test_task_metadata_round_trip_and_legacy_compatibility():
@@ -44,10 +51,9 @@ def test_rollover_preserves_project_and_task_ids(tmp_path):
     assert following.today_tasks[0].project_id == "same-project"
 
 
-def test_editor_preserves_metadata_when_editing_and_copying(qtbot):
+def test_editor_preserves_metadata_when_editing_and_copying():
     editor = TaskEditor("오늘 업무", lambda: None,
                         default_status=TaskStatus.PLANNED)
-    qtbot.addWidget(editor)
     editor.set_tasks([Task("기존 업무", task_id="stable",
                            project_id="parent-project")])
     editor.select_task(0)
@@ -62,7 +68,7 @@ def test_editor_preserves_metadata_when_editing_and_copying(qtbot):
     assert updated.project_id == "parent-project"
 
 
-def test_new_editor_tasks_receive_unique_ids(qtbot):
+def test_new_editor_tasks_receive_unique_ids():
     editor = TaskEditor("오늘 업무", lambda: None,
                         default_status=TaskStatus.PLANNED)
     qtbot.addWidget(editor)
