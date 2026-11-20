@@ -15,25 +15,25 @@ class ProjectTaskEntry:
 
 
 def project_tasks(store: MarkdownStore, project_id: str) -> list[ProjectTaskEntry]:
-    """날짜별 스냅샷 중 프로젝트에 연결된 업무의 가장 최근 기록을 조회한다.
+    """Task ID가 있으면 프로젝트 변경까지 고려한 최신 스냅샷을 조회한다.
 
-    ID가 있는 업무는 이월된 기록을 하나로 합친다. ID 없는 레거시
-    업무는 같은 제목이어도 별개의 기록일 수 있으므로 임의로 합치지 않는다.
+    ID가 없는 예전 Task는 동일 제목이라도 서로 다른 업무일 수 있으므로
+    날짜와 문서 내 순서를 기준으로 별개 기록으로 유지한다.
     """
     latest: dict[tuple[str, str, str], ProjectTaskEntry] = {}
     for target in sorted(store.list_dates()):
         document = store.load(target)
         for index, task in enumerate(document.today_tasks):
-            if task.project_id != project_id:
+            if task.task_id:
+                key = ("task", task.task_id, "")
+            elif task.project_id == project_id:
+                key = ("legacy", target.isoformat(), str(index))
+            else:
                 continue
-            key = (
-                "task" if task.task_id else "legacy",
-                task.task_id or target.isoformat(),
-                "" if task.task_id else str(index),
-            )
             latest[key] = ProjectTaskEntry(target, index, task)
+
     return sorted(
-        latest.values(),
+        (entry for entry in latest.values() if entry.task.project_id == project_id),
         key=lambda entry: (entry.target, entry.task_index),
         reverse=True,
     )
