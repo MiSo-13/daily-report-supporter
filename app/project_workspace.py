@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from html import escape
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -192,7 +193,7 @@ class ProjectWorkspace:
 
     def _show_project(self, project: Project | None) -> None:
         self.title_label.setText(
-            f"<b>{project.name}</b>" if project else "<b>프로젝트를 선택하세요</b>"
+            f"<b>{escape(project.name)}</b>" if project else "<b>프로젝트를 선택하세요</b>"
         )
         self.description_label.setText(project.description if project else "")
         self.state_label.setText(
