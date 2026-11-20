@@ -24,7 +24,8 @@ def test_unsaved_project_change_is_preserved_before_date_navigation(tmp_path):
     reports = MarkdownStore(tmp_path / "reports")
     yesterday = date.today() - timedelta(days=1)
     reports.save(yesterday, DailyDocument(today_tasks=[
-        Task("기존 업무", task_id="stable", project_id=first.id),
+        Task("기존 업무", task_id="stable", project_id=first.id,
+             status=TaskStatus.COMPLETED),
     ]))
 
     window = MainWindow(data_root=tmp_path)
