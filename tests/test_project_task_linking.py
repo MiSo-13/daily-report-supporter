@@ -115,3 +115,19 @@ def test_legacy_markdown_and_unlinked_tasks_remain_supported(tmp_path):
     projects.create("추가 프로젝트")
     assert store.path_for(day).read_text(encoding="utf-8") == original
     assert store.load(day).today_tasks[0].project_id is None
+
+
+def test_reassigned_task_only_appears_in_latest_project(tmp_path):
+    store = MarkdownStore(tmp_path)
+    earlier = date(2026, 11, 18)
+    later = date(2026, 11, 19)
+    store.save(earlier, DailyDocument(today_tasks=[
+        Task("옮길 업무", task_id="move-me", project_id="project-A"),
+    ]))
+    store.save(later, DailyDocument(today_tasks=[
+        Task("옮길 업무", task_id="move-me", project_id="project-B"),
+    ]))
+    assert project_tasks(store, "project-A") == []
+    assert [entry.task.title for entry in project_tasks(store, "project-B")] == [
+        "옮길 업무"
+    ]
