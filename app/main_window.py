@@ -36,6 +36,7 @@ from app.markdown_store import MarkdownStore
 from app.period_report_dialog import PeriodReportDialog
 from app.project_store import ProjectStore
 from app.project_workspace import ProjectWorkspace
+from app.project_tasks import ProjectTaskEntry
 from app.memo_workspace import MemoWorkspace
 from app.models import DailyDocument, Task, TaskStatus
 from app.runtime_paths import AppRuntimePaths, resolve_runtime_paths
@@ -152,6 +153,7 @@ class MainWindow(QMainWindow):
             self.settings.today_section_title,
             self.persist_current,
             default_status=TaskStatus.PLANNED,
+            project_store=self.project_store,
         )
 
         self.current_label = QLabel()
@@ -183,6 +185,9 @@ class MainWindow(QMainWindow):
             self.project_store,
             self,
             lambda message: self.statusBar().showMessage(message, 2500),
+            report_store=self.store,
+            open_task=self._open_project_task,
+            new_task=self._new_project_task,
         )
         self.work_navigation_stack = QStackedWidget()
         self.work_navigation_stack.addWidget(self.work_nav)
@@ -209,8 +214,24 @@ class MainWindow(QMainWindow):
         if index == 1:
             self.today_editor.save_current()
             self.project_workspace.refresh()
+        else:
+            self.today_editor.reload_projects()
         self.work_navigation_stack.setCurrentIndex(index)
         self.work_view_stack.setCurrentIndex(index)
+
+    def _new_project_task(self, project_id: str) -> None:
+        # 새 업무는 오늘의 기존 일일 Markdown 문서에 저장한다.
+        self.work_view_tabs.setCurrentIndex(0)
+        self.today_editor.save_current()
+        self.load_date(date.today())
+        self.today_editor.reload_projects()
+        self.today_editor.prepare_new_task(project_id)
+
+    def _open_project_task(self, entry: ProjectTaskEntry) -> None:
+        self.work_view_tabs.setCurrentIndex(0)
+        self.today_editor.save_current()
+        self.load_date(entry.target)
+        self.today_editor.select_task(entry.task_index)
 
     def _build_memo_workspace(self) -> None:
         self.memo_workspace = MemoWorkspace(
@@ -503,6 +524,7 @@ class MainWindow(QMainWindow):
             f"<b>{target:%Y-%m-%d}</b>  ·  {self.store.path_for(target)}"
         )
         self._legacy_previous_done = document.previous_done
+        self.today_editor.reload_projects()
         self.today_editor.set_tasks(document.today_tasks)
 
     def persist_current(self) -> None:
