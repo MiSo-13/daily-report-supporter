@@ -57,6 +57,7 @@ class MarkdownStore:
         if source is None:
             document = DailyDocument()
         else:
+            # 완료·취소 업무는 제외하고 기존 업무 ID와 프로젝트를 유지한다.
             pending = [
                 replace(task)
                 for task in source.today_tasks

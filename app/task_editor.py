@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from uuid import uuid4
 
 from PyQt6.QtCore import QTimer, Qt, QUrl
@@ -221,18 +222,7 @@ class TaskEditor(QWidget):
         self.heading_label.setText(f"<b>{title}</b>")
 
     def set_tasks(self, tasks: list[Task]) -> None:
-        self.tasks = [
-            Task(
-                title=t.title,
-                link_text=t.link_text,
-                link_url=t.link_url,
-                details=list(t.details),
-                status=t.status,
-                task_id=t.task_id,
-                project_id=t.project_id,
-            )
-            for t in tasks
-        ]
+        self.tasks = [replace(task, details=list(task.details)) for task in tasks]
         self.refresh()
         self.enter_add_mode()
 
@@ -241,18 +231,8 @@ class TaskEditor(QWidget):
             self.list_widget.setCurrentRow(index)
 
     def get_tasks(self) -> list[Task]:
-        return [
-            Task(
-                title=t.title,
-                link_text=t.link_text,
-                link_url=t.link_url,
-                details=list(t.details),
-                status=t.status,
-                task_id=t.task_id,
-                project_id=t.project_id,
-            )
-            for t in self.tasks
-        ]
+        # 편집기 밖에서 내용을 변경해도 원본 목록이 바뀌지 않게 복사한다.
+        return [replace(task, details=list(task.details)) for task in self.tasks]
 
     def refresh(self, select_row: int | None = None) -> None:
         self.list_widget.blockSignals(True)
@@ -264,16 +244,22 @@ class TaskEditor(QWidget):
             TaskStatus.ON_HOLD: "Ⅱ",
             TaskStatus.CANCELLED: "×",
         }
+        # 프로젝트 정보는 업무마다 파일을 읽지 않고 한 번에 조회한다.
+        projects = (
+            {project.id: project.name for project in self.project_store.list_projects(
+                include_archived=True
+            )}
+            if self.project_store is not None else {}
+        )
         for index, task in enumerate(self.tasks):
             item = QListWidgetItem(
                 f"{symbols[task.status]} [{task.status.value}] "
                 f"{task.title or '(제목 없음)'}"
             )
             item.setData(Qt.ItemDataRole.UserRole, index)
-            if task.project_id and self.project_store is not None:
-                project = self.project_store.get(task.project_id)
-                if project is not None:
-                    item.setText(item.text() + f"  ·  {project.name}")
+            project_name = projects.get(task.project_id)
+            if project_name is not None:
+                item.setText(item.text() + f"  ·  {project_name}")
             if task.link_url:
                 label = task.link_text or task.link_url
                 item.setToolTip(f"{label}\n{task.link_url}")

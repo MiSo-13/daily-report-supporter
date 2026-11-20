@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
 from html import escape
 
 from PyQt6.QtCore import Qt
@@ -94,7 +93,6 @@ class ProjectWorkspace:
         self.store = store
         self.parent = parent
         self.notify = notify
-        self.report_store = report_store
         self.task_index = ProjectTaskIndex(report_store) if report_store is not None else None
         self.open_task = open_task
         self.new_task = new_task

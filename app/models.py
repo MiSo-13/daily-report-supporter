@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from enum import Enum
 
@@ -44,14 +44,12 @@ class Task:
         return f"[{text}]({url})"
 
     def normalized(self) -> "Task":
-        return Task(
+        return replace(
+            self,
             title=self.title.strip(),
             link_text=self.link_text.strip(),
             link_url=self.link_url.strip(),
             details=list(self.details),
-            status=self.status,
-            task_id=self.task_id,
-            project_id=self.project_id,
         )
 
 
