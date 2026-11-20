@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
 from app.models import Project
 from app.project_store import ProjectStore
 from app.markdown_store import MarkdownStore
-from app.project_tasks import ProjectTaskEntry, project_tasks, project_task_counts
+from app.project_tasks import ProjectTaskEntry, ProjectTaskIndex, project_task_counts
 
 
 class ProjectDialog(QDialog):
@@ -95,6 +95,7 @@ class ProjectWorkspace:
         self.parent = parent
         self.notify = notify
         self.report_store = report_store
+        self.task_index = ProjectTaskIndex(report_store) if report_store is not None else None
         self.open_task = open_task
         self.new_task = new_task
         self._task_entries: list[ProjectTaskEntry] = []
@@ -270,8 +271,8 @@ class ProjectWorkspace:
     def _reload_tasks(self, project: Project | None) -> None:
         self._has_selected_project = project is not None
         self._task_entries = (
-            project_tasks(self.report_store, project.id)
-            if project is not None and self.report_store is not None else []
+            self.task_index.for_project(project.id)
+            if project is not None and self.task_index is not None else []
         )
         counts = project_task_counts(self._task_entries)
         self.summary_label.setText(
