@@ -7,6 +7,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 packages=(
+  libegl1
   libx11-6
   libx11-xcb1
   libxext6
@@ -32,6 +33,7 @@ packages=(
   libxcb-xkb1
   libxkbcommon0
   libxkbcommon-x11-0
+  openssh-client
 )
 
 echo "Crostini용 Qt/X11 런타임 패키지를 설치합니다."

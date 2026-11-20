@@ -2,7 +2,7 @@
 
 WorKing은 일일 업무를 Markdown으로 관리하는 PyQt6 데스크톱 앱입니다. 업무 기록 외에 메모, 로컬/SSH 터미널, MySQL/PostgreSQL 조회 기능을 한 화면에서 같이 사용할 수 있습니다.
 
-사용자 데이터는 실행 파일 옆 `data/`에 저장합니다. 별도 서버나 계정 없이 파일 그대로 백업하고 옮길 수 있는 구조입니다.
+단일 실행 파일과 소스 실행에서는 사용자 데이터를 실행 위치 옆 `data/`에 저장합니다. ChromeOS/Crostini용 `.deb` 설치에서는 시스템 영역과 사용자 데이터를 분리해 `~/.local/share/WorKing/`을 사용합니다. 별도 서버나 계정 없이 파일 그대로 백업하고 옮길 수 있습니다.
 
 ## 주요 기능
 
@@ -67,10 +67,10 @@ Python 없이 실행하려면 [GitHub Releases](https://github.com/MiSo-13/daily
 | Windows x64 | `WorKing.exe` |
 | macOS Apple Silicon | `WorKing-macos-arm64.zip` |
 | macOS Intel | `WorKing-macos-x64.zip` |
-| ChromeOS/Crostini x64 | `WorKing-linux-x64` |
-| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64` |
+| ChromeOS/Crostini x64 | `WorKing-linux-x64.deb` 또는 `WorKing-linux-x64` |
+| ChromeOS/Crostini ARM64 | `WorKing-linux-arm64.deb` 또는 `WorKing-linux-arm64` |
 
-ChromeOS/Crostini에서 아키텍처가 헷갈리면 터미널에서 `uname -m`을 확인합니다. `x86_64`이면 x64, `aarch64`/ARM64이면 arm64 파일을 사용합니다. Linux 앱 목록에 직접 등록할 때는 `WorKing.desktop`과 아이콘 파일을 함께 설정할 수 있습니다.
+ChromeOS/Crostini에서는 `.deb` 설치를 권장합니다. 필요한 Linux runtime dependency, 앱 메뉴 등록, SVG 아이콘이 함께 설치됩니다. 아키텍처가 헷갈리면 터미널에서 `uname -m`을 확인합니다. `x86_64`이면 x64, `aarch64`/ARM64이면 arm64 파일을 사용합니다.
 
 설치, Crostini desktop 등록, 첫 실행은 [빠른 시작](./docs/getting-started.md)을 참고하세요.
 
@@ -104,12 +104,12 @@ bash scripts/setup_crostini.sh
 
 ## 데이터 위치
 
-WorKing은 실행 위치 옆 `data/`만 사용자 데이터 위치로 사용합니다.
+단일 실행 파일과 소스 실행은 실행 위치 옆 `data/`를 사용합니다.
 
 ```text
 WorKing/
 ├─ WorKing.exe       # Windows
-# 또는 WorKing       # Linux/Crostini
+# 또는 WorKing       # Linux/Crostini 포터블 실행
 # 또는 WorKing.app   # macOS
 └─ data/
    ├─ config/
@@ -118,6 +118,17 @@ WorKing/
 ```
 
 소스 실행에서는 저장소 루트의 `data/`를 사용합니다.
+
+ChromeOS/Crostini에서 `.deb`로 설치한 경우에는 시스템 설치 경로에 데이터를 쓰지 않고 다음 사용자 경로를 사용합니다.
+
+```text
+~/.local/share/WorKing/
+├─ config/
+├─ reports/
+└─ memos/
+```
+
+`XDG_DATA_HOME`이 설정되어 있으면 `$XDG_DATA_HOME/WorKing/`을 사용합니다.
 
 주요 파일은 다음과 같습니다.
 

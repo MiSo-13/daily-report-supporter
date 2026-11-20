@@ -213,3 +213,41 @@ def test_data_directory_names_are_centralized() -> None:
         == TRANSITIONAL_DATA_DIR_NAME
         == "WorKing"
     )
+
+
+def test_configured_data_root_overrides_packaged_location(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    data_root = tmp_path / "xdg" / "WorKing"
+    monkeypatch.setenv(paths.DATA_ROOT_ENV, str(data_root))
+
+    assert paths.default_data_root(
+        frozen=True,
+        executable=tmp_path / "opt" / "working" / "WorKing",
+        platform="linux",
+    ) == data_root
+    assert paths.default_config_root(
+        frozen=True,
+        executable=tmp_path / "opt" / "working" / "WorKing",
+        platform="linux",
+    ) == data_root / "config"
+    assert paths.default_terminal_cwd(
+        frozen=True,
+        executable=tmp_path / "opt" / "working" / "WorKing",
+        platform="linux",
+    ) == data_root
+
+
+def test_empty_configured_data_root_keeps_portable_behavior(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv(paths.DATA_ROOT_ENV, "   ")
+    executable = tmp_path / "WorKing"
+
+    assert paths.default_data_root(
+        frozen=True,
+        executable=executable,
+        platform="linux",
+    ) == tmp_path / "data"

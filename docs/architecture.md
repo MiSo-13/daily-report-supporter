@@ -13,11 +13,11 @@ WorKing은 PyQt6 UI 위에 업무, 메모, 터미널, DB Viewer를 각각 분리
 
 ## 경로와 데이터 이동
 
-- `app/paths.py`: portable `data/` 경로와 legacy 위치 계산
+- `app/paths.py`: portable `data/` 경로, `WORKING_DATA_ROOT` 설치형 override, legacy 위치 계산
 - `app/runtime_paths.py`: 실제 실행에 사용할 경로 묶음 구성
 - `app/data_migration.py`: 이전 데이터 위치에서 현재 `data/`로 복사
 
-홈 디렉터리의 예전 경로는 migration source로만 읽습니다. 현재 사용자 데이터는 `<app-root>/data/`에만 기록합니다.
+홈 디렉터리의 예전 경로는 migration source로만 읽습니다. 기본 포터블 실행은 `<app-root>/data/`에 기록합니다. Debian 패키지 런처처럼 `WORKING_DATA_ROOT`가 설정된 경우에는 해당 사용자 경로를 data root로 사용하고 터미널 시작 디렉터리도 그 경로로 맞춥니다.
 
 ## 업무와 보고서
 
