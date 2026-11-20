@@ -308,6 +308,31 @@ class TaskEditor(QWidget):
         self.list_widget.set_reordering_enabled(True)
         self.title_input.setFocus()
 
+    def save_before_navigation(self) -> bool:
+        """미저장 업무를 확인하고 저장한다. 유효하지 않으면 이동을 막는다."""
+        task_index = self._task_index_for_row(self.list_widget.currentRow())
+        draft = self._task_from_form(allow_empty_title=True)
+        if task_index is not None:
+            if draft == self.tasks[task_index]:
+                return True
+        elif not self._form_has_draft():
+            return True
+
+        if draft is None or not draft.title:
+            self._show_validation("업무 제목을 입력하세요. 이동하지 않았습니다.")
+            self.title_input.setFocus()
+            return False
+        if draft.link_text and not draft.link_url:
+            self._show_validation("URL을 입력하세요. 이동하지 않았습니다.")
+            self.link_url_input.setFocus()
+            return False
+
+        if task_index is not None:
+            self.save_changes()
+        else:
+            self.add_task()
+        return True
+
     def save_current(self) -> None:
         row = self.list_widget.currentRow()
         if 0 <= row < len(self.tasks):
