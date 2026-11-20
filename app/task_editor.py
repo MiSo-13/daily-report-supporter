@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from app.dialogs import DeleteConfirmDialog
 from app.models import Task, TaskStatus
+from app.project_store import ProjectStore
 from app.reorderable_list import ReorderableListWidget
 from app.task_detail_dialog import TaskDetailDialog
 
@@ -59,10 +60,12 @@ class TaskEditor(QWidget):
         on_persist: Callable[[], None],
         *,
         default_status: TaskStatus,
+        project_store: ProjectStore | None = None,
     ) -> None:
         super().__init__()
         self.on_persist = on_persist
         self.default_status = default_status
+        self.project_store = project_store
         self.tasks: list[Task] = []
         self._loading_form = False
 
@@ -105,6 +108,10 @@ class TaskEditor(QWidget):
         for status in TaskStatus:
             self.status_input.addItem(status.value, status.value)
 
+        self.project_input = QComboBox()
+        self.project_input.setObjectName("taskProjectInput")
+        self.reload_projects()
+
         self.validation_label = QLabel("")
         self.validation_label.setWordWrap(True)
 
@@ -114,6 +121,7 @@ class TaskEditor(QWidget):
         self.link_url_input.textChanged.connect(self._update_open_url_button)
         self.details_input.textChanged.connect(self._form_changed)
         self.status_input.currentIndexChanged.connect(self._form_changed)
+        self.project_input.currentIndexChanged.connect(self._form_changed)
 
         form = QFormLayout()
         form.addRow("제목", self.title_input)
@@ -121,6 +129,7 @@ class TaskEditor(QWidget):
         form.addRow("URL", url_row)
         form.addRow("주요 내용", self.details_input)
         form.addRow("상태", self.status_input)
+        form.addRow("프로젝트", self.project_input)
         form.addRow("", self.validation_label)
 
         self.add_button = QPushButton("+ 업무 추가")
@@ -181,6 +190,33 @@ class TaskEditor(QWidget):
 
         self._set_add_mode()
 
+    def reload_projects(self) -> None:
+        """프로젝트 이름 변경과 보관 상태를 선택 목록에 반영한다."""
+        current_id = self.project_input.currentData()
+        self.project_input.blockSignals(True)
+        self.project_input.clear()
+        self.project_input.addItem("프로젝트 없음", None)
+        if self.project_store is not None:
+            for project in self.project_store.list_projects(include_archived=True):
+                suffix = " (보관됨)" if project.archived else ""
+                self.project_input.addItem(project.name + suffix, project.id)
+        self._select_project(current_id)
+        self.project_input.blockSignals(False)
+
+    def _select_project(self, project_id: str | None) -> None:
+        index = self.project_input.findData(project_id)
+        if index < 0 and project_id:
+            self.project_input.addItem(f"알 수 없는 프로젝트 ({project_id})", project_id)
+            index = self.project_input.count() - 1
+        self.project_input.setCurrentIndex(max(index, 0))
+
+    def prepare_new_task(self, project_id: str) -> None:
+        self.enter_add_mode()
+        self._loading_form = True
+        self._select_project(project_id)
+        self._loading_form = False
+        self.title_input.setFocus()
+
     def set_title(self, title: str) -> None:
         self.heading_label.setText(f"<b>{title}</b>")
 
@@ -234,6 +270,10 @@ class TaskEditor(QWidget):
                 f"{task.title or '(제목 없음)'}"
             )
             item.setData(Qt.ItemDataRole.UserRole, index)
+            if task.project_id and self.project_store is not None:
+                project = self.project_store.get(task.project_id)
+                if project is not None:
+                    item.setText(item.text() + f"  ·  {project.name}")
             if task.link_url:
                 label = task.link_text or task.link_url
                 item.setToolTip(f"{label}\n{task.link_url}")
@@ -360,6 +400,7 @@ class TaskEditor(QWidget):
         self.details_input.setPlainText("\n".join(task.details))
         index = self.status_input.findData(task.status.value)
         self.status_input.setCurrentIndex(max(index, 0))
+        self._select_project(task.project_id)
         self.validation_label.clear()
         self._loading_form = False
         self._set_edit_mode()
@@ -453,6 +494,7 @@ class TaskEditor(QWidget):
             or self.link_text_input.text().strip()
             or self.link_url_input.text().strip()
             or self.details_input.toPlainText()
+            or self.project_input.currentData() is not None
             or str(self.status_input.currentData() or default_status)
             != default_status
         )
@@ -477,7 +519,7 @@ class TaskEditor(QWidget):
                 default=self.default_status,
             ),
             task_id=selected_task.task_id if selected_task is not None else None,
-            project_id=selected_task.project_id if selected_task is not None else None,
+            project_id=self.project_input.currentData(),
         )
 
     @staticmethod
@@ -509,6 +551,7 @@ class TaskEditor(QWidget):
         self.validation_label.clear()
         index = self.status_input.findData(self.default_status.value)
         self.status_input.setCurrentIndex(max(index, 0))
+        self._select_project(None)
         self._loading_form = False
 
     def _set_add_mode(self) -> None:
