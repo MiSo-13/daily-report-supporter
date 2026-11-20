@@ -212,6 +212,8 @@ class TaskEditor(QWidget):
                 link_url=t.link_url,
                 details=list(t.details),
                 status=t.status,
+                task_id=t.task_id,
+                project_id=t.project_id,
             )
             for t in self.tasks
         ]
