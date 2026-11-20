@@ -98,6 +98,7 @@ class ProjectWorkspace:
         self.open_task = open_task
         self.new_task = new_task
         self._task_entries: list[ProjectTaskEntry] = []
+        self._has_selected_project = False
         self.selected_id: str | None = None
 
         self.sidebar = QWidget(parent)
@@ -246,6 +247,7 @@ class ProjectWorkspace:
         self._reload_tasks(project)
 
     def _reload_tasks(self, project: Project | None) -> None:
+        self._has_selected_project = project is not None
         self._task_entries = (
             project_tasks(self.report_store, project.id)
             if project is not None and self.report_store is not None else []
@@ -285,7 +287,7 @@ class ProjectWorkspace:
             f"소속 업무 ({self.task_list.count()}/{len(self._task_entries)})"
         )
         self.task_placeholder.setVisible(
-            self.summary_label.isVisible() and not self._task_entries
+            self._has_selected_project and not self._task_entries
         )
 
     def _create_project_task(self) -> None:
