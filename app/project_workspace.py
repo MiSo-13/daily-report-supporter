@@ -1,0 +1,265 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from html import escape
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from app.models import Project
+from app.project_store import ProjectStore
+
+
+class ProjectDialog(QDialog):
+    """프로젝트 이름과 설명을 입력한다."""
+
+    def __init__(self, parent: QWidget, project: Project | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("프로젝트 수정" if project else "새 프로젝트")
+        self.setMinimumWidth(380)
+
+        self.name_input = QLineEdit(project.name if project else "")
+        self.name_input.setPlaceholderText("프로젝트 이름")
+        self.description_input = QTextEdit()
+        self.description_input.setPlaceholderText("프로젝트 설명 (선택)")
+        self.description_input.setFixedHeight(110)
+        if project:
+            self.description_input.setPlainText(project.description)
+
+        self.error_label = QLabel("")
+        self.error_label.setWordWrap(True)
+        self.buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        self.buttons.accepted.connect(self._validate)
+        self.buttons.rejected.connect(self.reject)
+
+        form = QFormLayout()
+        form.addRow("이름", self.name_input)
+        form.addRow("설명", self.description_input)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(self.error_label)
+        layout.addWidget(self.buttons)
+
+    @property
+    def project_name(self) -> str:
+        return self.name_input.text().strip()
+
+    @property
+    def project_description(self) -> str:
+        return self.description_input.toPlainText()
+
+    def _validate(self) -> None:
+        if not self.project_name:
+            self.error_label.setText("프로젝트 이름을 입력하세요.")
+            self.name_input.setFocus()
+            return
+        self.accept()
+
+
+class ProjectWorkspace:
+    """프로젝트 목록/상세 관리 UI. Task 연결은 후속 PR에서 처리한다."""
+
+    def __init__(
+        self,
+        store: ProjectStore,
+        parent: QWidget,
+        notify: Callable[[str], None],
+    ) -> None:
+        self.store = store
+        self.parent = parent
+        self.notify = notify
+        self.selected_id: str | None = None
+
+        self.sidebar = QWidget(parent)
+        side_layout = QVBoxLayout(self.sidebar)
+        side_layout.setContentsMargins(10, 10, 10, 10)
+        side_layout.setSpacing(8)
+
+        header = QHBoxLayout()
+        header.addWidget(QLabel("<b>프로젝트</b>"))
+        self.add_button = QPushButton("+ 새 프로젝트")
+        self.add_button.setObjectName("primaryButton")
+        header.addWidget(self.add_button)
+        side_layout.addLayout(header)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("프로젝트 검색")
+        self.search_input.setClearButtonEnabled(True)
+        self.show_archived = QCheckBox("보관된 프로젝트 표시")
+        self.project_list = QListWidget()
+        self.project_list.setObjectName("projectList")
+        side_layout.addWidget(self.search_input)
+        side_layout.addWidget(self.show_archived)
+        side_layout.addWidget(self.project_list, 1)
+
+        self.panel = QWidget(parent)
+        content_layout = QVBoxLayout(self.panel)
+        content_layout.setContentsMargins(12, 12, 12, 12)
+        content_layout.setSpacing(10)
+
+        self.title_label = QLabel("<b>프로젝트를 선택하세요</b>")
+        self.title_label.setObjectName("projectTitle")
+        self.description_label = QLabel("")
+        self.description_label.setWordWrap(True)
+        self.state_label = QLabel("")
+
+        self.edit_button = QPushButton("수정")
+        self.archive_button = QPushButton("보관")
+        self.restore_button = QPushButton("복원")
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.edit_button)
+        buttons.addWidget(self.archive_button)
+        buttons.addWidget(self.restore_button)
+        buttons.addStretch(1)
+        content_layout.addWidget(self.title_label)
+        content_layout.addWidget(self.description_label)
+        content_layout.addWidget(self.state_label)
+        content_layout.addLayout(buttons)
+        self.task_placeholder = QLabel(
+            "프로젝트별 하위 업무 목록은 다음 개발 단계에서 제공됩니다."
+        )
+        self.task_placeholder.setWordWrap(True)
+        content_layout.addWidget(self.task_placeholder)
+        content_layout.addStretch(1)
+
+        self.add_button.clicked.connect(self.create_project)
+        self.edit_button.clicked.connect(self.edit_project)
+        self.archive_button.clicked.connect(self.archive_project)
+        self.restore_button.clicked.connect(self.restore_project)
+        self.search_input.textChanged.connect(self.refresh)
+        self.show_archived.toggled.connect(self.refresh)
+        self.project_list.currentItemChanged.connect(self._selected)
+        self.refresh()
+
+    def refresh(self, *_args: object) -> None:
+        keyword = self.search_input.text().strip().casefold()
+        selected_id = self.selected_id
+        self.project_list.blockSignals(True)
+        self.project_list.clear()
+        selected_item: QListWidgetItem | None = None
+        for project in self.store.list_projects(
+            include_archived=self.show_archived.isChecked()
+        ):
+            if keyword and keyword not in (
+                project.name + " " + project.description
+            ).casefold():
+                continue
+            label = project.name + ("  ·  보관됨" if project.archived else "")
+            item = QListWidgetItem(label)
+            item.setData(Qt.ItemDataRole.UserRole, project.id)
+            self.project_list.addItem(item)
+            if project.id == selected_id:
+                selected_item = item
+        self.project_list.blockSignals(False)
+        if selected_item is not None:
+            self.project_list.setCurrentItem(selected_item)
+        elif self.project_list.count():
+            self.project_list.setCurrentRow(0)
+        else:
+            self.selected_id = None
+            self._show_project(None)
+
+    def _selected(
+        self,
+        current: QListWidgetItem | None,
+        _previous: QListWidgetItem | None,
+    ) -> None:
+        self.selected_id = (
+            str(current.data(Qt.ItemDataRole.UserRole))
+            if current is not None else None
+        )
+        self._show_project(
+            self.store.get(self.selected_id) if self.selected_id else None
+        )
+
+    def _show_project(self, project: Project | None) -> None:
+        self.title_label.setText(
+            f"<b>{escape(project.name)}</b>" if project else "<b>프로젝트를 선택하세요</b>"
+        )
+        self.description_label.setText(project.description if project else "")
+        self.state_label.setText(
+            "보관된 프로젝트" if project and project.archived else ""
+        )
+        self.edit_button.setEnabled(project is not None)
+        self.archive_button.setVisible(bool(project and not project.archived))
+        self.restore_button.setVisible(bool(project and project.archived))
+        self.task_placeholder.setVisible(project is not None)
+
+    def create_project(self) -> None:
+        dialog = ProjectDialog(self.parent)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            project = self.store.create(
+                dialog.project_name, dialog.project_description
+            )
+        except (OSError, ValueError) as exc:
+            self._show_error(str(exc))
+            return
+        self.selected_id = project.id
+        self.search_input.clear()
+        self.show_archived.setChecked(False)
+        self.refresh()
+        self.notify("프로젝트 생성 완료")
+
+    def edit_project(self) -> None:
+        project = self.store.get(self.selected_id) if self.selected_id else None
+        if project is None:
+            return
+        dialog = ProjectDialog(self.parent, project)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self.store.update(
+                project.id, name=dialog.project_name,
+                description=dialog.project_description,
+            )
+        except (OSError, ValueError) as exc:
+            self._show_error(str(exc))
+            return
+        self.refresh()
+        self.notify("프로젝트 수정 완료")
+
+    def archive_project(self) -> None:
+        if not self.selected_id:
+            return
+        try:
+            self.store.archive(self.selected_id)
+        except (OSError, ValueError, KeyError) as exc:
+            self._show_error(str(exc))
+            return
+        self.refresh()
+        self.notify("프로젝트를 보관했습니다.")
+
+    def restore_project(self) -> None:
+        if not self.selected_id:
+            return
+        try:
+            self.store.update(self.selected_id, archived=False)
+        except (OSError, ValueError, KeyError) as exc:
+            self._show_error(str(exc))
+            return
+        self.refresh()
+        self.notify("프로젝트를 복원했습니다.")
+
+    def _show_error(self, message: str) -> None:
+        QMessageBox.warning(self.parent, "프로젝트 저장 오류", message)

@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSplitter,
     QStackedWidget,
+    QTabBar,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -33,6 +34,8 @@ from app.app_meta import APP_NAME, ORGANIZATION_NAME
 from app.database_workspace import DatabaseWorkspace
 from app.markdown_store import MarkdownStore
 from app.period_report_dialog import PeriodReportDialog
+from app.project_store import ProjectStore
+from app.project_workspace import ProjectWorkspace
 from app.memo_workspace import MemoWorkspace
 from app.models import DailyDocument, Task, TaskStatus
 from app.runtime_paths import AppRuntimePaths, resolve_runtime_paths
@@ -94,6 +97,7 @@ class MainWindow(QMainWindow):
             previous_section_title=self.settings.previous_section_title,
             today_section_title=self.settings.today_section_title,
         )
+        self.project_store = ProjectStore(paths.config_root)
         self.paths = paths
         self.current_date = date.today()
         self._legacy_previous_done: list[Task] = []
@@ -174,6 +178,40 @@ class MainWindow(QMainWindow):
         content_layout.addLayout(toolbar)
         content_layout.addWidget(self.today_editor, 1)
 
+        # 기존 날짜별 업무 화면은 유지하고, 프로젝트 보기만 전환한다.
+        self.project_workspace = ProjectWorkspace(
+            self.project_store,
+            self,
+            lambda message: self.statusBar().showMessage(message, 2500),
+        )
+        self.work_navigation_stack = QStackedWidget()
+        self.work_navigation_stack.addWidget(self.work_nav)
+        self.work_navigation_stack.addWidget(self.project_workspace.sidebar)
+
+        self.work_view_stack = QStackedWidget()
+        self.work_view_stack.addWidget(self.work_content)
+        self.work_view_stack.addWidget(self.project_workspace.panel)
+
+        self.work_view_tabs = QTabBar()
+        self.work_view_tabs.addTab("일일 업무")
+        self.work_view_tabs.addTab("프로젝트")
+        self.work_view_tabs.setExpanding(False)
+        self.work_view_tabs.currentChanged.connect(self._work_view_changed)
+
+        self.work_panel = QWidget()
+        work_panel_layout = QVBoxLayout(self.work_panel)
+        work_panel_layout.setContentsMargins(0, 0, 0, 0)
+        work_panel_layout.setSpacing(4)
+        work_panel_layout.addWidget(self.work_view_tabs)
+        work_panel_layout.addWidget(self.work_view_stack, 1)
+
+    def _work_view_changed(self, index: int) -> None:
+        if index == 1:
+            self.today_editor.save_current()
+            self.project_workspace.refresh()
+        self.work_navigation_stack.setCurrentIndex(index)
+        self.work_view_stack.setCurrentIndex(index)
+
     def _build_memo_workspace(self) -> None:
         self.memo_workspace = MemoWorkspace(
             self.paths.memos_root,
@@ -205,14 +243,14 @@ class MainWindow(QMainWindow):
 
     def _build_workspace_shell(self) -> None:
         self.workspace_tabs = QTabWidget()
-        self.workspace_tabs.addTab(self.work_nav, "업무")
+        self.workspace_tabs.addTab(self.work_navigation_stack, "업무")
         self.workspace_tabs.addTab(self.memo_sidebar, "메모")
         self.workspace_tabs.addTab(self.terminal_sidebar, "터미널")
         self.workspace_tabs.addTab(self.database_sidebar, "DB")
         self.workspace_tabs.currentChanged.connect(self._workspace_changed)
 
         self.content_stack = QStackedWidget()
-        self.content_stack.addWidget(self.work_content)
+        self.content_stack.addWidget(self.work_panel)
         self.content_stack.addWidget(self.memo_editor)
         self.content_stack.addWidget(self.terminal_panel)
         self.content_stack.addWidget(self.database_panel)
@@ -253,8 +291,9 @@ class MainWindow(QMainWindow):
         if workspace_index in (2, 3):
             return
 
-        self.today_editor.save_current()
-        self.statusBar().showMessage("저장 완료", 1800)
+        if self.work_view_tabs.currentIndex() == 0:
+            self.today_editor.save_current()
+            self.statusBar().showMessage("저장 완료", 1800)
 
     def _workspace_changed(self, index: int) -> None:
         if index != 1:
