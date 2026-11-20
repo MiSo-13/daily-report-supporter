@@ -37,3 +37,16 @@ def project_tasks(store: MarkdownStore, project_id: str) -> list[ProjectTaskEntr
         key=lambda entry: (entry.target, entry.task_index),
         reverse=True,
     )
+
+
+
+def project_task_counts(
+    entries: list[ProjectTaskEntry],
+) -> dict[str, int]:
+    """최신 업무 상태를 기준으로 프로젝트 업무 수를 집계한다."""
+    counts = {"전체": len(entries)}
+    for status in ("예정", "진행중", "완료", "보류", "취소"):
+        counts[status] = 0
+    for entry in entries:
+        counts[entry.task.status.value] += 1
+    return counts
