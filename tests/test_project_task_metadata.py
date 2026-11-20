@@ -71,7 +71,6 @@ def test_editor_preserves_metadata_when_editing_and_copying():
 def test_new_editor_tasks_receive_unique_ids():
     editor = TaskEditor("오늘 업무", lambda: None,
                         default_status=TaskStatus.PLANNED)
-    qtbot.addWidget(editor)
     editor.title_input.setText("첫 번째")
     editor.add_task()
     editor.title_input.setText("두 번째")
