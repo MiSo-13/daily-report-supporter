@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from collections.abc import Iterable
 
 from app.markdown_store import MarkdownStore
-from app.models import Task
+from app.models import Task, TaskStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,24 +15,28 @@ class ProjectTaskEntry:
     task: Task
 
 
-def project_tasks(store: MarkdownStore, project_id: str) -> list[ProjectTaskEntry]:
-    """Task ID가 있으면 프로젝트 변경까지 고려한 최신 스냅샷을 조회한다.
-
-    ID가 없는 예전 Task는 동일 제목이라도 서로 다른 업무일 수 있으므로
-    날짜와 문서 내 순서를 기준으로 별개 기록으로 유지한다.
-    """
+def _latest_entries(
+    snapshots: Iterable[tuple[date, list[Task]]],
+) -> dict[tuple[str, str, str], ProjectTaskEntry]:
+    # 이월된 업무는 ID로 합치고, ID 없는 옛 업무는 날짜별로 구분한다.
     latest: dict[tuple[str, str, str], ProjectTaskEntry] = {}
-    for target in sorted(store.list_dates()):
-        document = store.load(target)
-        for index, task in enumerate(document.today_tasks):
+    for target, tasks in snapshots:
+        for index, task in enumerate(tasks):
             if task.task_id:
                 key = ("task", task.task_id, "")
-            elif task.project_id == project_id:
+            elif task.project_id:
                 key = ("legacy", target.isoformat(), str(index))
             else:
                 continue
             latest[key] = ProjectTaskEntry(target, index, task)
+    return latest
 
+
+def _entries_for_project(
+    latest: dict[tuple[str, str, str], ProjectTaskEntry],
+    project_id: str,
+) -> list[ProjectTaskEntry]:
+    # 프로젝트 이동·해제는 업무의 가장 최근 기록을 기준으로 판단한다.
     return sorted(
         (entry for entry in latest.values() if entry.task.project_id == project_id),
         key=lambda entry: (entry.target, entry.task_index),
@@ -39,30 +44,30 @@ def project_tasks(store: MarkdownStore, project_id: str) -> list[ProjectTaskEntr
     )
 
 
+def project_tasks(store: MarkdownStore, project_id: str) -> list[ProjectTaskEntry]:
+    """기존 호출부에서 사용하는 파일 기반 업무 조회."""
+    snapshots = (
+        (target, store.load(target).today_tasks)
+        for target in sorted(store.list_dates())
+    )
+    return _entries_for_project(_latest_entries(snapshots), project_id)
 
-def project_task_counts(
-    entries: list[ProjectTaskEntry],
-) -> dict[str, int]:
-    """최신 업무 상태를 기준으로 프로젝트 업무 수를 집계한다."""
-    counts = {"전체": len(entries)}
-    for status in ("예정", "진행중", "완료", "보류", "취소"):
-        counts[status] = 0
+
+def project_task_counts(entries: list[ProjectTaskEntry]) -> dict[str, int]:
+    """업무의 가장 최근 상태를 건수로 집계한다."""
+    counts = {"전체": len(entries), **{status.value: 0 for status in TaskStatus}}
     for entry in entries:
         counts[entry.task.status.value] += 1
     return counts
 
 
 class ProjectTaskIndex:
-    """변경된 날짜의 Markdown만 다시 읽는 프로젝트 업무 인덱스.
-
-    메모리에만 유지하고 원본 보고서나 별도 인덱스 파일을 수정하지 않는다.
-    """
+    """변경된 날짜만 다시 읽는 메모리 인덱스."""
 
     def __init__(self, store: MarkdownStore) -> None:
         self.store = store
         self._snapshots: dict[date, tuple[tuple[int, int, int, int], list[Task]]] = {}
         self._latest: dict[tuple[str, str, str], ProjectTaskEntry] = {}
-        self._dirty = True
 
     def _sync(self) -> None:
         dates = set(self.store.list_dates())
@@ -76,7 +81,7 @@ class ProjectTaskIndex:
             try:
                 stat = path.stat()
             except FileNotFoundError:
-                # 목록을 생성한 직후 삭제된 파일도 안전하게 건너뛴다.
+                # 조회 도중 파일이 삭제될 수 있다.
                 if target in self._snapshots:
                     del self._snapshots[target]
                     changed = True
@@ -89,27 +94,15 @@ class ProjectTaskIndex:
             self._snapshots[target] = (signature, document.today_tasks)
             changed = True
 
-        if not (changed or self._dirty):
+        if not changed:
             return
 
-        latest: dict[tuple[str, str, str], ProjectTaskEntry] = {}
-        for target in sorted(self._snapshots):
-            for index, task in enumerate(self._snapshots[target][1]):
-                if task.task_id:
-                    key = ("task", task.task_id, "")
-                elif task.project_id:
-                    key = ("legacy", target.isoformat(), str(index))
-                else:
-                    continue
-                latest[key] = ProjectTaskEntry(target, index, task)
-        self._latest = latest
-        self._dirty = False
+        snapshots = (
+            (target, self._snapshots[target][1])
+            for target in sorted(self._snapshots)
+        )
+        self._latest = _latest_entries(snapshots)
 
     def for_project(self, project_id: str) -> list[ProjectTaskEntry]:
         self._sync()
-        return sorted(
-            (entry for entry in self._latest.values()
-             if entry.task.project_id == project_id),
-            key=lambda entry: (entry.target, entry.task_index),
-            reverse=True,
-        )
+        return _entries_for_project(self._latest, project_id)
