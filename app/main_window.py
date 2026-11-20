@@ -102,6 +102,7 @@ class MainWindow(QMainWindow):
         self.paths = paths
         self.current_date = date.today()
         self._legacy_previous_done: list[Task] = []
+        self._loaded_date = False
 
         self._theme_actions: dict[str, QAction] = {}
         self._input_method_actions: dict[str, QAction] = {}
@@ -212,7 +213,11 @@ class MainWindow(QMainWindow):
 
     def _work_view_changed(self, index: int) -> None:
         if index == 1:
-            self.today_editor.save_current()
+            if not self.today_editor.save_before_navigation():
+                self.work_view_tabs.blockSignals(True)
+                self.work_view_tabs.setCurrentIndex(0)
+                self.work_view_tabs.blockSignals(False)
+                return
             self.project_workspace.refresh()
         else:
             self.today_editor.reload_projects()
@@ -221,18 +226,19 @@ class MainWindow(QMainWindow):
 
     def _new_project_task(self, project_id: str) -> None:
         # 새 업무는 오늘의 기존 일일 Markdown 문서에 저장한다.
+        if not self.load_date(date.today()):
+            return
         self.work_view_tabs.setCurrentIndex(0)
-        self.today_editor.save_current()
-        self.load_date(date.today())
         self.today_editor.reload_projects()
         self.today_editor.prepare_new_task(project_id)
+        self._refresh_filters(select_date=date.today())
 
     def _open_project_task(self, entry: ProjectTaskEntry) -> None:
+        if not self.load_date(entry.target):
+            return
         self.work_view_tabs.setCurrentIndex(0)
-        self.today_editor.save_current()
         self.search_input.clear()
         self._refresh_filters(select_date=entry.target)
-        self.load_date(entry.target)
         self.today_editor.select_task(entry.task_index)
 
     def _build_memo_workspace(self) -> None:
@@ -510,12 +516,18 @@ class MainWindow(QMainWindow):
         self.today_editor.set_title(today_title)
 
     def open_today(self) -> None:
+        if not self.load_date(date.today()):
+            return
         self.search_input.clear()
-        self.store.ensure_day(date.today())
         self._refresh_filters(select_date=date.today())
-        self.load_date(date.today())
 
-    def load_date(self, target: date) -> None:
+    def load_date(self, target: date) -> bool:
+        if (
+            self._loaded_date
+            and target != self.current_date
+            and not self.today_editor.save_before_navigation()
+        ):
+            return False
         document = (
             self.store.ensure_day(target)
             if target == date.today()
@@ -528,6 +540,8 @@ class MainWindow(QMainWindow):
         self._legacy_previous_done = document.previous_done
         self.today_editor.reload_projects()
         self.today_editor.set_tasks(document.today_tasks)
+        self._loaded_date = True
+        return True
 
     def persist_current(self) -> None:
         document = DailyDocument(
@@ -702,8 +716,8 @@ class MainWindow(QMainWindow):
         if item is None:
             return
         raw = item.data(Qt.ItemDataRole.UserRole)
-        if raw:
-            self.load_date(date.fromisoformat(raw))
+        if raw and not self.load_date(date.fromisoformat(raw)):
+            self._refresh_filters(select_date=self.current_date)
 
 
 def _configure_application_metadata(app: QApplication) -> None:
