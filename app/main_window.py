@@ -522,11 +522,7 @@ class MainWindow(QMainWindow):
         self._refresh_filters(select_date=date.today())
 
     def load_date(self, target: date) -> bool:
-        if (
-            self._loaded_date
-            and target != self.current_date
-            and not self.today_editor.save_before_navigation()
-        ):
+        if self._loaded_date and not self.today_editor.save_before_navigation():
             return False
         document = (
             self.store.ensure_day(target)
