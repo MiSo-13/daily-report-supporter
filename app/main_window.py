@@ -230,6 +230,8 @@ class MainWindow(QMainWindow):
     def _open_project_task(self, entry: ProjectTaskEntry) -> None:
         self.work_view_tabs.setCurrentIndex(0)
         self.today_editor.save_current()
+        self.search_input.clear()
+        self._refresh_filters(select_date=entry.target)
         self.load_date(entry.target)
         self.today_editor.select_task(entry.task_index)
 
