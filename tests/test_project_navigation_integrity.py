@@ -79,7 +79,7 @@ def test_today_reload_keeps_unsaved_task_and_existing_config(tmp_path):
     window = MainWindow(data_root=tmp_path)
     try:
         config_file = tmp_path / "config" / "settings.json"
-        original_settings = config_file.read_bytes()
+        original_settings = config_file.read_bytes() if config_file.exists() else None
         editor = window.today_editor
         editor.prepare_new_task(project.id)
         editor.title_input.setText("오늘의 새 업무")
@@ -87,7 +87,7 @@ def test_today_reload_keeps_unsaved_task_and_existing_config(tmp_path):
         tasks = window.store.load(date.today()).today_tasks
         assert any(t.title == "오늘의 새 업무"
                    and t.project_id == project.id and t.task_id for t in tasks)
-        assert config_file.read_bytes() == original_settings
+        assert (config_file.read_bytes() if config_file.exists() else None) == original_settings
     finally:
         window.close()
 
