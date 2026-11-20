@@ -117,10 +117,14 @@ class ProjectWorkspace:
         self.search_input.setPlaceholderText("프로젝트 검색")
         self.search_input.setClearButtonEnabled(True)
         self.show_archived = QCheckBox("보관된 프로젝트 표시")
+        self.project_sort = QComboBox()
+        self.project_sort.addItems(("이름순", "이름 역순"))
+        self.project_sort.setObjectName("projectSort")
         self.project_list = QListWidget()
         self.project_list.setObjectName("projectList")
         side_layout.addWidget(self.search_input)
         side_layout.addWidget(self.show_archived)
+        side_layout.addWidget(self.project_sort)
         side_layout.addWidget(self.project_list, 1)
 
         self.panel = QWidget(parent)
@@ -164,11 +168,17 @@ class ProjectWorkspace:
         for status in ("전체", "예정", "진행중", "완료", "보류", "취소"):
             self.task_status_filter.addItem(status)
         self.task_status_filter.setObjectName("projectTaskStatusFilter")
+        self.task_sort = QComboBox()
+        self.task_sort.addItems(("최신순", "오래된순", "제목순", "상태순"))
+        self.task_sort.setObjectName("projectTaskSort")
         task_header.addWidget(self.new_task_button)
         content_layout.addLayout(task_header)
         filters = QHBoxLayout()
         filters.addWidget(self.task_search, 1)
         filters.addWidget(self.task_status_filter)
+        filters.addWidget(self.task_sort)
+        self.clear_filters_button = QPushButton("초기화")
+        filters.addWidget(self.clear_filters_button)
         content_layout.addLayout(filters)
         self.task_list = QListWidget()
         self.task_list.setObjectName("projectTaskList")
@@ -178,6 +188,9 @@ class ProjectWorkspace:
         )
         self.task_placeholder.setWordWrap(True)
         content_layout.addWidget(self.task_placeholder)
+        self.no_results_label = QLabel("검색 조건에 맞는 업무가 없습니다.")
+        self.no_results_label.setWordWrap(True)
+        content_layout.addWidget(self.no_results_label)
 
         self.add_button.clicked.connect(self.create_project)
         self.edit_button.clicked.connect(self.edit_project)
@@ -187,6 +200,9 @@ class ProjectWorkspace:
         self.task_list.itemDoubleClicked.connect(self._open_project_task)
         self.task_search.textChanged.connect(self._render_tasks)
         self.task_status_filter.currentIndexChanged.connect(self._render_tasks)
+        self.task_sort.currentIndexChanged.connect(self._render_tasks)
+        self.clear_filters_button.clicked.connect(self._clear_task_filters)
+        self.project_sort.currentIndexChanged.connect(self.refresh)
         self.search_input.textChanged.connect(self.refresh)
         self.show_archived.toggled.connect(self.refresh)
         self.project_list.currentItemChanged.connect(self._selected)
@@ -198,9 +214,14 @@ class ProjectWorkspace:
         self.project_list.blockSignals(True)
         self.project_list.clear()
         selected_item: QListWidgetItem | None = None
-        for project in self.store.list_projects(
+        projects = self.store.list_projects(
             include_archived=self.show_archived.isChecked()
-        ):
+        )
+        projects.sort(
+            key=lambda project: (project.name.casefold(), project.id),
+            reverse=self.project_sort.currentIndex() == 1,
+        )
+        for project in projects:
             if keyword and keyword not in (
                 project.name + " " + project.description
             ).casefold():
@@ -264,30 +285,77 @@ class ProjectWorkspace:
         self.task_list.setEnabled(project is not None)
         self.task_search.setEnabled(project is not None)
         self.task_status_filter.setEnabled(project is not None)
+        self.task_sort.setEnabled(project is not None)
+        self.clear_filters_button.setEnabled(project is not None)
         self._render_tasks()
+
+    def _clear_task_filters(self) -> None:
+        self.task_search.clear()
+        self.task_status_filter.setCurrentIndex(0)
+        self.task_sort.setCurrentIndex(0)
 
     def _render_tasks(self, *_args: object) -> None:
         keyword = self.task_search.text().strip().casefold()
         status = self.task_status_filter.currentText()
+        selected = self.task_list.currentItem()
+        selected_index = (
+            selected.data(Qt.ItemDataRole.UserRole) if selected is not None else None
+        )
+        matching = [
+            (index, entry)
+            for index, entry in enumerate(self._task_entries)
+            if (status == "전체" or entry.task.status.value == status)
+            and (
+                not keyword
+                or keyword in (
+                    entry.task.title + " " + " ".join(entry.task.details)
+                ).casefold()
+            )
+        ]
+        sort_mode = self.task_sort.currentIndex()
+        if sort_mode == 1:
+            matching.sort(key=lambda pair: (
+                pair[1].target, pair[1].task_index, pair[0]
+            ))
+        elif sort_mode == 2:
+            matching.sort(key=lambda pair: (
+                pair[1].task.title.casefold(), -pair[1].target.toordinal(),
+                pair[1].task_index, pair[0],
+            ))
+        elif sort_mode == 3:
+            status_order = {"진행중": 0, "예정": 1, "보류": 2, "완료": 3, "취소": 4}
+            matching.sort(key=lambda pair: (
+                status_order.get(pair[1].task.status.value, 5),
+                -pair[1].target.toordinal(), pair[1].task_index, pair[0],
+            ))
+        else:
+            matching.sort(key=lambda pair: (
+                pair[1].target, pair[1].task_index, pair[0]
+            ), reverse=True)
+
         self.task_list.clear()
-        for index, entry in enumerate(self._task_entries):
+        selected_item = None
+        for index, entry in matching:
             task = entry.task
-            if status != "전체" and task.status.value != status:
-                continue
-            if keyword and keyword not in (
-                task.title + " " + " ".join(task.details)
-            ).casefold():
-                continue
             item = QListWidgetItem(
                 f"[{task.status.value}] {task.title}  ·  {entry.target:%Y-%m-%d}"
             )
             item.setData(Qt.ItemDataRole.UserRole, index)
             self.task_list.addItem(item)
+            if index == selected_index:
+                selected_item = item
+        if selected_item is not None:
+            self.task_list.setCurrentItem(selected_item)
         self.task_count_label.setText(
-            f"소속 업무 ({self.task_list.count()}/{len(self._task_entries)})"
+            f"소속 업무 ({len(matching)}/{len(self._task_entries)})"
         )
         self.task_placeholder.setVisible(
             self._has_selected_project and not self._task_entries
+        )
+        self.no_results_label.setVisible(
+            self._has_selected_project
+            and bool(self._task_entries)
+            and not matching
         )
 
     def _create_project_task(self) -> None:
