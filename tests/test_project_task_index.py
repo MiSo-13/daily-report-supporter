@@ -108,19 +108,29 @@ def test_ui_refresh_uses_cache_without_reloading_unchanged_reports(tmp_path, mon
         projects, QWidget(), lambda _msg: None, report_store=reports
     )
     assert len(calls) == 1
+
+    def select_project(project_id):
+        for row in range(workspace.project_list.count()):
+            item = workspace.project_list.item(row)
+            if item.data(256) == project_id:
+                workspace.project_list.setCurrentRow(row)
+                return
+        raise AssertionError(f"프로젝트를 찾을 수 없음: {project_id}")
+
     workspace.refresh()
-    workspace.project_list.setCurrentRow(1)
-    workspace.project_list.setCurrentRow(0)
+    select_project(first.id)
+    select_project(second.id)
     assert len(calls) == 1
     assert reports.path_for(target).read_bytes() == original
 
     _save(reports, target,
           Task("이동한 업무", task_id="a", project_id=second.id),
           Task("둘 업무", task_id="b", project_id=second.id))
+    select_project(first.id)
     workspace.refresh()
     assert len(calls) == 2
     assert workspace.task_list.count() == 0
-    workspace.project_list.setCurrentRow(1)
+    select_project(second.id)
     assert workspace.task_list.count() == 2
 
 
