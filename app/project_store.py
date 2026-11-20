@@ -117,6 +117,7 @@ class ProjectStore:
             ],
         }
         payload = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+        # 임시 파일을 교체해 저장 중 종료되어도 기존 파일을 보호한다.
         temporary_path: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(
