@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import date
 from html import escape
 
 from PyQt6.QtCore import Qt
@@ -23,6 +24,8 @@ from PyQt6.QtWidgets import (
 
 from app.models import Project
 from app.project_store import ProjectStore
+from app.markdown_store import MarkdownStore
+from app.project_tasks import ProjectTaskEntry, project_tasks
 
 
 class ProjectDialog(QDialog):
@@ -83,10 +86,17 @@ class ProjectWorkspace:
         store: ProjectStore,
         parent: QWidget,
         notify: Callable[[str], None],
+        report_store: MarkdownStore | None = None,
+        open_task: Callable[[ProjectTaskEntry], None] | None = None,
+        new_task: Callable[[str], None] | None = None,
     ) -> None:
         self.store = store
         self.parent = parent
         self.notify = notify
+        self.report_store = report_store
+        self.open_task = open_task
+        self.new_task = new_task
+        self._task_entries: list[ProjectTaskEntry] = []
         self.selected_id: str | None = None
 
         self.sidebar = QWidget(parent)
@@ -134,17 +144,29 @@ class ProjectWorkspace:
         content_layout.addWidget(self.description_label)
         content_layout.addWidget(self.state_label)
         content_layout.addLayout(buttons)
+        task_header = QHBoxLayout()
+        self.task_count_label = QLabel("소속 업무")
+        self.new_task_button = QPushButton("+ 업무 추가")
+        self.new_task_button.setObjectName("primaryButton")
+        task_header.addWidget(self.task_count_label)
+        task_header.addStretch(1)
+        task_header.addWidget(self.new_task_button)
+        content_layout.addLayout(task_header)
+        self.task_list = QListWidget()
+        self.task_list.setObjectName("projectTaskList")
+        content_layout.addWidget(self.task_list, 1)
         self.task_placeholder = QLabel(
-            "프로젝트별 하위 업무 목록은 다음 개발 단계에서 제공됩니다."
+            "프로젝트에 연결된 업무가 없습니다. 업무를 추가하거나 기존 업무에서 프로젝트를 선택하세요."
         )
         self.task_placeholder.setWordWrap(True)
         content_layout.addWidget(self.task_placeholder)
-        content_layout.addStretch(1)
 
         self.add_button.clicked.connect(self.create_project)
         self.edit_button.clicked.connect(self.edit_project)
         self.archive_button.clicked.connect(self.archive_project)
         self.restore_button.clicked.connect(self.restore_project)
+        self.new_task_button.clicked.connect(self._create_project_task)
+        self.task_list.itemDoubleClicked.connect(self._open_project_task)
         self.search_input.textChanged.connect(self.refresh)
         self.show_archived.toggled.connect(self.refresh)
         self.project_list.currentItemChanged.connect(self._selected)
@@ -202,7 +224,35 @@ class ProjectWorkspace:
         self.edit_button.setEnabled(project is not None)
         self.archive_button.setVisible(bool(project and not project.archived))
         self.restore_button.setVisible(bool(project and project.archived))
-        self.task_placeholder.setVisible(project is not None)
+        self._reload_tasks(project)
+
+    def _reload_tasks(self, project: Project | None) -> None:
+        self._task_entries = (
+            project_tasks(self.report_store, project.id)
+            if project is not None and self.report_store is not None else []
+        )
+        self.task_list.clear()
+        for entry in self._task_entries:
+            task = entry.task
+            item = QListWidgetItem(
+                f"[{task.status.value}] {task.title}  ·  {entry.target:%Y-%m-%d}"
+            )
+            item.setData(Qt.ItemDataRole.UserRole, entry.task_index)
+            self.task_list.addItem(item)
+        self.task_count_label.setText(f"소속 업무 ({len(self._task_entries)})")
+        self.new_task_button.setEnabled(bool(project and not project.archived))
+        self.task_list.setEnabled(project is not None)
+        self.task_placeholder.setVisible(project is not None and not self._task_entries)
+
+    def _create_project_task(self) -> None:
+        project = self.store.get(self.selected_id) if self.selected_id else None
+        if project is not None and not project.archived and self.new_task:
+            self.new_task(project.id)
+
+    def _open_project_task(self, item: QListWidgetItem) -> None:
+        row = self.task_list.row(item)
+        if self.open_task is not None and 0 <= row < len(self._task_entries):
+            self.open_task(self._task_entries[row])
 
     def create_project(self) -> None:
         dialog = ProjectDialog(self.parent)
